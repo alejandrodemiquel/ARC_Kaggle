@@ -380,12 +380,16 @@ class Matrix():
         # Check if it's a grid and the dimensions of the cells
         self.isGrid = False
         if detectGrid:
-            for fc in set(self.frontierColors):
-                possibleGrid = [f for f in self.frontiers if f.color==fc]
-                self.grid = Grid(self.m, possibleGrid)
-                if self.grid.allCellsSameShape:
-                    self.isGrid = True
-                    break            
+            if len(set(self.frontierColors)) == 1:
+                self.grid = Grid(self.m, self.frontiers)
+                self.isGrid = True
+            else:
+                for fc in set(self.frontierColors):
+                    possibleGrid = [f for f in self.frontiers if f.color==fc]
+                    self.grid = Grid(self.m, possibleGrid)
+                    if self.grid.allCellsSameShape:
+                        self.isGrid = True
+                        break            
         
         # Symmetries
         self.lrSymmetric = np.all(np.fliplr(self.m) == self.m)
