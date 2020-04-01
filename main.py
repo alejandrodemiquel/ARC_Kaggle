@@ -965,7 +965,7 @@ class Solution():
 
 solved = []
 
-for idx in tqdm(range(800), position=0, leave=True): 
+for idx in tqdm(range(50), position=0, leave=True): 
     i = index[idx]
     task = allTasks[i]
     t = Task.Task(task, i)
@@ -992,7 +992,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             cTask["test"][s]["output"] = m.tolist()
         t2 = Task.Task(cTask, i)
     else:
-        continue
+        #continue
         t2 = t
         cTask = copy.deepcopy(task)
         
@@ -1038,7 +1038,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -1055,7 +1055,8 @@ for idx in tqdm(range(800), position=0, leave=True):
                         position = cells[cellI][cellJ][1]
                         for k,l in np.ndindex(cellShape):
                             realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
-            plot_sample(t.testSamples[s], realX)
+                x = realX
+            #plot_sample(t.testSamples[s], x)
             #if Utils.correctCells(x, s.outMatrix.m) == 0:
             #    plot_task2(task)
             #    solved.append(Solution(i, c.ops))

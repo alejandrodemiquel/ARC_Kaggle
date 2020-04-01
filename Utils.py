@@ -895,16 +895,16 @@ def multiplyPixelsAndAnd(matrix, factor, falseColor):
 # %% Operations considering all submatrices of a grid
 
 def pixelwiseAndInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
-    matrices = [c[0].m for c in matrix.grid.cells]
+    matrices = [c[0].m for c in matrix.grid.cellList]
     return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
 
 def pixelwiseOrInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
-    matrices = [c[0].m for c in matrix.grid.cells]
+    matrices = [c[0].m for c in matrix.grid.cellList]
     return pixelwiseOr(matrices, falseColor, targetColor, trueColor)
 
 def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
-    m1 = matrix.grid.cells[0][0].m.copy()
-    m2 = matrix.grid.cells[1][0].m.copy()
+    m1 = matrix.grid.cellList[0][0].m.copy()
+    m2 = matrix.grid.cellList[1][0].m.copy()
     return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor)
 
 
@@ -916,7 +916,7 @@ def getPossibleOperations(t, c):
     candTask = c.t
     x = [] # List to be returned
     directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
-    """
+
     ###########################################################################
     # sameIOShapes
     if candTask.sameIOShapes:
@@ -1049,7 +1049,7 @@ def getPossibleOperations(t, c):
                              isBorder=False))
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              isBorder=True))
-            ""
+            """
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              biggerThan=1))
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
@@ -1058,7 +1058,7 @@ def getPossibleOperations(t, c):
                              biggerThan=3))
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              smallerThan=5))
-            ""
+            """
             for bs in ["big", "small"]:
                 x.append(partial(changeShape, inColor=cc[0], outColor=cc[1],\
                                  bigOrSmall=bs, isBorder=False))
@@ -1096,7 +1096,6 @@ def getPossibleOperations(t, c):
         for c in candTask.commonSampleColors:
             x.append(partial(multiplyPixelsAndAnd, factor=candTask.inShapeFactor,\
                              falseColor=c))
-    """
             
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         # Pixelwise And

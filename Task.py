@@ -517,6 +517,7 @@ class Sample():
 # %% Class Task
 class Task():
     def __init__(self, t, i):
+        self.task = t
         self.index = i
         
         self.trainSamples = [Sample(s) for s in t['train']]
