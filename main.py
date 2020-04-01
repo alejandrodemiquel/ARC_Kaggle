@@ -965,7 +965,7 @@ class Solution():
 
 solved = []
 
-for idx in tqdm(range(50), position=0, leave=True): 
+for idx in tqdm(range(800), position=0, leave=True): 
     i = index[idx]
     task = allTasks[i]
     t = Task.Task(task, i)
@@ -1057,7 +1057,8 @@ for idx in tqdm(range(50), position=0, leave=True):
                             realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
                 x = realX
             #plot_sample(t.testSamples[s], x)
-            #if Utils.correctCells(x, s.outMatrix.m) == 0:
-            #    plot_task2(task)
+            if Utils.correctCells(x, t.testSamples[s].outMatrix.m) == 0:
+                plot_task2(task)
+                break
             #    solved.append(Solution(i, c.ops))
             #    break

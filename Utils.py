@@ -696,8 +696,8 @@ def moveAllShapesToClosest(matrix, colorToMove, background, until):
             m = moveShapeToClosest(m, s, background, until)
     return m
 
-def connectPixels(matrix, pixelColor, connColor, unchangedColors):
-    m = matrix.m.copy()
+def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()):
+    m = matrix.copy()
     for i in range(m.shape[0]):
         lowLimit = 0
         while lowLimit < m.shape[1] and m[i, lowLimit] != pixelColor:
@@ -722,6 +722,16 @@ def connectPixels(matrix, pixelColor, connColor, unchangedColors):
                 if m[i,j] != pixelColor and m[i,j] not in unchangedColors:
                     m[i,j] = connColor
  
+    return m
+
+def connectAnyPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()):
+    m = matrix.m.copy()
+    if pixelColor==None and connColor==None:
+        for c in matrix.colors - set([matrix.backgroundColor]):
+            m = connectPixels(m, c, c)
+        return m
+    else:
+        m = connectPixels(m, pixelColor, connColor, unchangedColors)
     return m
 
 def rotate(matrix, angle):
@@ -920,6 +930,7 @@ def getPossibleOperations(t, c):
     ###########################################################################
     # sameIOShapes
     if candTask.sameIOShapes:
+        """
         #######################################################################
         # ColorMap
         ncc = len(candTask.colorChanges)
@@ -1030,7 +1041,8 @@ def getPossibleOperations(t, c):
                     
         #######################################################################
         # Other sameIOShapes functions
-        
+        """
+        x.append(partial(connectAnyPixels))
         if hasattr(candTask, "unchangedColors"):
             uc = candTask.unchangedColors
         else:
@@ -1041,15 +1053,15 @@ def getPossibleOperations(t, c):
             tuc = set()
         for pc in candTask.colors - candTask.commonChangedInColors:
             for cc in candTask.colors - tuc:
-                x.append(partial(connectPixels, pixelColor=pc, \
+                x.append(partial(connectAnyPixels, pixelColor=pc, \
                                  connColor=cc, unchangedColors=uc))
-        
+        """
         for cc in candTask.commonColorChanges:
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              isBorder=False))
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              isBorder=True))
-            """
+            ""
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              biggerThan=1))
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
@@ -1058,7 +1070,7 @@ def getPossibleOperations(t, c):
                              biggerThan=3))
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              smallerThan=5))
-            """
+            ""
             for bs in ["big", "small"]:
                 x.append(partial(changeShape, inColor=cc[0], outColor=cc[1],\
                                  bigOrSmall=bs, isBorder=False))
@@ -1126,5 +1138,6 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
+        """
             
     return x
