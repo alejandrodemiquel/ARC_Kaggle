@@ -971,31 +971,31 @@ for idx in tqdm(range(800), position=0, leave=True):
     t = Task.Task(task, i)
     
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
+        cTask = copy.deepcopy(task)
         for s in range(t.nTrain):
-            m = np.zeros(t.trainSamples[s].inMatrix.grid.shape)
+            m = np.zeros(t.trainSamples[s].inMatrix.grid.shape, dtype=np.uint8)
             for i,j in np.ndindex(m.shape):
-                m[i,j] = next(iter(s.inMatrix.grid.cells[i][j][0].colors))
-            task["train"]["s"]["input"] = m.tolist()
-            m = np.zeros(t.trainSamples[s].outMatrix.grid.shape)
+                m[i,j] = next(iter(t.trainSamples[s].inMatrix.grid.cells[i][j][0].colors))
+            cTask["train"][s]["input"] = m.tolist()
+            m = np.zeros(t.trainSamples[s].outMatrix.grid.shape, dtype=np.uint8)
             for i,j in np.ndindex(m.shape):
-                m[i,j] = next(iter(s.outMatrix.grid.cells[i][j][0].colors))
-            task["train"]["s"]["output"] = m.tolist()
+                m[i,j] = next(iter(t.trainSamples[s].outMatrix.grid.cells[i][j][0].colors))
+            cTask["train"][s]["output"] = m.tolist()
         for s in range(t.nTest):
-            m = np.zeros(t.testSamples[s].inMatrix.grid.shape)
+            m = np.zeros(t.testSamples[s].inMatrix.grid.shape, dtype=np.uint8)
             for i,j in np.ndindex(m.shape):
-                m[i,j] = next(iter(s.inMatrix.grid.cells[i][j][0].colors))
-            task["test"]["s"]["input"] = m.tolist()
-            m = np.zeros(t.testSamples[s].outMatrix.grid.shape)
+                m[i,j] = next(iter(t.testSamples[s].inMatrix.grid.cells[i][j][0].colors))
+            cTask["test"][s]["input"] = m.tolist()
+            m = np.zeros(t.testSamples[s].outMatrix.grid.shape, dtype=np.uint8)
             for i,j in np.ndindex(m.shape):
-                m[i,j] = next(iter(s.outMatrix.grid.cells[i][j][0].colors))
-            task["test"]["s"]["output"] = m.tolist()
-        t2 = Task.Task(task, i)
+                m[i,j] = next(iter(t.testSamples[s].outMatrix.grid.cells[i][j][0].colors))
+            cTask["test"][s]["output"] = m.tolist()
+        t2 = Task.Task(cTask, i)
     else:
+        continue
         t2 = t
+        cTask = copy.deepcopy(task)
         
-        
-    cTask = copy.deepcopy(task)
-
     c = Candidate([], [task])
     c.t = t2
     b3c = Best3Candidates(c, c, c)
@@ -1038,7 +1038,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -1051,12 +1051,12 @@ for idx in tqdm(range(800), position=0, leave=True):
                 cells = t.testSamples[s].inMatrix.grid.cells
                 for cellI in range(len(cells)):
                     for cellJ in range(len(cells[0])):
-                        cellShape = c[0].shape
-                        position = c[1]
+                        cellShape = cells[cellI][cellJ][0].shape
+                        position = cells[cellI][cellJ][1]
                         for k,l in np.ndindex(cellShape):
-                            x[position[0]+k, position[1]+l] = x[cellI,cellJ]
-            #plot_sample(s, x)
-            if Utils.correctCells(x, s.outMatrix.m) == 0:
-                plot_task2(task)
+                            realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
+            plot_sample(t.testSamples[s], realX)
+            #if Utils.correctCells(x, s.outMatrix.m) == 0:
+            #    plot_task2(task)
             #    solved.append(Solution(i, c.ops))
             #    break
