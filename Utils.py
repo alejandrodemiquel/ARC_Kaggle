@@ -384,9 +384,15 @@ def trainLinearShapeModel(t):
     and in the output, and in the exact same positions.
     This model predicts the color of the shape in the output.
     """
-    rel, invRel = relDicts(list(t.colors))
-    nInFeatures = t.nColors + 5
-    model = Models.SimpleLinearModel(nInFeatures, t.nColors)
+    inColors = set.union(*t.changedInColors+t.changedOutColors) - t.unchangedColors
+    colors = list(inColors) + list(set.union(*t.changedInColors+t.changedOutColors) - inColors)
+    rel, invRel = relDicts(list(colors))
+    shapeCellNumbers = t.shapeCellNumbers
+    _,nCellsRel = relDicts(shapeCellNumbers)
+    # inFeatures: [colors that change], [number of pixels]+1, [number of holes] (0-4),
+    # isSquare, isRectangle, isBorder
+    nInFeatures = len(inColors) + len(shapeCellNumbers) + 1 + 5 + 3
+    model = Models.SimpleLinearModel(nInFeatures, len(colors))
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     num_epochs = 80
@@ -400,37 +406,49 @@ def trainLinearShapeModel(t):
             loss = 0.0
             for s,label in trainShapes:
                 inFeatures = torch.zeros(nInFeatures)
-                inFeatures[invRel[s.color]] = 1
-                inFeatures[t.nColors] = s.nCells
-                inFeatures[t.nColors+1] = int(s.isSquare)
-                inFeatures[t.nColors+2] = int(s.isRectangle)
-                inFeatures[t.nColors+3] = s.isBorder
-                inFeatures[t.nColors+4] = s.nHoles
-                #inFeatures[t.nColors+5] = s.position[0].item()
-                #inFeatures[t.nColors+6] = s.position[1].item()
-                y = torch.tensor(invRel[label]).unsqueeze(0).long()
-                x = inFeatures.unsqueeze(0).float()
-                y_pred = model(x)
-                loss += criterion(y_pred, y)
+                if s.color in inColors:
+                    inFeatures[invRel[s.color]] = 1
+                    inFeatures[len(inColors)+nCellsRel[s.nCells]] = 1
+                    inFeatures[len(inColors)+len(shapeCellNumbers)+1+min(s.nHoles, 4)] = 1
+                    inFeatures[nInFeatures-1] = int(s.isSquare)
+                    inFeatures[nInFeatures-2] = int(s.isRectangle)
+                    inFeatures[nInFeatures-3] = s.isBorder
+                    #inFeatures[nInFeatures-4] = s.nHoles
+                    #inFeatures[t.nColors+5] = s.position[0].item()
+                    #inFeatures[t.nColors+6] = s.position[1].item()
+                    y = torch.tensor(invRel[label]).unsqueeze(0).long()
+                    x = inFeatures.unsqueeze(0).float()
+                    y_pred = model(x)
+                    loss += criterion(y_pred, y)
+            if loss == 0:
+                continue
             loss.backward()
             optimizer.step()
+            for p in model.parameters():
+                p.data.clamp_(min=0.05, max=1)
     return model
 
 @torch.no_grad()
-def predictLinearShapeModel(matrix, model, colors):
-    rel, invRel = relDicts(colors) # list(t.colors)
-    nColors = len(colors)
-    nInFeatures = nColors + 5
+def predictLinearShapeModel(matrix, model, colors, unchangedColors, shapeCellNumbers):
+    inColors = colors - unchangedColors
+    colors = list(inColors) + list(colors - inColors)
+    rel, invRel = relDicts(list(colors))
+    _,nCellsRel = relDicts(shapeCellNumbers)
+    nInFeatures = len(inColors) + len(shapeCellNumbers) + 1 + 5 + 3
     pred = matrix.m.copy()
     for shape in matrix.shapes:
-        if shape.color in colors:
+        if shape.color in inColors:
             inFeatures = torch.zeros(nInFeatures)
             inFeatures[invRel[shape.color]] = 1
-            inFeatures[nColors] = shape.nCells
-            inFeatures[nColors+1] = int(shape.isSquare)
-            inFeatures[nColors+2] = int(shape.isRectangle)
-            inFeatures[nColors+3] = shape.isBorder
-            inFeatures[nColors+4] = shape.nHoles
+            if shape.nCells not in nCellsRel.keys():
+                inFeatures[len(inColors)+len(shapeCellNumbers)] = 1
+            else:
+                inFeatures[len(inColors)+nCellsRel[shape.nCells]] = 1
+            inFeatures[len(inColors)+len(shapeCellNumbers)+1+min(shape.nHoles, 4)] = 1
+            inFeatures[nInFeatures-1] = int(shape.isSquare)
+            inFeatures[nInFeatures-2] = int(shape.isRectangle)
+            inFeatures[nInFeatures-3] = shape.isBorder
+            #inFeatures[nInFeatures-4] = shape.nHoles
             #inFeatures[nColors+5] = shape.position[0].item()
             #inFeatures[nColors+6] = shape.position[1].item()
             x = inFeatures.unsqueeze(0).float()
@@ -470,9 +488,10 @@ def changeColorShape(matrix, shape, color):
     """
     if shape == False:
         return matrix
+    m = matrix.copy()
     for c in shape.cells:
-        matrix[tuple(map(operator.add, c, shape.position))] = color
-    return matrix
+        m[tuple(map(operator.add, c, shape.position))] = color
+    return m
 
 def changeShape(m, inColor, outColor, bigOrSmall = False, isBorder = True):
     return changeColorShape(m.m.copy(), m.getShape(inColor, bigOrSmall, isBorder), outColor)
@@ -930,35 +949,24 @@ def getPossibleOperations(t, c):
     ###########################################################################
     # sameIOShapes
     if candTask.sameIOShapes:
-        """
         #######################################################################
         # ColorMap
         ncc = len(candTask.colorChanges)
-        if len(set([cc[0] for cc in candTask.colorChanges])) == ncc and\
-        len(set([cc[1] for cc in candTask.colorChanges])) == ncc and ncc != 0:
+        if len(set([cc[0] for cc in candTask.colorChanges])) == ncc and ncc != 0:
             x.append(partial(colorMap, cMap=dict(candTask.colorChanges)))
             
         #######################################################################
         # For LinearShapeModel we need to have the same shapes in the input
         # and in the output, and in the exact same positions.
         # This model predicts the color of the shape in the output.
-        isGood = True
-        for s in candTask.trainSamples:
-            nShapes = s.inMatrix.nShapes
-            if s.outMatrix.nShapes != nShapes:
-                isGood = False
-                break
-            for shapeI in range(nShapes):
-                if not s.inMatrix.shapes[shapeI].hasSameShape(s.outMatrix.shapes[shapeI]):
-                    isGood = False
-                    break
-            if not isGood:
-                break
-        if isGood:
+        
+        if candTask.onlyShapeColorChanges:
             if all(["predictLinearShapeModel" not in str(op.func) for op in c.ops]):
                 model = trainLinearShapeModel(candTask)
                 x.append(partial(predictLinearShapeModel, model=model,\
-                                 colors=list(candTask.colors)))
+                                 colors=set.union(*candTask.changedInColors+candTask.changedOutColors), \
+                                 unchangedColors=candTask.unchangedColors, \
+                                 shapeCellNumbers=candTask.shapeCellNumbers))
             
             # Other deterministic functions that change the color of shapes.
             for cc in candTask.commonColorChanges:
@@ -977,6 +985,7 @@ def getPossibleOperations(t, c):
         #######################################################################
         # CNNs
         
+        """
         # TODO Delete the if once issue with task 3 is solved
         if candTask.sameNSampleColors:
             x.append(getBestCNN(candTask))
@@ -1041,7 +1050,6 @@ def getPossibleOperations(t, c):
                     
         #######################################################################
         # Other sameIOShapes functions
-        """
         x.append(partial(connectAnyPixels))
         if hasattr(candTask, "unchangedColors"):
             uc = candTask.unchangedColors
@@ -1055,21 +1063,20 @@ def getPossibleOperations(t, c):
             for cc in candTask.colors - tuc:
                 x.append(partial(connectAnyPixels, pixelColor=pc, \
                                  connColor=cc, unchangedColors=uc))
-        """
         for cc in candTask.commonColorChanges:
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              isBorder=False))
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              isBorder=True))
             ""
-            x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-                             biggerThan=1))
-            x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-                             biggerThan=2))
-            x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-                             biggerThan=3))
-            x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-                             smallerThan=5))
+            #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
+            #                 biggerThan=1))
+            #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
+            #                 biggerThan=2))
+            #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
+            #                 biggerThan=3))
+            #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
+            #                 smallerThan=5))
             ""
             for bs in ["big", "small"]:
                 x.append(partial(changeShape, inColor=cc[0], outColor=cc[1],\

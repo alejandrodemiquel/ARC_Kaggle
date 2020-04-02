@@ -144,13 +144,18 @@ class Shape:
         self.totalSymmetric = self.lrSymmetric and self.udSymmetric and \
         self.d1Symmetric and self.d2Symmetric
     
-    def hasSameShape(self, other, sameColor=False, samePosition=False):
+    def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
         if sameColor:
             if self.color != other.color:
                 return False
         if samePosition:
             if self.position != other.position:
                 return False
+        if rotation:
+            m1 = self.shapeDummyMatrix()
+            m2 = other.shapeDummyMatrix()
+            if any([np.all(m1==np.rot90(m2,x)) for x in range(4)]):
+                return True
         if self.xLen != other.xLen or self.yLen != other.yLen or np.any(self.cells != other.cells):
             return False
         return True
@@ -183,6 +188,12 @@ class Shape:
         m = np.full((self.xLen+1, self.yLen+1), -1, dtype=np.uint8)
         for c in self.cells:
             m[c] = self.color
+        return m
+    
+    def shapeDummyMatrix(self):
+        m = np.zeros((self.xLen+1, self.yLen+1), dtype=np.uint8)
+        for c in self.cells:
+            m[c] = 1
         return m
 
 def detectShapes(x, diagonals=False):
@@ -302,11 +313,6 @@ class Loop(Shape):
 class Frame(Loop):
     def __init__(self, cells, color, isBorder):
         super().__init__(cells, color, isBorder)
- 
-# TODO       
-#class Grid(Shape):
-#    def __init__(self, cells, color, isBorder):
-#        super().__init__(cells, color, isBorder)
         
 class GeneralShape(Shape):
     def __init__(self, cells, color, isBorder):
@@ -652,6 +658,28 @@ class Task():
             self.gridCellsHaveOneColor = all([s.gridCellsHaveOneColor for s in self.trainSamples])
         
         # Shapes:
+        # Does the task ONLY involve changing colors of shapes?
+        if self.sameIOShapes:
+            self.onlyShapeColorChanges = True
+            for s in self.trainSamples:
+                nShapes = s.inMatrix.nShapes
+                if s.outMatrix.nShapes != nShapes:
+                    self.onlyShapeColorChanges = False
+                    break
+                for shapeI in range(nShapes):
+                    if not s.inMatrix.shapes[shapeI].hasSameShape(s.outMatrix.shapes[shapeI]):
+                        self.onlyShapeColorChanges = False
+                        break
+                if not self.onlyShapeColorChanges:
+                    break
+            
+            # Get a list with the number of cells shapes have
+            if self.onlyShapeColorChanges:
+                nCells = set()
+                for s in self.trainSamples:
+                    for shape in s.inMatrix.shapes:
+                        nCells.add(shape.nCells)
+                self.shapeCellNumbers =  list(nCells)
         
     def allEqual(self, x):
         """

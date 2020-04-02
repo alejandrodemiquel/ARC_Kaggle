@@ -970,7 +970,11 @@ for idx in tqdm(range(800), position=0, leave=True):
     task = allTasks[i]
     t = Task.Task(task, i)
     
+    if not t.sameIOShapes or not t.onlyShapeColorChanges:
+        continue
+    
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
+        continue
         cTask = copy.deepcopy(task)
         for s in range(t.nTrain):
             m = np.zeros(t.trainSamples[s].inMatrix.grid.shape, dtype=np.uint8)
@@ -1058,6 +1062,8 @@ for idx in tqdm(range(800), position=0, leave=True):
                 x = realX
             #plot_sample(t.testSamples[s], x)
             if Utils.correctCells(x, t.testSamples[s].outMatrix.m) == 0:
+                print(idx)
+                print(c.ops)
                 plot_task2(task)
                 break
             #    solved.append(Solution(i, c.ops))
