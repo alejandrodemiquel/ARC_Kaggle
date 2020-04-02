@@ -415,9 +415,9 @@ class Matrix():
         unique, counts = np.unique(self.m, return_counts=True)
         return dict(zip(unique, counts))
     
-    def getShape(self, color = False, bigOrSmall = False, isBorder = True, diag = False):
+    def getShapes(self, color = False, bigOrSmall = False, isBorder = None, diag = False):
         """
-        If no color or no bigOrSmall is specified, return a random shape.
+        Return a list of the shapes meeting the required specifications
         """
         if diag:
             candidates = self.dShapes
@@ -425,17 +425,21 @@ class Matrix():
             candidates = self.shapes
         if type(color) != bool:
             candidates = [c for c in candidates if c.color == color]
-        if not isBorder:
+        if isBorder==True:
+            candidates = [c for c in candidates if c.isBorder]
+        if isBorder==False:
             candidates = [c for c in candidates if not c.isBorder]
         if len(candidates) ==  0:
-            return False
+            return []
         sizes = [c.nCells for c in candidates]
         if bigOrSmall == "big":
-            return candidates[sizes.index(max(sizes))]
+            maxSize = max(sizes)
+            return [c for c in candidates if c.nCells==maxSize]
         elif bigOrSmall == "small":
-            return candidates[sizes.index(min(sizes))]
+            minSize = min(sizes)
+            return [c for c in candidates if c.nCells==minSize]
         else:
-            return random.choice(candidates)
+            return candidates
 
 # %% Class Sample
 class Sample():

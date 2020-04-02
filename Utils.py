@@ -412,7 +412,7 @@ def trainLinearShapeModel(t):
                     inFeatures[len(inColors)+len(shapeCellNumbers)+1+min(s.nHoles, 4)] = 1
                     inFeatures[nInFeatures-1] = int(s.isSquare)
                     inFeatures[nInFeatures-2] = int(s.isRectangle)
-                    inFeatures[nInFeatures-3] = s.isBorder
+                    inFeatures[nInFeatures-1] = s.isBorder
                     #inFeatures[nInFeatures-4] = s.nHoles
                     #inFeatures[t.nColors+5] = s.position[0].item()
                     #inFeatures[t.nColors+6] = s.position[1].item()
@@ -453,7 +453,7 @@ def predictLinearShapeModel(matrix, model, colors, unchangedColors, shapeCellNum
             #inFeatures[nColors+6] = shape.position[1].item()
             x = inFeatures.unsqueeze(0).float()
             y = model(x).squeeze().argmax().item()
-            pred = changeColorShape(pred, shape, rel[y][0])
+            pred = changeColorShapes(pred, [shape], rel[y][0])
     return pred
 
 # %% Other utility functions
@@ -482,19 +482,20 @@ def colorMap(matrix, cMap):
             m[i,j] = cMap[matrix.m[i,j]]
     return m
 
-def changeColorShape(matrix, shape, color):
+def changeColorShapes(matrix, shapes, color):
     """
     Returns matrix with shape changed of color
     """
-    if shape == False:
+    if len(shapes) == 0:
         return matrix
     m = matrix.copy()
-    for c in shape.cells:
-        m[tuple(map(operator.add, c, shape.position))] = color
+    for s in shapes:
+        for c in s.cells:
+            m[tuple(map(operator.add, c, s.position))] = color
     return m
 
-def changeShape(m, inColor, outColor, bigOrSmall = False, isBorder = True):
-    return changeColorShape(m.m.copy(), m.getShape(inColor, bigOrSmall, isBorder), outColor)
+def changeShapes(m, inColor, outColor, bigOrSmall = False, isBorder = True):
+    return changeColorShapes(m.m.copy(), m.getShapes(inColor, bigOrSmall, isBorder), outColor)
 
 def changeShapeColorAll(m, inColor, outColor, isBorder=True, biggerThan=0, \
                         smallerThan=1000, diagonal=False):
@@ -506,8 +507,7 @@ def changeShapeColorAll(m, inColor, outColor, isBorder=True, biggerThan=0, \
     shapesToChange = [s for s in shapesToChange if s.isBorder == isBorder and \
                       s.color == inColor and s.nCells > biggerThan and \
                       s.nCells < smallerThan]
-    for s in shapesToChange:
-        x = changeColorShape(x, s, outColor)
+    x = changeColorShapes(x, shapesToChange, outColor)
     return x
 
 # TODO
@@ -598,7 +598,7 @@ def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
     If 'until'==-2, then move until the shape encounters anything
     """
     m = matrix.copy()
-    m = changeColorShape(m, shape, background)
+    m = changeColorShapes(m, [shape], background)
     s = copy.deepcopy(shape)
     step = 0
     while True and step != nSteps:
@@ -909,7 +909,6 @@ def multiplyMatrix(matrix, factor):
         m[i*matrix.shape[0]:(i+1)*matrix.shape[0], j*matrix.shape[1]:(j+1)*matrix.shape[1]] = matrix.m
     return m
 
-# TODO Many things missing and wrong here
 def multiplyPixelsAndAnd(matrix, factor, falseColor):
     m = matrix.m.copy()
     multipliedM = multiplyPixels(matrix, factor)
@@ -918,8 +917,21 @@ def multiplyPixelsAndAnd(matrix, factor, falseColor):
         multipliedM[i*m.shape[0]:(i+1)*m.shape[0], j*m.shape[1]:(j+1)*m.shape[1]] = pixelwiseAnd([m, newM], falseColor)
     return multipliedM
 
-# TODO multiplyPixelsAndOr
-# TODO multiplyPixelsAndXor
+def multiplyPixelsAndOr(matrix, factor, falseColor):
+    m = matrix.m.copy()
+    multipliedM = multiplyPixels(matrix, factor)
+    for i,j in np.ndindex(factor):
+        newM = multipliedM[i*m.shape[0]:(i+1)*m.shape[0], j*m.shape[1]:(j+1)*m.shape[1]]
+        multipliedM[i*m.shape[0]:(i+1)*m.shape[0], j*m.shape[1]:(j+1)*m.shape[1]] = pixelwiseOr([m, newM], falseColor)
+    return multipliedM
+
+def multiplyPixelsAndXor(matrix, factor, falseColor):
+    m = matrix.m.copy()
+    multipliedM = multiplyPixels(matrix, factor)
+    for i,j in np.ndindex(factor):
+        newM = multipliedM[i*m.shape[0]:(i+1)*m.shape[0], j*m.shape[1]:(j+1)*m.shape[1]]
+        multipliedM[i*m.shape[0]:(i+1)*m.shape[0], j*m.shape[1]:(j+1)*m.shape[1]] = pixelwiseXor(m, newM, falseColor)
+    return multipliedM
 
 # %% Operations considering all submatrices of a grid
 
@@ -975,9 +987,9 @@ def getPossibleOperations(t, c):
                 x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                                  isBorder=True))
                 for bs in ["big", "small"]:
-                    x.append(partial(changeShape, inColor=cc[0], outColor=cc[1],\
+                    x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                      bigOrSmall=bs, isBorder=False))
-                    x.append(partial(changeShape, inColor = cc[0], outColor = cc[1],\
+                    x.append(partial(changeShapes, inColor = cc[0], outColor = cc[1],\
                                      bigOrSmall=bs, isBorder=True))
             
             return x
@@ -985,7 +997,6 @@ def getPossibleOperations(t, c):
         #######################################################################
         # CNNs
         
-        """
         # TODO Delete the if once issue with task 3 is solved
         if candTask.sameNSampleColors:
             x.append(getBestCNN(candTask))
@@ -1068,7 +1079,6 @@ def getPossibleOperations(t, c):
                              isBorder=False))
             x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
                              isBorder=True))
-            ""
             #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
             #                 biggerThan=1))
             #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
@@ -1077,11 +1087,10 @@ def getPossibleOperations(t, c):
             #                 biggerThan=3))
             #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
             #                 smallerThan=5))
-            ""
             for bs in ["big", "small"]:
-                x.append(partial(changeShape, inColor=cc[0], outColor=cc[1],\
+                x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                  bigOrSmall=bs, isBorder=False))
-                x.append(partial(changeShape, inColor = cc[0], outColor = cc[1],\
+                x.append(partial(changeShapes, inColor = cc[0], outColor = cc[1],\
                                  bigOrSmall=bs, isBorder=True))
                 
     ###########################################################################
@@ -1145,6 +1154,5 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
-        """
             
     return x
