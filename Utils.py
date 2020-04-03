@@ -7,6 +7,9 @@ import torch.nn as nn
 from itertools import product, permutations
 from functools import partial
 
+def identityM(matrix):
+    return matrix.m
+
 def correctUnchangedColors(inMatrix, x, unchangedColors):
     m = x.copy()
     for i,j in np.ndindex(m.shape):
@@ -455,6 +458,89 @@ def predictLinearShapeModel(matrix, model, colors, unchangedColors, shapeCellNum
             y = model(x).squeeze().argmax().item()
             pred = changeColorShapes(pred, [shape], rel[y][0])
     return pred
+
+# %% LSTM
+def prepare_sequence(seq, to_ix):
+    idxs = [to_ix[w] for w in seq]
+    return torch.tensor(idxs, dtype=torch.long)
+
+def trainLSTM(t, inColors, colors, inRel, outRel, reverse, order):
+    EMBEDDING_DIM = 10
+    HIDDEN_DIM = 10
+    model = Models.LSTMTagger(EMBEDDING_DIM, HIDDEN_DIM, len(inColors), len(colors))
+    loss_function = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    num_epochs = 150
+    for epoch in range(num_epochs):
+        optimizer.zero_grad()
+        loss = 0.0
+        for s in t.trainSamples:
+            inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
+            inSeq = sorted(inShapes, key=lambda x: (x.position[order[0]], x.position[order[1]]), reverse=reverse)
+            inSeq = [shape.color for shape in inSeq]
+            outShapes = [shape for shape in s.outMatrix.shapes if shape.color in colors]
+            targetSeq = sorted(outShapes, key=lambda x: (x.position[order[0]], x.position[order[1]]), reverse=reverse)
+            targetSeq = [shape.color for shape in targetSeq]
+            inSeq = prepare_sequence(inSeq, inRel)
+            targetSeq = prepare_sequence(targetSeq, outRel)
+            tag_scores = model(inSeq)
+            loss += loss_function(tag_scores, targetSeq)
+        loss.backward()
+        optimizer.step()
+    return model
+    
+@torch.no_grad()
+def predictLSTM(matrix, model, inColors, colors, inRel, rel, reverse, order):
+    m = matrix.m.copy()
+    inShapes = [shape for shape in matrix.shapes if shape.color in inColors]
+    sortedShapes = sorted(inShapes, key=lambda x: (x.position[order[0]], x.position[order[1]]), reverse=reverse)
+    inSeq = [shape.color for shape in sortedShapes]
+    inSeq = prepare_sequence(inSeq, inRel)
+    pred = model(inSeq).argmax(1).numpy()
+    
+    for shapeI in range(len(sortedShapes)):
+        m = changeColorShapes(m, [sortedShapes[shapeI]], rel[pred[shapeI]][0])
+    return m
+             
+def getBestLSTM(t):
+    colors = set.union(*t.changedInColors+t.changedOutColors)
+    inColors = colors - t.unchangedColors
+    if len(inColors) == 0:
+        return partial(identityM)
+    _,inRel = relDicts(list(inColors))
+    colors = list(inColors) + list(colors - inColors)
+    rel, outRel = relDicts(colors)
+    
+    for s in t.trainSamples:
+        inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
+        outShapes = [shape for shape in s.outMatrix.shapes if shape.color in colors]
+        if len(inShapes) != len(outShapes):
+            return partial(identityM)
+    
+    reverse = [True, False]
+    order = [(0,1), (1,0)]    
+    bestScore = 1000
+    for r, o in product(reverse, order):        
+        model = trainLSTM(t, inColors=inColors, colors=colors, inRel=inRel,\
+                          outRel=outRel, reverse=r, order=o)
+        
+        score = 0
+        for s in t.trainSamples:
+            m = s.inMatrix.m.copy()
+            inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
+            sortedShapes = sorted(inShapes, key=lambda x: (x.position[1], x.position[0]), reverse=False)
+            inSeq = [shape.color for shape in sortedShapes]
+            inSeq = prepare_sequence(inSeq, inRel)
+            pred = model(inSeq).argmax(1).numpy()
+            for shapeI in range(len(sortedShapes)):
+                m = changeColorShapes(m, [sortedShapes[shapeI]], rel[pred[shapeI]][0])
+            score += correctCells(m, s.outMatrix.m)
+        print(r, o, score)
+        if score < bestScore:
+            bestScore=score
+            ret = partial(predictLSTM, model=model, inColors=inColors,\
+                          colors=colors, inRel=inRel, rel=rel, reverse=r, order=o)    
+    return ret
 
 # %% Other utility functions
 
@@ -979,6 +1065,32 @@ def getPossibleOperations(t, c):
                                  colors=set.union(*candTask.changedInColors+candTask.changedOutColors), \
                                  unchangedColors=candTask.unchangedColors, \
                                  shapeCellNumbers=candTask.shapeCellNumbers))
+                
+            if all(["getBestLSTM" not in str(op.func) for op in c.ops]):
+                colors = set.union(*candTask.changedInColors+candTask.changedOutColors)
+                inColors = colors - candTask.unchangedColors
+                _,inRel = relDicts(list(inColors))
+                colors = list(inColors) + list(colors - inColors)
+                rel, outRel = relDicts(colors)
+    
+                doLSTM = True
+                for s in candTask.trainSamples:
+                    inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
+                    outShapes = [shape for shape in s.outMatrix.shapes if shape.color in colors]
+                    if len(inShapes) != len(outShapes):
+                        doLSTM = False
+    
+                reverse = [True, False]
+                order = [(0,1), (1,0)]    
+                for r, o in product(reverse, order): 
+                    if len(inColors) == 0 or doLSTM == False:
+                        break
+                    model = trainLSTM(t, inColors=inColors, colors=colors, inRel=inRel,\
+                    outRel=outRel, reverse=r, order=o)
+                    x.append(partial(predictLSTM, model=model, inColors=inColors,\
+                          colors=colors, inRel=inRel, rel=rel, reverse=r, order=o))
+        
+                #x.append(getBestLSTM(candTask))
             
             # Other deterministic functions that change the color of shapes.
             for cc in candTask.commonColorChanges:

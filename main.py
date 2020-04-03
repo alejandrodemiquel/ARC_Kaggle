@@ -533,6 +533,67 @@ for idx in tqdm(range(0, 800), position=0, leave=True):
             if all(s == 0 for s in score):
                 correctAC.append(index[idx])
                 
+# %% Try the lstm model for tasks like 331
+def prepare_sequence(seq, to_ix):
+    idxs = [to_ix[w] for w in seq]
+    return torch.tensor(idxs, dtype=torch.long)
+                
+
+for idx in tqdm([175,331,459,594], position=0, leave=True):    
+    i = index[idx]
+    start = time.time()
+    task = allTasks[i]
+    t = Task.Task(task, i)
+    
+    EMBEDDING_DIM = 10
+    HIDDEN_DIM = 10
+    
+    colors = set.union(*t.changedInColors+t.changedOutColors)
+    inColors = colors - t.unchangedColors
+    _,inRel = Utils.relDicts(list(inColors))
+    colors = list(inColors) + list(colors - inColors)
+    rel, outRel = Utils.relDicts(colors)
+    
+    model = Models.LSTMTagger(EMBEDDING_DIM, HIDDEN_DIM, len(inColors), len(colors))
+    loss_function = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    num_epochs = 100
+    losses = np.zeros(num_epochs)
+    for epoch in range(num_epochs):
+        optimizer.zero_grad()
+        loss = 0.0
+        for s in t.trainSamples:
+            inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
+            inSeq = sorted(inShapes, key=lambda x: (x.position[0], x.position[1]), reverse=False)
+            inSeq = [shape.color for shape in inSeq]
+            outShapes = [shape for shape in s.outMatrix.shapes if shape.color in colors]
+            targetSeq = sorted(outShapes, key=lambda x: (x.position[0], x.position[1]), reverse=False)
+            targetSeq = [shape.color for shape in targetSeq]
+            inSeq = prepare_sequence(inSeq, inRel)
+            targetSeq = prepare_sequence(targetSeq, outRel)
+            tag_scores = model(inSeq)
+
+            loss += loss_function(tag_scores, targetSeq)
+        loss.backward()
+        optimizer.step()
+        losses[epoch] = loss.item()
+        
+    with torch.no_grad():
+        for s in t.testSamples:
+            m = s.inMatrix.m.copy()
+            inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
+            sortedShapes = sorted(inShapes, key=lambda x: (x.position[0], x.position[1]), reverse=False)
+            inSeq = [shape.color for shape in sortedShapes]
+            inSeq = prepare_sequence(inSeq, inRel)
+            pred = model(inSeq).argmax(1).numpy()
+            
+            for shapeI in range(len(sortedShapes)):
+                m = Utils.changeColorShapes(m, [sortedShapes[shapeI]], rel[pred[shapeI]][0])
+            
+            plot_sample(s, m)
+    end = time.time()
+    print(end - start)
+        
 # %% Fully connected, but well done
 scores = []
 predictions = []
@@ -571,6 +632,7 @@ for idx in tqdm(range(0, 800), position=0, leave=True):
                     pred = np.reshape(pred, t.outShape).astype(int)
                     scores.append((i, correctCells(pred, s.outMatrix.m)))
                     predictions.append((i, pred))
+
                     
 # %% exploring deBackgroundized samples
 scores = []
@@ -951,6 +1013,28 @@ class Best3Candidates():
                 c.generateTask()
                 self.candidates[iMaxCand] = c
                 break
+            
+def tryOperations(t, c):
+    possibleOps = Utils.getPossibleOperations(t, c)
+    for op in possibleOps:
+        cScore = 0
+        for s in range(t.nTrain):
+            cTask["train"][s]["input"] = op(c.t.trainSamples[s].inMatrix).tolist()
+            if t.sameIOShapes and len(t.unchangedColors) != 0:
+                cTask["train"][s]["input"] = Utils.correctUnchangedColors(\
+                     c.t.trainSamples[s].inMatrix.m,\
+                     np.array(cTask["train"][s]["input"]),\
+                     t.unchangedColors).tolist()
+        for s in range(t.nTest):
+            cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
+            if t.sameIOShapes and len(t.unchangedColors) != 0:
+                cTask["test"][s]["input"] = Utils.correctUnchangedColors(\
+                     c.t.testSamples[s].inMatrix.m,\
+                     np.array(cTask["test"][s]["input"]),\
+                     t.unchangedColors).tolist()
+        cScore += sum([Utils.correctCells(np.array(cTask["train"][s]["input"]), \
+                                          t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
+        b3c.addCandidate(Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore))
  
 toBeSolved = set()
 for i in index:
@@ -965,16 +1049,16 @@ class Solution():
 
 solved = []
 
-for idx in tqdm(range(800), position=0, leave=True): 
+for idx in tqdm([175, 331, 459, 594], position=0, leave=True): 
     i = index[idx]
     task = allTasks[i]
     t = Task.Task(task, i)
     
-    if not t.sameIOShapes or not t.onlyShapeColorChanges:
-        continue
+    #if not t.sameIOShapes or not t.onlyShapeColorChanges:
+    #    continue
     
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
-        continue
+        #continue
         cTask = copy.deepcopy(task)
         for s in range(t.nTrain):
             m = np.zeros(t.trainSamples[s].inMatrix.grid.shape, dtype=np.uint8)
@@ -1011,26 +1095,7 @@ for idx in tqdm(range(800), position=0, leave=True):
         for c in copyB3C.candidates:
             if c.score == 0:
                 continue
-            possibleOps = Utils.getPossibleOperations(t2, c)
-            for op in possibleOps:
-                cScore = 0
-                for s in range(t.nTrain):
-                    cTask["train"][s]["input"] = op(c.t.trainSamples[s].inMatrix).tolist()
-                    if t2.sameIOShapes and len(t2.unchangedColors) != 0:
-                        cTask["train"][s]["input"] = Utils.correctUnchangedColors(\
-                             c.t.trainSamples[s].inMatrix.m,\
-                             np.array(cTask["train"][s]["input"]),\
-                             t2.unchangedColors).tolist()
-                for s in range(t.nTest):
-                    cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
-                    if t2.sameIOShapes and len(t2.unchangedColors) != 0:
-                        cTask["test"][s]["input"] = Utils.correctUnchangedColors(\
-                             c.t.testSamples[s].inMatrix.m,\
-                             np.array(cTask["test"][s]["input"]),\
-                             t2.unchangedColors).tolist()
-                cScore += sum([Utils.correctCells(np.array(cTask["train"][s]["input"]), \
-                                                  t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
-                b3c.addCandidate(Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore))
+            tryOperations(t2, c)
             if firstIt:
                 firstIt = False
                 break
@@ -1042,7 +1107,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -1060,11 +1125,11 @@ for idx in tqdm(range(800), position=0, leave=True):
                         for k,l in np.ndindex(cellShape):
                             realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
                 x = realX
-            #plot_sample(t.testSamples[s], x)
-            if Utils.correctCells(x, t.testSamples[s].outMatrix.m) == 0:
-                print(idx)
-                print(c.ops)
-                plot_task2(task)
-                break
+            plot_sample(t.testSamples[s], x)
+            #if Utils.correctCells(x, t.testSamples[s].outMatrix.m) == 0:
+            #    print(idx)
+            #    print(c.ops)
+            #    plot_task2(task)
+            #    break
             #    solved.append(Solution(i, c.ops))
             #    break
