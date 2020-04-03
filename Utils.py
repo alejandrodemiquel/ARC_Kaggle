@@ -1066,7 +1066,7 @@ def getPossibleOperations(t, c):
                                  unchangedColors=candTask.unchangedColors, \
                                  shapeCellNumbers=candTask.shapeCellNumbers))
                 
-            if all(["getBestLSTM" not in str(op.func) for op in c.ops]):
+            if all(["predictLSTM" not in str(op.func) for op in c.ops]):
                 colors = set.union(*candTask.changedInColors+candTask.changedOutColors)
                 inColors = colors - candTask.unchangedColors
                 _,inRel = relDicts(list(inColors))
@@ -1077,15 +1077,16 @@ def getPossibleOperations(t, c):
                 for s in candTask.trainSamples:
                     inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
                     outShapes = [shape for shape in s.outMatrix.shapes if shape.color in colors]
-                    if len(inShapes) != len(outShapes):
+                    if (len(inShapes) != len(outShapes)) or (len(inShapes) == 0):
                         doLSTM = False
+                        break
     
                 reverse = [True, False]
                 order = [(0,1), (1,0)]    
                 for r, o in product(reverse, order): 
                     if len(inColors) == 0 or doLSTM == False:
                         break
-                    model = trainLSTM(t, inColors=inColors, colors=colors, inRel=inRel,\
+                    model = trainLSTM(candTask, inColors=inColors, colors=colors, inRel=inRel,\
                     outRel=outRel, reverse=r, order=o)
                     x.append(partial(predictLSTM, model=model, inColors=inColors,\
                           colors=colors, inRel=inRel, rel=rel, reverse=r, order=o))

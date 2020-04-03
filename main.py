@@ -1049,13 +1049,14 @@ class Solution():
 
 solved = []
 
-for idx in tqdm([175, 331, 459, 594], position=0, leave=True): 
+for idx in tqdm(range(800), position=0, leave=True): 
     i = index[idx]
     task = allTasks[i]
     t = Task.Task(task, i)
     
-    #if not t.sameIOShapes or not t.onlyShapeColorChanges:
-    #    continue
+    if not t.sameIOShapes or not t.onlyShapeColorChanges:
+        continue
+    print(idx)
     
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
         #continue
@@ -1107,7 +1108,7 @@ for idx in tqdm([175, 331, 459, 594], position=0, leave=True):
             
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -1125,9 +1126,9 @@ for idx in tqdm([175, 331, 459, 594], position=0, leave=True):
                         for k,l in np.ndindex(cellShape):
                             realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
                 x = realX
-            plot_sample(t.testSamples[s], x)
-            #if Utils.correctCells(x, t.testSamples[s].outMatrix.m) == 0:
-            #    print(idx)
+            #plot_sample(t.testSamples[s], x)
+            if Utils.correctCells(x, t.testSamples[s].outMatrix.m) == 0:
+                print(idx)
             #    print(c.ops)
             #    plot_task2(task)
             #    break
