@@ -532,7 +532,7 @@ for idx in tqdm(range(0, 800), position=0, leave=True):
             score = [correctCells(predictions[i], t.testSamples[i].outMatrix.m) for i in range(t.nTest)]
             if all(s == 0 for s in score):
                 correctAC.append(index[idx])
-                
+
 # %% Try the lstm model for tasks like 331
 def prepare_sequence(seq, to_ix):
     idxs = [to_ix[w] for w in seq]
@@ -877,17 +877,26 @@ for idx in tqdm(range(0, 800), position=0, leave=True):
                 #if np.all(s.outMatrix.m == pred):
                 #   solved.append(t.index)
                 
-# %% Solving Task 728
+# %% Follow patterns
 # If sameOutShape
-                
-solved = []
-for idx in tqdm(range(0, 800), position=0, leave=True): 
+for idx in tqdm(range(800), position=0, leave=True): 
     i = index[idx]
     task = allTasks[i]
     t = Task.Task(task, i)
-    
-    if t.sameOutShape:
-        
+    if t.sameIOShapes and t.allEqual(t.changedInColors) and len(t.changedInColors[0])==1:
+        c2c = next(iter(t.changedInColors[0]))
+        rowStep=None
+        colStep=None
+        if t.followsRowPattern and t.allEqual(t.rowPatterns):
+            rowStep=t.rowPatterns[0]
+        if t.followsColPattern and t.allEqual(t.colPatterns):
+            colStep=t.colPatterns[0]
+        if t.followsRowPattern and t.followsColPattern:
+            plot_sample(t.testSamples[0], Utils.followPattern(t.testSamples[0].inMatrix, "both", c2c, rowStep, colStep))
+        if t.followsRowPattern and not t.followsColPattern:
+            plot_sample(t.testSamples[0], Utils.followPattern(t.testSamples[0].inMatrix, "row", c2c, rowStep, None))
+        if t.followsColPattern and not t.followsRowPattern:
+            plot_sample(t.testSamples[0], Utils.followPattern(t.testSamples[0].inMatrix, "col", c2c, None, colStep))
 
 # %% Problem that only requires color changes:
 # There are 69 tasks that satisfy the given requirements
@@ -1034,7 +1043,19 @@ def tryOperations(t, c):
                      t.unchangedColors).tolist()
         cScore += sum([Utils.correctCells(np.array(cTask["train"][s]["input"]), \
                                           t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
+        if cScore == 0:
+            b3c.addCandidate(Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore))
+            continue
+        if t.sameIOShapes:
+            if Utils.correctCells(c.t.trainSamples[s].inMatrix.m, c.t.trainSamples[s].inMatrix.m) == \
+            Utils.correctCells(c.t.trainSamples[s].inMatrix.m, cTask["train"][s]["input"]) + \
+            Utils.correctCells(c.t.trainSamples[s].outMatrix.m, cTask["train"][s]["input"]):
+                b3c.addCandidate(Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore))
+                tryOperations(t,c)
+                continue
         b3c.addCandidate(Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore))
+
+        
  
 toBeSolved = set()
 for i in index:
@@ -1049,14 +1070,10 @@ class Solution():
 
 solved = []
 
-for idx in tqdm(range(800), position=0, leave=True): 
+for idx in tqdm(range(10), position=0, leave=True): 
     i = index[idx]
     task = allTasks[i]
     t = Task.Task(task, i)
-    
-    if not t.sameIOShapes or not t.onlyShapeColorChanges:
-        continue
-    print(idx)
     
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
         #continue
@@ -1108,7 +1125,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -1126,7 +1143,7 @@ for idx in tqdm(range(800), position=0, leave=True):
                         for k,l in np.ndindex(cellShape):
                             realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
                 x = realX
-            #plot_sample(t.testSamples[s], x)
+            plot_sample(t.testSamples[s], x)
             if Utils.correctCells(x, t.testSamples[s].outMatrix.m) == 0:
                 print(idx)
             #    print(c.ops)

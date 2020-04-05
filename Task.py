@@ -415,7 +415,7 @@ class Matrix():
         unique, counts = np.unique(self.m, return_counts=True)
         return dict(zip(unique, counts))
     
-    def getShapes(self, color = False, bigOrSmall = False, isBorder = None, diag = False):
+    def getShapes(self, color=None, bigOrSmall=None, isBorder=None, diag=False):
         """
         Return a list of the shapes meeting the required specifications
         """
@@ -423,7 +423,7 @@ class Matrix():
             candidates = self.dShapes
         else:
             candidates = self.shapes
-        if type(color) != bool:
+        if color != None:
             candidates = [c for c in candidates if c.color == color]
         if isBorder==True:
             candidates = [c for c in candidates if c.isBorder]
@@ -440,6 +440,51 @@ class Matrix():
             return [c for c in candidates if c.nCells==minSize]
         else:
             return candidates
+        
+    def followsColPattern(self):
+        """
+        This function checks whether the matrix follows a pattern of lines or
+        columns being always the same (task 771 for example).
+        Meant to be used for the output matrix mainly.
+        It returns a number (length of the pattern) and "row" or "col".
+        """
+        m = self.m.copy()
+        col0 = m[:,0]
+        for i in range(1,int(m.shape[1]/2)):
+            if np.all(col0 == m[:,i]):
+                isPattern=True
+                for j in range(i):
+                    k=0
+                    while k*i+j < m.shape[1]:
+                        if np.any(m[:,j] != m[:,k*i+j]):
+                            isPattern=False
+                            break
+                        k+=1
+                    if not isPattern:
+                        break
+                if isPattern:
+                    return i
+        return False
+    
+    def followsRowPattern(self):
+        m = self.m.copy()
+        row0 = m[0,:]
+        for i in range(1,int(m.shape[0]/2)):
+            if np.all(row0 == m[i,:]):
+                isPattern=True
+                for j in range(i):
+                    k=0
+                    while k*i+j < m.shape[0]:
+                        if np.any(m[j,:] != m[k*i+j,:]):
+                            isPattern=False
+                            break
+                        k+=1
+                    if not isPattern:
+                        break
+                if isPattern:
+                    return i
+        return False
+                        
 
 # %% Class Sample
 class Sample():
@@ -523,6 +568,10 @@ class Sample():
         # Which shapes do they have in common? (normal diagonal, with cells>1)
         
         # Is one a rotation of the other?
+        
+        # Does the output matrix follow a pattern?
+        self.followsRowPattern = self.outMatrix.followsRowPattern()
+        self.followsColPattern = self.outMatrix.followsColPattern()
 
 # %% Class Task
 class Task():
@@ -606,6 +655,8 @@ class Task():
         # Which colors appear in every sample?
         self.sampleColors = [s.colors for s in self.trainSamples]
         self.commonSampleColors = set.intersection(*self.sampleColors)
+        # Input colors of the test samples
+        self.testInColors = [s.inMatrix.colors for s in self.testSamples]
         # Are there the same number of colors in every sample?
         self.sameNSampleColors = self.allEqual([len(sc) for sc in self.sampleColors]) and\
         all([len(s.inMatrix.colors | self.commonOutColors) <= len(self.sampleColors[0]) for s in self.testSamples])
@@ -684,6 +735,14 @@ class Task():
                     for shape in s.inMatrix.shapes:
                         nCells.add(shape.nCells)
                 self.shapeCellNumbers =  list(nCells)
+                
+        # Do all output matrices follow a pattern?
+        self.followsRowPattern = all([s.followsRowPattern != False for s in self.trainSamples])
+        self.followsColPattern = all([s.followsColPattern != False for s in self.trainSamples])
+        if self.followsRowPattern:
+            self.rowPatterns = [s.outMatrix.followsRowPattern() for s in self.trainSamples]
+        if self.followsColPattern:
+            self.colPatterns = [s.outMatrix.followsColPattern() for s in self.trainSamples]
         
     def allEqual(self, x):
         """

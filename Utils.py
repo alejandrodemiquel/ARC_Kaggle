@@ -497,7 +497,6 @@ def predictLSTM(matrix, model, inColors, colors, inRel, rel, reverse, order):
     inSeq = [shape.color for shape in sortedShapes]
     inSeq = prepare_sequence(inSeq, inRel)
     pred = model(inSeq).argmax(1).numpy()
-    
     for shapeI in range(len(sortedShapes)):
         m = changeColorShapes(m, [sortedShapes[shapeI]], rel[pred[shapeI]][0])
     return m
@@ -514,7 +513,7 @@ def getBestLSTM(t):
     for s in t.trainSamples:
         inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
         outShapes = [shape for shape in s.outMatrix.shapes if shape.color in colors]
-        if len(inShapes) != len(outShapes):
+        if len(inShapes) != len(outShapes) or len(inShapes) == 0:
             return partial(identityM)
     
     reverse = [True, False]
@@ -526,16 +525,8 @@ def getBestLSTM(t):
         
         score = 0
         for s in t.trainSamples:
-            m = s.inMatrix.m.copy()
-            inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
-            sortedShapes = sorted(inShapes, key=lambda x: (x.position[1], x.position[0]), reverse=False)
-            inSeq = [shape.color for shape in sortedShapes]
-            inSeq = prepare_sequence(inSeq, inRel)
-            pred = model(inSeq).argmax(1).numpy()
-            for shapeI in range(len(sortedShapes)):
-                m = changeColorShapes(m, [sortedShapes[shapeI]], rel[pred[shapeI]][0])
+            m = predictLSTM(s.inMatrix, model, inColors, colors, inRel, rel, r, o)
             score += correctCells(m, s.outMatrix.m)
-        print(r, o, score)
         if score < bestScore:
             bestScore=score
             ret = partial(predictLSTM, model=model, inColors=inColors,\
@@ -580,21 +571,8 @@ def changeColorShapes(matrix, shapes, color):
             m[tuple(map(operator.add, c, s.position))] = color
     return m
 
-def changeShapes(m, inColor, outColor, bigOrSmall = False, isBorder = True):
+def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
     return changeColorShapes(m.m.copy(), m.getShapes(inColor, bigOrSmall, isBorder), outColor)
-
-def changeShapeColorAll(m, inColor, outColor, isBorder=True, biggerThan=0, \
-                        smallerThan=1000, diagonal=False):
-    x = m.m.copy()
-    if diagonal:
-        shapesToChange = m.dShapes
-    else:
-        shapesToChange = m.shapes
-    shapesToChange = [s for s in shapesToChange if s.isBorder == isBorder and \
-                      s.color == inColor and s.nCells > biggerThan and \
-                      s.nCells < smallerThan]
-    x = changeColorShapes(x, shapesToChange, outColor)
-    return x
 
 # TODO
 def surroundShape(matrix, shape, color, nSteps = False, untilColor = False):
@@ -891,6 +869,68 @@ def mapPixels(matrix, pixelMap, outShape):
     for i,j in np.ndindex(outShape):
         m[i,j] = inMatrix[pixelMap[i,j]]
     return m
+
+# %% Follow row/col patterns
+    
+def identifyColor(m, pixelPos, c2c, rowStep=None, colStep=None):
+    if colStep!=None and rowStep!=None:
+        i = 0
+        while i+pixelPos[0] < m.shape[0]:
+            j = 0
+            while j+pixelPos[1] < m.shape[1]:
+                if m[pixelPos[0]+i, pixelPos[1]+j] != c2c:
+                    return m[pixelPos[0]+i, pixelPos[1]+j]
+                j += colStep
+            i += rowStep
+        return c2c
+    
+def identifyRowStep(m, c2c):
+    rowStep = 1
+    while rowStep < int(m.shape[0]/2)+1:
+        for i in range(rowStep):
+            block = 0
+            while i+block < m.shape[0]:
+                if np.all(m[i,:]==m[i+block,:] or m[i,:]==c2c or m[i+block,:]==c2c):
+                    GOOD
+                block += rowStep
+    
+    return rowStep
+
+def followPattern(matrix, rc, colorToChange=None, rowStep=None, colStep=None):
+    """
+    'rc' can be "row", "column" or "both".
+    'colorToChange' is the number corresponding to the only color that changes,
+    if any.
+    'rowStep' and 'colStep' are only to be given if the rowStep/colStep is the
+    same for every train sample.
+    """  
+    m = matrix.m.copy()
+    
+    if colorToChange!=None:
+        if rowStep!=None or colStep!=None:
+            if rc=="col":
+                rowStep = m.shape[0]
+            if rc=="row":
+                colStep = m.shape[1]
+            if rc=="both":
+                if rowStep==None:
+                    rowStep = m.shape[0]
+                if colStep==None:
+                    colStep = m.shape[1]          
+            for i,j in np.ndindex((rowStep, colStep)):
+                color = identifyColor(m, (i,j), colorToChange, rowStep, colStep)
+                k = 0
+                while i+k < m.shape[0]:
+                    l = 0
+                    while j+l < m.shape[1]:
+                        m[i+k, j+l] = color
+                        l += colStep
+                    k += rowStep
+        else:
+            if rc=="col":
+                colStep = identifyRowStep(m, colorToChange)
+            
+    return m
     
 # %% Operations with more than one matrix
 
@@ -1066,7 +1106,8 @@ def getPossibleOperations(t, c):
                                  unchangedColors=candTask.unchangedColors, \
                                  shapeCellNumbers=candTask.shapeCellNumbers))
                 
-            if all(["predictLSTM" not in str(op.func) for op in c.ops]):
+            if all(["getBestLSTM" not in str(op.func) for op in c.ops]):
+                """
                 colors = set.union(*candTask.changedInColors+candTask.changedOutColors)
                 inColors = colors - candTask.unchangedColors
                 _,inRel = relDicts(list(inColors))
@@ -1090,22 +1131,26 @@ def getPossibleOperations(t, c):
                     outRel=outRel, reverse=r, order=o)
                     x.append(partial(predictLSTM, model=model, inColors=inColors,\
                           colors=colors, inRel=inRel, rel=rel, reverse=r, order=o))
+                """
         
-                #x.append(getBestLSTM(candTask))
+                x.append(getBestLSTM(candTask))
             
             # Other deterministic functions that change the color of shapes.
             for cc in candTask.commonColorChanges:
-                x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-                                 isBorder=False))
-                x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-                                 isBorder=True))
-                for bs in ["big", "small"]:
+                for border, bs in product([True, False, None], ["big", "small", None]):
                     x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
-                                     bigOrSmall=bs, isBorder=False))
-                    x.append(partial(changeShapes, inColor = cc[0], outColor = cc[1],\
-                                     bigOrSmall=bs, isBorder=True))
+                                     bigOrSmall=bs, isBorder=border))
             
             return x
+        
+        #######################################################################
+        # Complete row/col patterns
+        if candTask.followsRowPattern:
+            if candTask.allEqual(candTask.rowPatterns):
+                rowPattern = candTask.rowPatterns[0]
+        if candTask.followsColPattern:
+            if candTask.allEqual(candTask.colPatterns):
+                colPattern = candTask.colPatterns[0]
 
         #######################################################################
         # CNNs
@@ -1188,23 +1233,10 @@ def getPossibleOperations(t, c):
                 x.append(partial(connectAnyPixels, pixelColor=pc, \
                                  connColor=cc, unchangedColors=uc))
         for cc in candTask.commonColorChanges:
-            x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-                             isBorder=False))
-            x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-                             isBorder=True))
-            #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-            #                 biggerThan=1))
-            #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-            #                 biggerThan=2))
-            #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-            #                 biggerThan=3))
-            #x.append(partial(changeShapeColorAll, inColor=cc[0], outColor=cc[1],\
-            #                 smallerThan=5))
-            for bs in ["big", "small"]:
-                x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
-                                 bigOrSmall=bs, isBorder=False))
-                x.append(partial(changeShapes, inColor = cc[0], outColor = cc[1],\
-                                 bigOrSmall=bs, isBorder=True))
+            for cc in candTask.commonColorChanges:
+                for border, bs in product([True, False, None], ["big", "small", None]):
+                    x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
+                                     bigOrSmall=bs, isBorder=border))
                 
     ###########################################################################
     # Cases in which the input has always the same shape, and the output too
