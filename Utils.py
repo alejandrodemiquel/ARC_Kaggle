@@ -17,9 +17,9 @@ def correctUnchangedColors(inMatrix, x, unchangedColors):
             m[i,j] = inMatrix[i,j]
     return m
                 
-def correctCells(m1, m2):
+def incorrectPixels(m1, m2):
     """
-    Returns the number of incorrect cells (0 is best)
+    Returns the number of incorrect pixels (0 is best)
     """
     return np.sum(m1!=m2)
 
@@ -276,7 +276,7 @@ def getBestCNN(t):
         cc = list(t.colors)
         nc = len(cc)
         model = trainCNN(t, commonColors=cc, nChannels=nc, k=k, pad=p)
-        score = sum([correctCells(predictCNN(t.trainSamples[s].inMatrix, model, cc, nc), \
+        score = sum([incorrectPixels(predictCNN(t.trainSamples[s].inMatrix, model, cc, nc), \
                                   t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         if score < bestScore:
             ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)
@@ -286,7 +286,7 @@ def getBestCNN(t):
             cc = list(t.commonSampleColors)
             nc = t.trainSamples[0].nColors
             model = trainCNN(t, commonColors=cc, nChannels=nc, k=k, pad=p)
-            score = sum([correctCells(predictCNN(t.trainSamples[s].inMatrix, model, cc, nc), \
+            score = sum([incorrectPixels(predictCNN(t.trainSamples[s].inMatrix, model, cc, nc), \
                                       t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
             if score < bestScore:
                 bestScore=score
@@ -390,11 +390,11 @@ def trainLinearShapeModel(t):
     inColors = set.union(*t.changedInColors+t.changedOutColors) - t.unchangedColors
     colors = list(inColors) + list(set.union(*t.changedInColors+t.changedOutColors) - inColors)
     rel, invRel = relDicts(list(colors))
-    shapeCellNumbers = t.shapeCellNumbers
-    _,nCellsRel = relDicts(shapeCellNumbers)
+    shapePixelNumbers = t.shapePixelNumbers
+    _,nPixelsRel = relDicts(shapePixelNumbers)
     # inFeatures: [colors that change], [number of pixels]+1, [number of holes] (0-4),
     # isSquare, isRectangle, isBorder
-    nInFeatures = len(inColors) + len(shapeCellNumbers) + 1 + 5 + 3
+    nInFeatures = len(inColors) + len(shapePixelNumbers) + 1 + 5 + 3
     model = Models.SimpleLinearModel(nInFeatures, len(colors))
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
@@ -411,8 +411,8 @@ def trainLinearShapeModel(t):
                 inFeatures = torch.zeros(nInFeatures)
                 if s.color in inColors:
                     inFeatures[invRel[s.color]] = 1
-                    inFeatures[len(inColors)+nCellsRel[s.nCells]] = 1
-                    inFeatures[len(inColors)+len(shapeCellNumbers)+1+min(s.nHoles, 4)] = 1
+                    inFeatures[len(inColors)+nPixelsRel[s.nPixels]] = 1
+                    inFeatures[len(inColors)+len(shapePixelNumbers)+1+min(s.nHoles, 4)] = 1
                     inFeatures[nInFeatures-1] = int(s.isSquare)
                     inFeatures[nInFeatures-2] = int(s.isRectangle)
                     inFeatures[nInFeatures-1] = s.isBorder
@@ -432,22 +432,22 @@ def trainLinearShapeModel(t):
     return model
 
 @torch.no_grad()
-def predictLinearShapeModel(matrix, model, colors, unchangedColors, shapeCellNumbers):
+def predictLinearShapeModel(matrix, model, colors, unchangedColors, shapePixelNumbers):
     inColors = colors - unchangedColors
     colors = list(inColors) + list(colors - inColors)
     rel, invRel = relDicts(list(colors))
-    _,nCellsRel = relDicts(shapeCellNumbers)
-    nInFeatures = len(inColors) + len(shapeCellNumbers) + 1 + 5 + 3
+    _,nPixelsRel = relDicts(shapePixelNumbers)
+    nInFeatures = len(inColors) + len(shapePixelNumbers) + 1 + 5 + 3
     pred = matrix.m.copy()
     for shape in matrix.shapes:
         if shape.color in inColors:
             inFeatures = torch.zeros(nInFeatures)
             inFeatures[invRel[shape.color]] = 1
-            if shape.nCells not in nCellsRel.keys():
-                inFeatures[len(inColors)+len(shapeCellNumbers)] = 1
+            if shape.nPixels not in nPixelsRel.keys():
+                inFeatures[len(inColors)+len(shapePixelNumbers)] = 1
             else:
-                inFeatures[len(inColors)+nCellsRel[shape.nCells]] = 1
-            inFeatures[len(inColors)+len(shapeCellNumbers)+1+min(shape.nHoles, 4)] = 1
+                inFeatures[len(inColors)+nPixelsRel[shape.nPixels]] = 1
+            inFeatures[len(inColors)+len(shapePixelNumbers)+1+min(shape.nHoles, 4)] = 1
             inFeatures[nInFeatures-1] = int(shape.isSquare)
             inFeatures[nInFeatures-2] = int(shape.isRectangle)
             inFeatures[nInFeatures-3] = shape.isBorder
@@ -526,7 +526,7 @@ def getBestLSTM(t):
         score = 0
         for s in t.trainSamples:
             m = predictLSTM(s.inMatrix, model, inColors, colors, inRel, rel, r, o)
-            score += correctCells(m, s.outMatrix.m)
+            score += incorrectPixels(m, s.outMatrix.m)
         if score < bestScore:
             bestScore=score
             ret = partial(predictLSTM, model=model, inColors=inColors,\
@@ -537,14 +537,14 @@ def getBestLSTM(t):
 
 def insertShape(matrix, shape):
     m = matrix.copy()
-    for c in shape.cells:
+    for c in shape.pixels:
         if c[0] < matrix.shape[0] and c[1] < matrix.shape[1]:
             m[tuple(map(operator.add, c, shape.position))] = shape.color
     return m
 
 def deleteShape(matrix, shape, backgroundColor):
     m = matrix.copy()
-    for c in shape.cells:
+    for c in shape.pixels:
         m[tuple(map(operator.add, c, shape.position))] = backgroundColor
     return m
 
@@ -567,7 +567,7 @@ def changeColorShapes(matrix, shapes, color):
         return matrix
     m = matrix.copy()
     for s in shapes:
-        for c in s.cells:
+        for c in s.pixels:
             m[tuple(map(operator.add, c, s.position))] = color
     return m
 
@@ -576,26 +576,26 @@ def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
 
 # TODO
 def surroundShape(matrix, shape, color, nSteps = False, untilColor = False):
-    def addCell(i,j):
+    def addPixel(i,j):
         if matrix[tuple(map(operator.add, c, shape.position))] == untilColor:
             return False
         else:
             matrix[tuple(map(operator.add, c, shape.position))] = color
-            cells.add((i, j))
+            pixels.add((i, j))
 
     x = matrix.copy()
-    cells = shape.cells.copy()
+    pixels = shape.pixels.copy()
     while True:
         y = x.copy()
-        for c in shape.cells:
-            addCell(c[0]+1, c[1])
-            addCell(c[0]-1, c[1])
-            addCell(c[0]+1, c[1]+1)
-            addCell(c[0]+1, c[1]-1)
-            addCell(c[0]-1, c[1]+1)
-            addCell(c[0]-1, c[1]-1)
-            addCell(c[0], c[1]+1)
-            addCell(c[0], c[1]-1)
+        for c in shape.pixels:
+            addPixel(c[0]+1, c[1])
+            addPixel(c[0]-1, c[1])
+            addPixel(c[0]+1, c[1]+1)
+            addPixel(c[0]+1, c[1]-1)
+            addPixel(c[0]-1, c[1]+1)
+            addPixel(c[0]-1, c[1]-1)
+            addPixel(c[0], c[1]+1)
+            addPixel(c[0], c[1]-1)
         x = y.copy()
     return x
     
@@ -667,7 +667,7 @@ def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
     step = 0
     while True and step != nSteps:
         step += 1
-        for c in s.cells:
+        for c in s.pixels:
             pos = (s.position[0]+c[0], s.position[1]+c[1])
             if direction == "l":
                 newPos = (pos[0], pos[1]-1)
@@ -750,18 +750,18 @@ def moveShapeToClosest(matrix, shape, background, until):
         return matrix
     nSteps = 0
     while True:
-        for c in s.cells:
-            cellPos = tuple(map(operator.add, c, s.position))
-            if nSteps <= cellPos[0] and m[cellPos[0]-nSteps, cellPos[1]] == until:
+        for c in s.pixels:
+            pixelPos = tuple(map(operator.add, c, s.position))
+            if nSteps <= pixelPos[0] and m[pixelPos[0]-nSteps, pixelPos[1]] == until:
                 s.position = (s.position[0]-nSteps+1, s.position[1])
                 return insertShape(m, s)
-            if cellPos[0]+nSteps < m.shape[0] and m[cellPos[0]+nSteps, cellPos[1]] == until:
+            if pixelPos[0]+nSteps < m.shape[0] and m[pixelPos[0]+nSteps, pixelPos[1]] == until:
                 s.position = (s.position[0]+nSteps-1, s.position[1])
                 return insertShape(m, s)
-            if nSteps <= cellPos[1] and m[cellPos[0], cellPos[1]-nSteps] == until:
+            if nSteps <= pixelPos[1] and m[pixelPos[0], pixelPos[1]-nSteps] == until:
                 s.position = (s.position[0], s.position[1]-nSteps+1)
                 return insertShape(m, s)
-            if cellPos[1]+nSteps < m.shape[1] and m[cellPos[0], cellPos[1]+nSteps] == until:
+            if pixelPos[1]+nSteps < m.shape[1] and m[pixelPos[0], pixelPos[1]+nSteps] == until:
                 s.position = (s.position[0], s.position[1]+nSteps-1)
                 return insertShape(m, s)
         nSteps += 1
@@ -846,7 +846,7 @@ def flipShape(matrix, shape, axis, background):
     """
     m = matrix.copy()
     smallM = np.ones((shape.xLen+1, shape.yLen+1)) * background
-    for c in shape.cells:
+    for c in shape.pixels:
         smallM[c] = shape.color
     if axis == "lr":
         smallM = np.fliplr(smallM)
@@ -871,7 +871,6 @@ def mapPixels(matrix, pixelMap, outShape):
     return m
 
 # %% Follow row/col patterns
-    
 def identifyColor(m, pixelPos, c2c, rowStep=None, colStep=None):
     if colStep!=None and rowStep!=None:
         i = 0
@@ -1147,35 +1146,9 @@ def getPossibleOperations(t, c):
                 x.append(partial(predictLinearShapeModel, model=model,\
                                  colors=set.union(*candTask.changedInColors+candTask.changedOutColors), \
                                  unchangedColors=candTask.unchangedColors, \
-                                 shapeCellNumbers=candTask.shapeCellNumbers))
+                                 shapePixelNumbers=candTask.shapePixelNumbers))
                 
-            if all(["getBestLSTM" not in str(op.func) for op in c.ops]):
-                """
-                colors = set.union(*candTask.changedInColors+candTask.changedOutColors)
-                inColors = colors - candTask.unchangedColors
-                _,inRel = relDicts(list(inColors))
-                colors = list(inColors) + list(colors - inColors)
-                rel, outRel = relDicts(colors)
-    
-                doLSTM = True
-                for s in candTask.trainSamples:
-                    inShapes = [shape for shape in s.inMatrix.shapes if shape.color in inColors]
-                    outShapes = [shape for shape in s.outMatrix.shapes if shape.color in colors]
-                    if (len(inShapes) != len(outShapes)) or (len(inShapes) == 0):
-                        doLSTM = False
-                        break
-    
-                reverse = [True, False]
-                order = [(0,1), (1,0)]    
-                for r, o in product(reverse, order): 
-                    if len(inColors) == 0 or doLSTM == False:
-                        break
-                    model = trainLSTM(candTask, inColors=inColors, colors=colors, inRel=inRel,\
-                    outRel=outRel, reverse=r, order=o)
-                    x.append(partial(predictLSTM, model=model, inColors=inColors,\
-                          colors=colors, inRel=inRel, rel=rel, reverse=r, order=o))
-                """
-        
+            if all(["getBestLSTM" not in str(op.func) for op in c.ops]):        
                 x.append(getBestLSTM(candTask))
             
             # Other deterministic functions that change the color of shapes.
@@ -1221,8 +1194,8 @@ def getPossibleOperations(t, c):
         if t.backgroundColor != -1:
             model = trainCNNDummyColor(candTask, 5, -1)
             x.append(partial(predictCNNDummyColor, model=model))
-            #model = trainOneConvModelDummyColor(candTask, 3, 0)
-            #x.append(partial(predictConvModelDummyColor, model=model))
+            model = trainCNNDummyColor(candTask, 3, 0)
+            x.append(partial(predictCNNDummyColor, model=model))
             #model = trainOneConvModelDummyColor(candTask, 7, -1)
             #x.append(partial(predictConvModelDummyColor, model=model))
             
