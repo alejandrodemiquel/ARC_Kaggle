@@ -884,17 +884,57 @@ def identifyColor(m, pixelPos, c2c, rowStep=None, colStep=None):
             i += rowStep
         return c2c
     
+def identifyColStep(m, c2c):
+    colStep = 1
+    while colStep < int(m.shape[1]/2)+1:
+        isGood = True
+        for j in range(colStep):
+            for i in range(m.shape[0]):
+                block = 0
+                colors = set()
+                while j+block < m.shape[1]:
+                    colors.add(m[i,j+block])
+                    block += colStep
+                if c2c in colors:
+                    if len(colors) > 2:
+                        isGood = False
+                        break
+                else:
+                    if len(colors) > 1:
+                        isGood = False
+                        break
+            if not isGood:
+                break  
+        if isGood:
+            return colStep 
+        colStep+=1 
+    return m.shape[1]
+
 def identifyRowStep(m, c2c):
     rowStep = 1
     while rowStep < int(m.shape[0]/2)+1:
+        isGood = True
         for i in range(rowStep):
-            block = 0
-            while i+block < m.shape[0]:
-                if np.all(m[i,:]==m[i+block,:] or m[i,:]==c2c or m[i+block,:]==c2c):
-                    GOOD
-                block += rowStep
-    
-    return rowStep
+            for j in range(m.shape[1]):
+                block = 0
+                colors = set()
+                while i+block < m.shape[0]:
+                    colors.add(m[i+block,j])
+                    block += rowStep
+                if c2c in colors:
+                    if len(colors) > 2:
+                        isGood = False
+                        break
+                else:
+                    if len(colors) > 1:
+                        isGood = False
+                        break
+            if not isGood:
+                break  
+        if isGood:
+            return rowStep 
+        rowStep+=1  
+    return m.shape[0]            
 
 def followPattern(matrix, rc, colorToChange=None, rowStep=None, colStep=None):
     """
@@ -905,30 +945,33 @@ def followPattern(matrix, rc, colorToChange=None, rowStep=None, colStep=None):
     same for every train sample.
     """  
     m = matrix.m.copy()
-    
+            
     if colorToChange!=None:
-        if rowStep!=None or colStep!=None:
-            if rc=="col":
-                rowStep = m.shape[0]
-            if rc=="row":
-                colStep = m.shape[1]
-            if rc=="both":
-                if rowStep==None:
-                    rowStep = m.shape[0]
-                if colStep==None:
-                    colStep = m.shape[1]          
-            for i,j in np.ndindex((rowStep, colStep)):
-                color = identifyColor(m, (i,j), colorToChange, rowStep, colStep)
-                k = 0
-                while i+k < m.shape[0]:
-                    l = 0
-                    while j+l < m.shape[1]:
-                        m[i+k, j+l] = color
-                        l += colStep
-                    k += rowStep
-        else:
-            if rc=="col":
-                colStep = identifyRowStep(m, colorToChange)
+        if rc=="col":
+            rowStep=m.shape[0]
+            if colStep==None:
+                colStep=identifyColStep(m, colorToChange)
+        if rc=="row":
+            colStep=m.shape[1]
+            if rowStep==None:
+                rowStep=identifyRowStep(m, colorToChange)
+        if rc=="both":
+            if colStep==None and rowStep==None:
+                colStep=identifyColStep(m, colorToChange)
+                rowStep=identifyRowStep(m, colorToChange) 
+            elif rowStep==None:
+                rowStep=m.shape[0]
+            elif colStep==None:
+                colStep=m.shape[1]                       
+        for i,j in np.ndindex((rowStep, colStep)):
+            color = identifyColor(m, (i,j), colorToChange, rowStep, colStep)
+            k = 0
+            while i+k < m.shape[0]:
+                l = 0
+                while j+l < m.shape[1]:
+                    m[i+k, j+l] = color
+                    l += colStep
+                k += rowStep
             
     return m
     
@@ -1145,12 +1188,28 @@ def getPossibleOperations(t, c):
         
         #######################################################################
         # Complete row/col patterns
+        colStep=None
+        rowStep=None
         if candTask.followsRowPattern:
             if candTask.allEqual(candTask.rowPatterns):
-                rowPattern = candTask.rowPatterns[0]
+                rowStep=candTask.rowPatterns[0]
         if candTask.followsColPattern:
             if candTask.allEqual(candTask.colPatterns):
-                colPattern = candTask.colPatterns[0]
+                colStep=candTask.colPatterns[0]
+        if candTask.allEqual(candTask.changedInColors) and len(candTask.changedInColors[0])==1:
+            c2c = next(iter(candTask.changedInColors[0]))
+        else:
+            c2c=None
+                
+        if candTask.followsRowPattern and candTask.followsColPattern:
+            x.append(partial(followPattern, rc="both", colorToChange=c2c,\
+                             rowStep=rowStep, colStep=colStep))
+        elif candTask.followsRowPattern:
+            x.append(partial(followPattern, rc="row", colorToChange=c2c,\
+                             rowStep=rowStep, colStep=colStep))
+        elif candTask.followsColPattern:
+            x.append(partial(followPattern, rc="col", colorToChange=c2c,\
+                             rowStep=rowStep, colStep=colStep))
 
         #######################################################################
         # CNNs

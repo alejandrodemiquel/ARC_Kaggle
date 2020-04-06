@@ -884,6 +884,9 @@ for idx in tqdm(range(800), position=0, leave=True):
     task = allTasks[i]
     t = Task.Task(task, i)
     if t.sameIOShapes and t.allEqual(t.changedInColors) and len(t.changedInColors[0])==1:
+        if t.followsRowPattern or t.followsColPattern:
+            print(idx)
+            plot_task2(task)
         c2c = next(iter(t.changedInColors[0]))
         rowStep=None
         colStep=None
@@ -910,7 +913,7 @@ for idx in tqdm(range(800), position=0, leave=True):
 # Solved for dShapes ---> Solved for shapes
 
 solved = []
-for idx in tqdm(range(0, 800), position=0, leave=True): 
+for idx in tqdm(range(1), position=0, leave=True): 
     i = index[idx]
     task = allTasks[i]
     t = Task.Task(task, i)
@@ -1070,10 +1073,13 @@ class Solution():
 
 solved = []
 
-for idx in tqdm(range(10), position=0, leave=True): 
+for idx in tqdm(range(800), position=0, leave=True): 
     i = index[idx]
     task = allTasks[i]
     t = Task.Task(task, i)
+    
+    if not (t.sameIOShapes and t.allEqual(t.changedInColors) and len(t.changedInColors[0])==1 and (t.followsRowPattern or t.followsColPattern)):
+        continue
     
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
         #continue
@@ -1150,4 +1156,4 @@ for idx in tqdm(range(10), position=0, leave=True):
             #    plot_task2(task)
             #    break
             #    solved.append(Solution(i, c.ops))
-            #    break
+                break
