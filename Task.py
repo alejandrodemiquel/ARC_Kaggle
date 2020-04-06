@@ -1,11 +1,27 @@
 import numpy as np
-import math
-import random
-import operator
 from collections import Counter
 
 # %% Frontiers
 class Frontier:
+    """
+    A Frontier is defined as a straight line with a single color that crosses
+    all of the matrix. For example, if the matrix has shape MxN, then a
+    Frontier will have shape Mx1 or 1xN. See the function "detectFrontiers"
+    for details in the implementation.
+    
+    ...
+    
+    Attributes
+    ----------
+    color: int
+        The color of the frontier
+    directrion: str
+        A character ('h' or 'v') determining whether the frontier is horizontal
+        or vertical
+    position: tuple
+        A 2-tuple of ints determining the position of the upper-left pixel of
+        the frontier
+    """
     def __init__(self, color, direction, position):
         """
         direction can be 'h' or 'v' (horizontal, vertical)
@@ -23,7 +39,7 @@ class Frontier:
         
 def detectFrontiers(m):
     """
-    m is a numpy 2-dimensional matrix
+    m is a numpy 2-dimensional matrix.
     """
     frontiers = []
     
@@ -53,6 +69,42 @@ def detectFrontiers(m):
 
 # %% Grids
 class Grid:
+    """
+    An object of the class Grid is basically a collection of frontiers that
+    have all the same color.
+    It is useful to check, for example, whether the cells defined by the grid
+    always have the same size or not.   
+    
+    ...
+    
+    Attributes
+    ----------
+    color: int
+        The color of the grid
+    m: numpy.ndarray
+        The whole matrix
+    frontiers: list
+        A list of all the frontiers the grid is composed of
+    cells: list of list of 2-tuples
+        cells can be viewed as a 2-dimensional matrix of 2-tuples (Matrix, 
+        position). The first element is an object of the class Matrix, and the
+        second element is the position of the cell in m.
+        Each element represents a cell of the grid.
+    shape: tuple
+        A 2-tuple of ints representing the number of cells of the grid
+    nCells: int
+        Number of cells of the grid
+    cellList: list
+        A list of all the cells
+    allCellsSameShape: bool
+        Determines whether all the cells of the grid have the same shape (as
+        matrices).
+    cellShape: tuple
+        Only defined if allCellsSameShape is True. Shape of the cells.
+    allCellsHaveOneColor: bool
+        Determines whether the ALL of the cells of the grid are composed of
+        pixels of the same color
+    """
     def __init__(self, m, frontiers):
         self.color = frontiers[0].color
         self.m = m
@@ -110,21 +162,21 @@ class Grid:
 
 # %% Shapes and subclasses
 class Shape:
-    def __init__(self, cells, color, isBorder):
-        # cells is a 2xn numpy array, where n is the number of cells
+    def __init__(self, pixels, color, isBorder):
+        # pixels is a 2xn numpy array, where n is the number of pixels
         self.color = color
-        self.nCells = cells.shape[0] # len(shape) should be equivalent
+        self.nPixels = pixels.shape[0] # len(shape) should be equivalent
         
-        # Construct the set of cells (set of 2-tuples)
-        xMin = cells[:,0].min()
-        yMin = cells[:,1].min()
-        self.xLen = cells[:,0].max() - xMin
-        self.yLen = cells[:,1].max() - yMin
+        # Construct the set of pixels (set of 2-tuples)
+        xMin = pixels[:,0].min()
+        yMin = pixels[:,1].min()
+        self.xLen = pixels[:,0].max() - xMin
+        self.yLen = pixels[:,1].max() - yMin
         self.shape = (self.xLen, self.yLen)
         self.position = (xMin, yMin)
-        self.cells = set()
-        for i in range(self.nCells):
-            self.cells.add((cells[i,0] - xMin, cells[i,1] - yMin))
+        self.pixels = set()
+        for i in range(self.nPixels):
+            self.pixels.add((pixels[i,0] - xMin, pixels[i,1] - yMin))
             
         # Is the shape in the border?
         self.isBorder = isBorder
@@ -156,43 +208,56 @@ class Shape:
             m2 = other.shapeDummyMatrix()
             if any([np.all(m1==np.rot90(m2,x)) for x in range(4)]):
                 return True
-        if self.xLen != other.xLen or self.yLen != other.yLen or np.any(self.cells != other.cells):
+        if self.xLen != other.xLen or self.yLen != other.yLen or np.any(self.pixels != other.pixels):
             return False
         return True
     
+    # TODO
+    #def isSubshape()
+    
     def isLRSymmetric(self):
-        for c in self.cells:
-            if (c[0], self.yLen - c[1]) not in self.cells:
+        for c in self.pixels:
+            if (c[0], self.yLen - c[1]) not in self.pixels:
                 return False
         return True
     
     def isUDSymmetric(self):
-        for c in self.cells:
-            if (self.xLen - c[0], c[1]) not in self.cells:
+        for c in self.pixels:
+            if (self.xLen - c[0], c[1]) not in self.pixels:
                 return False
         return True
     
     def isD1Symmetric(self):
-        for c in self.cells:
-            if (self.xLen - c[1], self.yLen - c[0]) not in self.cells:
+        for c in self.pixels:
+            if (self.xLen - c[1], self.yLen - c[0]) not in self.pixels:
                 return False
         return True
     
     def isD2Symmetric(self):
-        for c in self.cells:
-            if (c[1], c[0]) not in self.cells:
+        for c in self.pixels:
+            if (c[1], c[0]) not in self.pixels:
                 return False
         return True
     
     def shapeMatrix(self):
+        """
+        Returns the smallest possible matrix containing the shape.
+        The pixels of the matrix that do not belong to the shape are equal to 
+        -1 (or 255).
+        """
         m = np.full((self.xLen+1, self.yLen+1), -1, dtype=np.uint8)
-        for c in self.cells:
+        for c in self.pixels:
             m[c] = self.color
         return m
     
     def shapeDummyMatrix(self):
+        """
+        Returns the smallest possible matrix containing the shape. The values
+        of the matrix are ones and zeros, depending on whether the pixel is a
+        shape pixel or not.
+        """
         m = np.zeros((self.xLen+1, self.yLen+1), dtype=np.uint8)
-        for c in self.cells:
+        for c in self.pixels:
             m[c] = 1
         return m
 
@@ -200,25 +265,25 @@ def detectShapes(x, diagonals=False):
     """
     Given a numpy array x (2D), returns a list of the Shapes present in x
     """
-    # Helper function to add cells to a shape
-    def addCellsAround(i,j):
-        def addCell(i,j):
+    # Helper function to add pixels to a shape
+    def addPixelsAround(i,j):
+        def addPixel(i,j):
             if i < 0 or j < 0 or i > iMax or j > jMax or seen[i][j] == True or x[i][j] != color:
                 return
             seen[i,j] = True
             newShape.append([i,j])
-            addCellsAround(i,j)
+            addPixelsAround(i,j)
         
-        addCell(i-1,j)
-        addCell(i+1,j)
-        addCell(i,j-1)
-        addCell(i,j+1) 
+        addPixel(i-1,j)
+        addPixel(i+1,j)
+        addPixel(i,j-1)
+        addPixel(i,j+1) 
         
         if diagonals:
-            addCell(i-1,j-1)
-            addCell(i-1,j+1)
-            addCell(i+1,j-1)
-            addCell(i+1,j+1)
+            addPixel(i-1,j-1)
+            addPixel(i-1,j+1)
+            addPixel(i+1,j-1)
+            addPixel(i+1,j+1)
                 
     shapes = []
     seen = np.zeros(x.shape, dtype=bool)
@@ -229,7 +294,7 @@ def detectShapes(x, diagonals=False):
             seen[i,j] = True
             newShape = [[i,j]]
             color = x[i][j]
-            addCellsAround(i,j)
+            addPixelsAround(i,j)
             # Is the shape in the border?
             isBorder = False
             if any([c[0] == 0 or c[1] == 0 or c[0] == iMax or c[1] == jMax for c in newShape]):
@@ -285,40 +350,40 @@ def detectShapes(x, diagonals=False):
     return shapes    
 
 class Pixel(Shape):
-    def __init__(self, cells, color, isBorder):
-        super().__init__(cells, color, isBorder)
+    def __init__(self, pixels, color, isBorder):
+        super().__init__(pixels, color, isBorder)
         self.nHoles=0
         self.isSquare=True
         self.isRectangle=True
         
 class Path(Shape):
-    def __init__(self, cells, color, isBorder):
-        super().__init__(cells, color, isBorder)
+    def __init__(self, pixels, color, isBorder):
+        super().__init__(pixels, color, isBorder)
         self.isSquare=False
         self.isRectangle=False
         self.nHoles=0
 
 class Line(Path):
-    def __init__(self, cells, color, isBorder, orientation):
-        super().__init__(cells, color, isBorder)
+    def __init__(self, pixels, color, isBorder, orientation):
+        super().__init__(pixels, color, isBorder)
         self.orientation = orientation
         
 class Loop(Shape):
-    def __init__(self, cells, color, isBorder):
-        super().__init__(cells, color, isBorder)
+    def __init__(self, pixels, color, isBorder):
+        super().__init__(pixels, color, isBorder)
         self.nHoles=1
         self.isSquare=False
         self.isRectangle=False
         
 class Frame(Loop):
-    def __init__(self, cells, color, isBorder):
-        super().__init__(cells, color, isBorder)
+    def __init__(self, pixels, color, isBorder):
+        super().__init__(pixels, color, isBorder)
         
 class GeneralShape(Shape):
-    def __init__(self, cells, color, isBorder):
-        super().__init__(cells, color, isBorder)
+    def __init__(self, pixels, color, isBorder):
+        super().__init__(pixels, color, isBorder)
         
-        self.isRectangle = self.nCells == (self.xLen+1) * (self.yLen+1)
+        self.isRectangle = self.nPixels == (self.xLen+1) * (self.yLen+1)
         self.isSquare = self.isRectangle and self.xLen == self.yLen
         
         # Number of holes
@@ -373,8 +438,10 @@ class Matrix():
         # Non-background shapes
         self.notBackgroundShapes = [s for s in self.shapes if s.color != self.backgroundColor]
         self.nNBShapes = len(self.notBackgroundShapes)
+        self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
+        self.nNBDShapes = len(self.notBackgroundDShapes)
         
-        # ShapeCounter?
+        
         
         # Frontiers
         self.frontiers = detectFrontiers(self.m)
@@ -417,7 +484,7 @@ class Matrix():
     
     def getShapes(self, color=None, bigOrSmall=None, isBorder=None, diag=False):
         """
-        Return a list of the shapes meeting the required specifications
+        Return a list of the shapes meeting the required specifications.
         """
         if diag:
             candidates = self.dShapes
@@ -431,13 +498,13 @@ class Matrix():
             candidates = [c for c in candidates if not c.isBorder]
         if len(candidates) ==  0:
             return []
-        sizes = [c.nCells for c in candidates]
+        sizes = [c.nPixels for c in candidates]
         if bigOrSmall == "big":
             maxSize = max(sizes)
-            return [c for c in candidates if c.nCells==maxSize]
+            return [c for c in candidates if c.nPixels==maxSize]
         elif bigOrSmall == "small":
             minSize = min(sizes)
-            return [c for c in candidates if c.nCells==minSize]
+            return [c for c in candidates if c.nPixels==minSize]
         else:
             return candidates
         
@@ -541,16 +608,16 @@ class Sample():
         self.sameColors = len(self.colors) == len(self.commonColors)
         # Do they have the same number of colors?
         self.sameNumColors = self.inMatrix.nColors == self.outMatrix.nColors
-        # Which cells have changed?
-        self.changedCells = Counter()
+        # Which pixels have changed?
+        self.changedPixels = Counter()
         if self.sameShape:
             self.sameColorCount = self.inMatrix.colorCount == self.outMatrix.colorCount
             for i, j in np.ndindex(self.inMatrix.shape):
                 if self.inMatrix.m[i,j] != self.outMatrix.m[i,j]:
-                    self.changedCells[(self.inMatrix.m[i,j], self.outMatrix.m[i,j])] += 1
+                    self.changedPixels[(self.inMatrix.m[i,j], self.outMatrix.m[i,j])] += 1
             # Does any color never change?
-            self.changedInColors = set(change[0] for change in self.changedCells.keys())
-            self.changedOutColors = set(change[1] for change in self.changedCells.keys())
+            self.changedInColors = set(change[0] for change in self.changedPixels.keys())
+            self.changedOutColors = set(change[1] for change in self.changedPixels.keys())
             self.unchangedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
         
         # Grids
@@ -565,7 +632,7 @@ class Sample():
             self.gridCellsHaveOneColor = self.inMatrix.grid.allCellsHaveOneColor and\
                                          self.outMatrix.grid.allCellsHaveOneColor
         
-        # Which shapes do they have in common? (normal diagonal, with cells>1)
+        # Which shapes do they have in common? (normal diagonal, with pixels>1)
         
         # Is one a rotation of the other?
         
@@ -670,7 +737,7 @@ class Task():
             # Do the matrices have the same color count?
             self.sameColorCount = all([s.sameColorCount for s in self.trainSamples])
             # Which color changes happen? Union and intersection.
-            cc = [set(s.changedCells.keys()) for s in self.trainSamples]
+            cc = [set(s.changedPixels.keys()) for s in self.trainSamples]
             self.colorChanges = set.union(*cc)
             self.commonColorChanges = set.intersection(*cc)
             # Does any color always change? (to and from)
@@ -728,13 +795,13 @@ class Task():
                 if not self.onlyShapeColorChanges:
                     break
             
-            # Get a list with the number of cells shapes have
+            # Get a list with the number of pixels shapes have
             if self.onlyShapeColorChanges:
-                nCells = set()
+                nPixels = set()
                 for s in self.trainSamples:
                     for shape in s.inMatrix.shapes:
-                        nCells.add(shape.nCells)
-                self.shapeCellNumbers =  list(nCells)
+                        nPixels.add(shape.nPixels)
+                self.shapePixelNumbers =  list(nPixels)
                 
         # Do all output matrices follow a pattern?
         self.followsRowPattern = all([s.followsRowPattern != False for s in self.trainSamples])
