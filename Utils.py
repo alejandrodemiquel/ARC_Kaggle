@@ -870,6 +870,26 @@ def mapPixels(matrix, pixelMap, outShape):
         m[i,j] = inMatrix[pixelMap[i,j]]
     return m
 
+def switchColors(matrix, color1=None, color2=None):
+    """
+    This function switches the color1 and the color2 in the matrix.
+    If color1 and color2 are not specified, then the matrix is expected to only
+    have 2 colors, and they will be switched.
+    """
+    m = matrix.m.copy()
+    if color1==None or color2==None:
+        color1 = m[0,0]
+        for i,j in np.ndindex(m.shape):
+            if m[i,j]!=color1:
+                color2 = m[i,j]
+                break
+    for i,j in np.ndindex(m.shape):
+        if m[i,j]==color1:
+            m[i,j] = color2
+        else:
+            m[i,j] = color1        
+    return m
+
 # %% Follow row/col patterns
 def identifyColor(m, pixelPos, c2c, rowStep=None, colStep=None):
     if colStep!=None and rowStep!=None:
@@ -1125,6 +1145,10 @@ def getPossibleOperations(t, c):
     candTask = c.t
     x = [] # List to be returned
     directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
+    
+    ###########################################################################
+    if all([n==2 for n in candTask.nInColors]):
+        x.append(partial(switchColors))
 
     ###########################################################################
     # sameIOShapes
