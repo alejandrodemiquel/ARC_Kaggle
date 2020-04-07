@@ -348,7 +348,7 @@ class Solution():
 
 solved = []
 
-for idx in tqdm(range(5), position=0, leave=True): 
+for idx in tqdm(range(1), position=0, leave=True): 
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
