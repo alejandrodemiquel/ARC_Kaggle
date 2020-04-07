@@ -212,7 +212,6 @@ class Shape:
             return False
         return True
     
-    #for now ignore rotation or symmetry
     def isSubshape(self, other, sameColor=False, rotation=False):
         if sameColor:
             if self.color != other.color:
@@ -227,15 +226,7 @@ class Shape:
                 if Shape(np.array(np.rot90(m1,x).nonzero()).transpose(),self.color,self.isBorder).isSubshape(other):
                     return True
         return False
-    
-    
-        #if self.xLen > other.xLen or self.yLen > other.yLen:
-        #    return False
-        #for po in other.pixels:
-        #    if set([tuple(np.add(ps,po)) for ps in self.pixels]) <= other.pixels:
-        #        return True
-        #return False
-    
+
     
     def isLRSymmetric(self):
         for c in self.pixels:
