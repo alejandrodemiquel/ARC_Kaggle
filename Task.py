@@ -222,9 +222,9 @@ class Shape:
                 if set([tuple(np.add(ps,[xTr,yTr])) for ps in self.pixels]) <= other.pixels:
                     return True
         if rotation:
-            #maybe compute shapeDummy just once
+            m1 = self.shapeDummyMatrix()
             for x in range(1,4):
-                if Shape(np.array(np.rot90(self.shapeDummyMatrix(),x).nonzero()).transpose(),self.color,self.isBorder).isSubshape(other):
+                if Shape(np.array(np.rot90(m1,x).nonzero()).transpose(),self.color,self.isBorder).isSubshape(other):
                     return True
         return False
     
