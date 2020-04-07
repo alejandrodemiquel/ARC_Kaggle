@@ -8,9 +8,20 @@ from itertools import product, permutations
 from functools import partial
 
 def identityM(matrix):
+    """
+    Function that, given Matrix, returns its corresponding numpy.ndarray m
+    """
     return matrix.m
 
 def correctUnchangedColors(inMatrix, x, unchangedColors):
+    """
+    Given an input matrix (inMatrix), an output matrix (x) and a set of colors
+    that should not change between the input and the output (unchangedColors),
+    this function returns a copy of x, but correcting the pixels that 
+    shouldn't have changed back into the original, unchanged color.
+    
+    inMatrix and x are required to have the same shape.
+    """
     m = x.copy()
     for i,j in np.ndindex(m.shape):
         if inMatrix[i,j] in unchangedColors:
@@ -23,19 +34,21 @@ def incorrectPixels(m1, m2):
     """
     return np.sum(m1!=m2)
 
-def deBackgroundize(t):
-    inMatrix = []
-    outMatrix = []
-    bColor = t.backgroundColor
-    for s in t.trainSamples:
-        inMatrix.append(np.uint8(s.inMatrix.m == bColor))
-        outMatrix.append(np.uint8(s.outMatrix.m == bColor))
-    return inMatrix, outMatrix
-
 def deBackgroundizeMatrix(m, color):
+    """
+    Given a matrix m and a color, this function returns a matrix whose elements
+    are 0 or 1, depending on whether the corresponding pixel is of the given
+    color or not.
+    """
     return np.uint8(m == color)
 
 def relDicts(colors):
+    """
+    Given a list of colors (numbers from 0 to 9, no repetitions allowed), this
+    function returns two dictionaries giving the relationships between the
+    color and its index in the list.
+    It's just a way to map the colors to list(range(nColors)).
+    """
     rel = {}
     for i in range(len(colors)):
         rel[i] = colors[i]
@@ -45,12 +58,23 @@ def relDicts(colors):
     return rel, invRel
 
 def dummify(x, nChannels, rel):
+    """
+    Given a matrix and a relationship given by relDicts, this function returns
+    a nColors x shape(x) matrix consisting only of ones and zeros. For each
+    channel (corresponding to a color), each element will be 1 if in the 
+    original matrix x that pixel is of the corresponding color.
+    """
     img = np.full((nChannels, x.shape[0], x.shape[1]), 0, dtype=np.uint8)
     for i in range(len(rel)):
         img[i] = np.isin(x,rel[i])
     return img
 
 def dummifyColor(x, color):
+    """
+    Given a matrix x and a color, this function returns a 2-by-shape(x) matrix
+    of ones and zeros. In one channel, the elements will be 1 if the pixel is
+    of the given color. In the other channel, they will be 1 otherwise.
+    """
     img = np.full((2, x.shape[0], x.shape[1]), 0, dtype=np.uint8)
     img[0] = x!=color
     img[1] = x==color
@@ -196,7 +220,7 @@ def trainCNNDummyColor(t, k, pad):
 @torch.no_grad()
 def predictCNNDummyColor(matrix, model):
     m = matrix.m.copy()
-    pred = np.ones(m.shape) * matrix.backgroundColor
+    pred = np.ones(m.shape, dtype=np.uint8) * matrix.backgroundColor
     for c in matrix.colors:
         if c != matrix.backgroundColor:
             x = dummifyColor(m, c)
@@ -214,6 +238,7 @@ def trainCNN(t, commonColors, nChannels, k=5, pad=0):
     model = Models.OneConvModel(nChannels, k, pad)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+    #losses = np.zeros(100)
     for e in range(100):
         optimizer.zero_grad()
         loss = 0.0
@@ -233,7 +258,8 @@ def trainCNN(t, commonColors, nChannels, k=5, pad=0):
             loss += criterion(y_pred, y)
         loss.backward()
         optimizer.step()
-    return model
+        #losses[e] = loss
+    return model#, losses
 
 @torch.no_grad()
 def predictCNN(matrix, model, commonColors, nChannels):
@@ -845,7 +871,7 @@ def flipShape(matrix, shape, axis, background):
     Axis can be lr, ud
     """
     m = matrix.copy()
-    smallM = np.ones((shape.xLen+1, shape.yLen+1)) * background
+    smallM = np.ones((shape.xLen+1, shape.yLen+1), dtype=np.uint8) * background
     for c in shape.pixels:
         smallM[c] = shape.color
     if axis == "lr":
@@ -865,7 +891,7 @@ def flipAllShapes(matrix, axis, color, background):
 
 def mapPixels(matrix, pixelMap, outShape):
     inMatrix = matrix.m.copy()
-    m = np.zeros(outShape)
+    m = np.zeros(outShape, dtype=np.uint8)
     for i,j in np.ndindex(outShape):
         m[i,j] = inMatrix[pixelMap[i,j]]
     return m
@@ -1000,7 +1026,27 @@ def followPattern(matrix, rc, colorToChange=None, rowStep=None, colStep=None):
 
 def pixelwiseAnd(matrices, falseColor, targetColor=None, trueColor=None):
     """
-    "matrices" is a list of matrices (numpy arrays) of the same shape.
+    This function returns the result of executing the pixelwise "and" operation
+    in a list of matrices.
+    
+    Parameters
+    ----------
+    matrices: list
+        A list of numpy.ndarrays of the same shape
+    falseColor: int
+        The color of the pixel in the output matrix if the "and" operation is
+        false.
+    targetColor: int
+        The color to be targeted by the "and" operation. For example, if
+        targetColor is red, then the "and" operation will be true for a pixel
+        if all that pixel is red in all of the input matrices.
+        If targetColor is None, then the "and" operation will return true if
+        the pixel has the same color in all the matrices, and false otherwise.
+    trueColor: int
+        The color of the pixel in the output matrix if the "and" operation is
+        true.
+        If trueColor is none, the output color if the "and" operation is true
+        will be the color of the evaluated pixel.
     """
     m = np.zeros(matrices[0].shape, dtype=np.uint8)
     for i,j in np.ndindex(m.shape):
@@ -1023,6 +1069,9 @@ def pixelwiseAnd(matrices, falseColor, targetColor=None, trueColor=None):
     return m
 
 def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None):
+    """
+    See pixelwiseAnd.
+    """
     m = np.zeros(matrices[0].shape, dtype=np.uint8)
     for i,j in np.ndindex(m.shape):
         if targetColor == None:
@@ -1048,6 +1097,10 @@ def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None):
     return m
 
 def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
+    """
+    See pixelwiseAnd. The difference is that the Xor operation only makes sense
+    with two input matrices.
+    """
     m = np.zeros(m1.shape, dtype=np.uint8)
     for i,j in np.ndindex(m.shape):
         if targetColor == None:
@@ -1079,9 +1132,10 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
 def multiplyPixels(matrix, factor):
     """
     Factor is a 2-dimensional tuple.
-    The output matrix has shape matrix.shape*factor
+    The output matrix has shape matrix.shape*factor. Each pixel of the input
+    matrix is expanded by factor.
     """
-    m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)))
+    m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
     for i,j in np.ndindex(matrix.m.shape):
         for k,l in np.ndindex(factor):
             m[i*factor[0]+k, j*factor[1]+l] = matrix.m[i,j]
@@ -1092,12 +1146,17 @@ def multiplyMatrix(matrix, factor):
     Copy the matrix "matrix" into every submatrix of the output, which has
     shape matrix.shape * factor.
     """
-    m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)))
+    m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
     for i,j in np.ndindex(factor):
         m[i*matrix.shape[0]:(i+1)*matrix.shape[0], j*matrix.shape[1]:(j+1)*matrix.shape[1]] = matrix.m
     return m
 
 def multiplyPixelsAndAnd(matrix, factor, falseColor):
+    """
+    This function basically is the same as executing the functions
+    multiplyPixels, multiplyMatrix, and executing pixelwiseAnd with these two
+    matrices as inputs
+    """
     m = matrix.m.copy()
     multipliedM = multiplyPixels(matrix, factor)
     for i,j in np.ndindex(factor):
@@ -1106,6 +1165,11 @@ def multiplyPixelsAndAnd(matrix, factor, falseColor):
     return multipliedM
 
 def multiplyPixelsAndOr(matrix, factor, falseColor):
+    """
+    This function basically is the same as executing the functions
+    multiplyPixels, multiplyMatrix, and executing pixelwiseOr with these two
+    matrices as inputs
+    """
     m = matrix.m.copy()
     multipliedM = multiplyPixels(matrix, factor)
     for i,j in np.ndindex(factor):
@@ -1114,6 +1178,11 @@ def multiplyPixelsAndOr(matrix, factor, falseColor):
     return multipliedM
 
 def multiplyPixelsAndXor(matrix, factor, falseColor):
+    """
+    This function basically is the same as executing the functions
+    multiplyPixels, multiplyMatrix, and executing pixelwiseXor with these two
+    matrices as inputs
+    """
     m = matrix.m.copy()
     multipliedM = multiplyPixels(matrix, factor)
     for i,j in np.ndindex(factor):
@@ -1140,19 +1209,22 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
-    Returns a list of all possible operations to be performed on the task.
+    Given a Task.Task t and a Candidate c, this function returns a list of all
+    the possible operations that make sense applying to the input matrices of
+    c.
+    The elements of the list to be returned are partial functions, whose input
+    is a Task.Matrix and whose output is a numpy.ndarray (2-dim matrix).
     """ 
     candTask = c.t
     x = [] # List to be returned
     directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
     
     ###########################################################################
-    if all([n==2 for n in candTask.nInColors]):
-        x.append(partial(switchColors))
-
-    ###########################################################################
     # sameIOShapes
     if candTask.sameIOShapes:
+        
+        if all([n==2 for n in candTask.nInColors]):
+            x.append(partial(switchColors))
         #######################################################################
         # ColorMap
         ncc = len(candTask.colorChanges)
@@ -1311,7 +1383,7 @@ def getPossibleOperations(t, c):
             x.append(partial(predictLinearModel, model=model, commonColors=cc,\
                              nChannels=nc, outShape=candTask.outShape))
         
-        pixelMap = Models.pixelCorrespondence(t)
+        pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:
             x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
                 
