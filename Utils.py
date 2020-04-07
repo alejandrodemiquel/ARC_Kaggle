@@ -519,6 +519,8 @@ def trainLSTM(t, inColors, colors, inRel, outRel, reverse, order):
 def predictLSTM(matrix, model, inColors, colors, inRel, rel, reverse, order):
     m = matrix.m.copy()
     inShapes = [shape for shape in matrix.shapes if shape.color in inColors]
+    if len(inShapes)==0:
+        return m
     sortedShapes = sorted(inShapes, key=lambda x: (x.position[order[0]], x.position[order[1]]), reverse=reverse)
     inSeq = [shape.color for shape in sortedShapes]
     inSeq = prepare_sequence(inSeq, inRel)
@@ -541,7 +543,7 @@ def getBestLSTM(t):
         outShapes = [shape for shape in s.outMatrix.shapes if shape.color in colors]
         if len(inShapes) != len(outShapes) or len(inShapes) == 0:
             return partial(identityM)
-    
+            
     reverse = [True, False]
     order = [(0,1), (1,0)]    
     bestScore = 1000
