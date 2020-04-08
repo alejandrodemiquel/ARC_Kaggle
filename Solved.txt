@@ -1,0 +1,31 @@
+colorMap: 15, 275, 308, 336, 388
+mapPixels: 86, 141, 151, 163, 171, 193, 400, 490, 538, 561, 584, 616, 671, 685, 688, 751, 775
+switchColors: 388, 508, 794
+
+rotate: 139
+mirror: 149, 178, 240, 379
+
+followPattern: 6, 16, 60, 81, 109, 214, 304, 342, 448, 620, 700, 708, 765, 771, 787
+
+connectAnyPixels: 40, 44, 49, 97, 590
+
+changeShapes: 1, 9, 250, 271, 301, 373, 550, 598
+moveAllShapes: 31, 545
+moveAllShapesToClosest: 7, 741
+
+multiplyPixels: 222, 306, 548, 777
+multiplyMatrix: 248, 476, 508, 705
+
+multiplyPixelsAndAnd: 0, 543
+pixelwiseAndInGridSubmatrices: 30, 143, 317, 417, 439
+pixelwiseOrInGridSubmatrices: 5, 25, 320, 371
+pixelwiseXorInGridSubmatrices: 71
+
+predictLSTM: 9, 175, 331, 459, 594
+predictCNN: 11, 19, 54, 69, 72, 83, 94, 121, 150, 170, 191, 229, 257, 260, 266, 281, 282, 292, 316, 330, 372, 476, 481, 607, 705, 770, 777, 794
+predictCNNDummyColor: 3, 6, 52, 81, 321, 556, 625
+predictLinearModel: 185
+predictLinearDummyModel: 129, 667, 707
+predictLinearModelShapeColor: 146, 168, 195, 197, 301, 329, 368, 489, 599, 664
+
+
