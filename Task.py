@@ -212,8 +212,20 @@ class Shape:
             return False
         return True
     
-    # TODO
-    #def isSubshape()
+    def isSubshape(self, other, sameColor=False, rotation=False):
+        if sameColor:
+            if self.color != other.color:
+                return False
+        for yTr in range(other.yLen - self.yLen + 1):
+            for xTr in range(other.xLen - self.xLen + 1):
+                if set([tuple(np.add(ps,[xTr,yTr])) for ps in self.pixels]) <= other.pixels:
+                    return True
+        if rotation:
+            m1 = self.shapeDummyMatrix()
+            for x in range(1,4):
+                if Shape(np.array(np.rot90(m1,x).nonzero()).transpose(),self.color,self.isBorder).isSubshape(other):
+                    return True
+        return False
     
     def isLRSymmetric(self):
         for c in self.pixels:
@@ -261,6 +273,7 @@ class Shape:
             m[c] = 1
         return m
     
+# TODO (Maybe)
 class OneColorShape(Shape):
     def __init__(self, pixels, color, isBorder):
         super().__init__(pixels, color, isBorder)
