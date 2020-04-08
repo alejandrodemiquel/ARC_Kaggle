@@ -212,21 +212,8 @@ class Shape:
             return False
         return True
     
-    def isSubshape(self, other, sameColor=False, rotation=False):
-        if sameColor:
-            if self.color != other.color:
-                return False
-        for yTr in range(other.yLen - self.yLen + 1):
-            for xTr in range(other.xLen - self.xLen + 1):
-                if set([tuple(np.add(ps,[xTr,yTr])) for ps in self.pixels]) <= other.pixels:
-                    return True
-        if rotation:
-            m1 = self.shapeDummyMatrix()
-            for x in range(1,4):
-                if Shape(np.array(np.rot90(m1,x).nonzero()).transpose(),self.color,self.isBorder).isSubshape(other):
-                    return True
-        return False
-
+    # TODO
+    #def isSubshape()
     
     def isLRSymmetric(self):
         for c in self.pixels:
@@ -273,6 +260,15 @@ class Shape:
         for c in self.pixels:
             m[c] = 1
         return m
+    
+class OneColorShape(Shape):
+    def __init__(self, pixels, color, isBorder):
+        super().__init__(pixels, color, isBorder)
+    
+class MultiColorShape(Shape):
+    def __init__(self, pixels, isBorder):
+        super().__init__(pixels, isBorder)
+    
 
 def detectShapes(x, diagonals=False):
     """
@@ -530,7 +526,7 @@ class Matrix():
         """
         m = self.m.copy()
         col0 = m[:,0]
-        for i in range(1,int(m.shape[1]/2)):
+        for i in range(1,int(m.shape[1]/2)+1):
             if np.all(col0 == m[:,i]):
                 isPattern=True
                 for j in range(i):
@@ -549,7 +545,7 @@ class Matrix():
     def followsRowPattern(self):
         m = self.m.copy()
         row0 = m[0,:]
-        for i in range(1,int(m.shape[0]/2)):
+        for i in range(1,int(m.shape[0]/2)+1):
             if np.all(row0 == m[i,:]):
                 isPattern=True
                 for j in range(i):
@@ -689,13 +685,11 @@ class Task():
     
         # Are shapes of in (out) matrices always a factor of the shape of the 
         # out (in) matrices?
-        if self.allEqual([s.inShapeFactor for s in self.trainSamples\
-                                            if hasattr(s, 'inShapeFactor')]):
-            if hasattr(self.trainSamples[0], 'inShapeFactor'):
+        if all([hasattr(s, 'inShapeFactor') for s in self.trainSamples]):
+            if self.allEqual([s.inShapeFactor for s in self.trainSamples]):
                 self.inShapeFactor = self.trainSamples[0].inShapeFactor
-        if self.allEqual([s.outShapeFactor for s in self.trainSamples\
-                                            if hasattr(s, 'outShapeFactor')]):
-            if hasattr(self.trainSamples[0], 'outShapeFactor'):
+        if all([hasattr(s, 'outShapeFactor') for s in self.trainSamples]):
+            if self.allEqual([s.outShapeFactor for s in self.trainSamples]):
                 self.outShapeFactor = self.trainSamples[0].outShapeFactor
         
         # Check for I/O subsets

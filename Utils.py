@@ -84,6 +84,11 @@ def dummifyColor(x, color):
 # if t.lrSymmetric or t.udSymmetric or t.d1Symmetric:
 # if len(t.changingColors) == 1:
 def Symmetrize(task, color):
+    """
+    Given a task and a color, this function tries to turn pixels of that color
+    into some other one in order to make the matrices symmetric.
+    """
+    # Left-Right
     def LRSymmetrize(m, color):
         width = m.shape[1] - 1
         for i in range(m.shape[0]):
@@ -95,6 +100,7 @@ def Symmetrize(task, color):
                         m[i,width-j] = m[i,j]
         return m
     
+    # Up-Down
     def UDSymmetrize(m, color):
         height = m.shape[0] - 1
         for i in range(int(m.shape[0] / 2)):
@@ -106,6 +112,7 @@ def Symmetrize(task, color):
                         m[height-i,j] = m[i,j]
         return m
 
+    # Main diagonal
     def D1Symmetrize(m, color):
         for i in range(m.shape[0]):
             for j in range(m.shape[1]):
@@ -198,6 +205,14 @@ def predictCNNDummyCommonColors(matrix, model, commonColors):
 """
 
 def trainCNNDummyColor(t, k, pad):
+    """
+    This function trains a CNN with only one convolution of filter k and with
+    padding values equal to pad.
+    The training samples will have two channels: the background color and any
+    other color. The training loop loops through all the non-background colors
+    of each sample, treating them independently.
+    This is useful for tasks like number 3.
+    """
     model = Models.OneConvModel(2, k, pad)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     criterion = nn.CrossEntropyLoss()
@@ -219,6 +234,9 @@ def trainCNNDummyColor(t, k, pad):
 
 @torch.no_grad()
 def predictCNNDummyColor(matrix, model):
+    """
+    Predict function for a model trained using trainCNNDummyColor.
+    """
     m = matrix.m.copy()
     pred = np.ones(m.shape, dtype=np.uint8) * matrix.backgroundColor
     for c in matrix.colors:
@@ -233,7 +251,13 @@ def predictCNNDummyColor(matrix, model):
 
 def trainCNN(t, commonColors, nChannels, k=5, pad=0):
     """
-    commonColors are the colors to be dummified for all samples
+    This function trains a CNN model with kernel k and padding value pad.
+    It is required that all the training samples have the same number of colors
+    (adding the colors in the input and in the output).
+    It is also required that the output matrix has always the same shape as the
+    input matrix.
+    The colors are tried to be order in a specific way: first the colors that
+    are common to every sample (commonColors), and then the others.
     """
     model = Models.OneConvModel(nChannels, k, pad)
     criterion = nn.CrossEntropyLoss()
@@ -264,9 +288,7 @@ def trainCNN(t, commonColors, nChannels, k=5, pad=0):
 @torch.no_grad()
 def predictCNN(matrix, model, commonColors, nChannels):
     """
-    Given that the number of colors in a sample is always the same (nColors),
-    This function executes a convolution. The first channels correspond to the
-    colors that are common to every sample.
+    Predict function for a model trained using trainCNN.
     """
     m = matrix.m.copy()
     pred = np.zeros(m.shape, dtype=np.uint8)
@@ -289,7 +311,8 @@ def predictCNN(matrix, model, commonColors, nChannels):
 
 def getBestCNN(t):
     """
-    This function returns the best CNN with only one convolution.
+    This function returns the best CNN with only one convolution, after trying
+    different kernel sizes and padding values.
     There are as many channels as total colors or the minimum number of
     channels that is necessary.
     """
@@ -322,6 +345,15 @@ def getBestCNN(t):
 # If input always has the same shape and output always has the same shape
 # And there is always the same number of colors in each sample    
 def trainLinearModel(t, commonColors, nChannels):
+    """
+    This function trains a linear model.
+    It is required that all the training samples have the same number of colors
+    (adding the colors in the input and in the output).
+    It is also required that all the input matrices have the same shape, and
+    all the output matrices have the same shape.
+    The colors are tried to be order in a specific way: first the colors that
+    are common to every sample (commonColors), and then the others.
+    """
     model = Models.LinearModel(t.inShape, t.outShape, nChannels)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
@@ -349,9 +381,7 @@ def trainLinearModel(t, commonColors, nChannels):
 @torch.no_grad()
 def predictLinearModel(matrix, model, commonColors, nChannels, outShape):
     """
-    Given that the number of colors in a sample is always the same (nColors),
-    This function executes a convolution. The first channels correspond to the
-    colors that are common to every sample.
+    Predict function for a model trained using trainLinearModel.
     """
     m = matrix.m.copy()
     pred = np.zeros(outShape, dtype=np.uint8)
@@ -373,6 +403,12 @@ def predictLinearModel(matrix, model, commonColors, nChannels, outShape):
     return pred
 
 def trainLinearDummyModel(t):
+    """
+    This function trains a linear model.
+    The training samples will have two channels: the background color and any
+    other color. The training loop loops through all the non-background colors
+    of each sample, treating them independently.
+    """
     model = Models.LinearModelDummy(t.inShape, t.outShape)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
@@ -395,6 +431,9 @@ def trainLinearDummyModel(t):
     
 @torch.no_grad()
 def predictLinearDummyModel(matrix, model, outShape, backgroundColor):
+    """
+    Predict function for a model trained using trainLinearDummyModel.
+    """
     m = matrix.m.copy()
     pred = np.zeros(outShape, dtype=np.uint8)
     for c in matrix.colors:
@@ -407,11 +446,22 @@ def predictLinearDummyModel(matrix, model, outShape, backgroundColor):
                     pred[i,j] = c
     return pred
 
-def trainLinearShapeModel(t):
+def trainLinearModelShapeColor(t):
     """
-    For LinearShapeModel we need to have the same shapes in the input
-    and in the output, and in the exact same positions.
-    This model predicts the color of the shape in the output.
+    For trainLinearModelShapeColor we need to have the same shapes in the input
+    and in the output, and in the exact same positions. The training loop loops
+    through all the shapes of the task, and its aim is to predict the final
+    color of each shape.
+    The features of the linear model are:
+        - One feature per color in the task. Value of 1 if the shape has that
+        color, 0 otherwise.
+        - Several features representing the number of pixels of the shape.
+        Only one of these features can be equal to 1, the rest will be equal
+        to 0.
+        - 5 features to encode the number of holes of the shape (0,1,2,3 or 4)
+        - Feature encoding whether the shape is a square or not.
+        - Feature encoding whether the shape is a rectangle or not.
+        - Feature encoding whether the shape touches the border or not.
     """
     inColors = set.union(*t.changedInColors+t.changedOutColors) - t.unchangedColors
     colors = list(inColors) + list(set.union(*t.changedInColors+t.changedOutColors) - inColors)
@@ -458,7 +508,10 @@ def trainLinearShapeModel(t):
     return model
 
 @torch.no_grad()
-def predictLinearShapeModel(matrix, model, colors, unchangedColors, shapePixelNumbers):
+def predictLinearModelShapeColor(matrix, model, colors, unchangedColors, shapePixelNumbers):
+    """
+    Predict function for a model trained using trainLinearModelShapeColor.
+    """
     inColors = colors - unchangedColors
     colors = list(inColors) + list(colors - inColors)
     rel, invRel = relDicts(list(colors))
@@ -487,10 +540,17 @@ def predictLinearShapeModel(matrix, model, colors, unchangedColors, shapePixelNu
 
 # %% LSTM
 def prepare_sequence(seq, to_ix):
+    """
+    Utility function for LSTM.
+    """
     idxs = [to_ix[w] for w in seq]
     return torch.tensor(idxs, dtype=torch.long)
 
 def trainLSTM(t, inColors, colors, inRel, outRel, reverse, order):
+    """
+    This function tries to train a model that colors shapes according to a
+    sequence.
+    """
     EMBEDDING_DIM = 10
     HIDDEN_DIM = 10
     model = Models.LSTMTagger(EMBEDDING_DIM, HIDDEN_DIM, len(inColors), len(colors))
@@ -517,6 +577,9 @@ def trainLSTM(t, inColors, colors, inRel, outRel, reverse, order):
     
 @torch.no_grad()
 def predictLSTM(matrix, model, inColors, colors, inRel, rel, reverse, order):
+    """
+    Predict function for a model trained using trainLSTM.
+    """
     m = matrix.m.copy()
     inShapes = [shape for shape in matrix.shapes if shape.color in inColors]
     if len(inShapes)==0:
@@ -530,6 +593,14 @@ def predictLSTM(matrix, model, inColors, colors, inRel, rel, reverse, order):
     return m
              
 def getBestLSTM(t):
+    """
+    This function tries to find out which one is the best-fitting LSTM model
+    for the task t. The LSTM models try to change the color of shapes to fit
+    sequences. Examples are tasks 175, 331, 459 or 594.
+    4 LSTM models are trained, considering models that order shapes by X
+    coordinage, models that order them by Y coordinate, and considering both
+    directions of the sequence (normal and reverse).
+    """
     colors = set.union(*t.changedInColors+t.changedOutColors)
     inColors = colors - t.unchangedColors
     if len(inColors) == 0:
@@ -564,6 +635,10 @@ def getBestLSTM(t):
 # %% Other utility functions
 
 def insertShape(matrix, shape):
+    """
+    Given a matrix (numpy.ndarray) and a Task.Shape, this function returns the
+    same matrix but with the shape inserted.
+    """
     m = matrix.copy()
     for c in shape.pixels:
         if c[0] < matrix.shape[0] and c[1] < matrix.shape[1]:
@@ -571,6 +646,10 @@ def insertShape(matrix, shape):
     return m
 
 def deleteShape(matrix, shape, backgroundColor):
+    """
+    Given a matrix (numpy.ndarray) and a Task.Shape, this function substitutes
+    the shape by the background color of the matrix.
+    """
     m = matrix.copy()
     for c in shape.pixels:
         m[tuple(map(operator.add, c, shape.position))] = backgroundColor
@@ -589,7 +668,9 @@ def colorMap(matrix, cMap):
 
 def changeColorShapes(matrix, shapes, color):
     """
-    Returns matrix with shape changed of color
+    Given a matrix (numpy.ndarray), a list of Task.Shapes (they are expected to
+    be present in the matrix) and a color, this function returns the same
+    matrix, but with the shapes of the list having the given color.
     """
     if len(shapes) == 0:
         return matrix
@@ -600,6 +681,12 @@ def changeColorShapes(matrix, shapes, color):
     return m
 
 def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
+    """
+    Given a Task.Matrix, this function changes the Task.Shapes of the matrix
+    that have color inColor to having the color outColor, if they satisfy the
+    given conditions bigOrSmall (is the shape the smallest/biggest one?) and
+    isBorder.
+    """
     return changeColorShapes(m.m.copy(), m.getShapes(inColor, bigOrSmall, isBorder), outColor)
 
 # TODO
@@ -771,6 +858,10 @@ def moveAllShapes(matrix, color, background, direction, until, nSteps):
     return m
     
 def moveShapeToClosest(matrix, shape, background, until):
+    """
+    Given a matrix (numpy.ndarray) and a Task.Shape, this function moves the
+    given shape until the colosest shape with the color given by "until".
+    """
     m = matrix.copy()
     s = copy.deepcopy(shape)
     m = deleteShape(m, shape, background)
@@ -808,7 +899,19 @@ def moveAllShapesToClosest(matrix, colorToMove, background, until):
     return m
 
 def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()):
+    """
+    Given a matrix, this function connects all the pixels that have the same
+    color. This means that, for example, all the pixels between two red pixels
+    will also be red.
+    If "pixelColor" is specified, then only the pixels with the specified color
+    will be connected.
+    Ìf "connColor" is specified, the color used to connect the pixels will be
+    the one given by this parameter.
+    If there are any colors in the "unchangedColors" set, then they it is made
+    sure that they remain unchanged.
+    """
     m = matrix.copy()
+    # Row
     for i in range(m.shape[0]):
         lowLimit = 0
         while lowLimit < m.shape[1] and m[i, lowLimit] != pixelColor:
@@ -820,7 +923,8 @@ def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()
             for j in range(lowLimit, upLimit):
                 if m[i,j] != pixelColor and m[i,j] not in unchangedColors:
                     m[i,j] = connColor
-                    
+       
+    # Column             
     for j in range(m.shape[1]):
         lowLimit = 0
         while lowLimit < m.shape[0] and m[lowLimit, j] != pixelColor:
@@ -892,6 +996,12 @@ def flipAllShapes(matrix, axis, color, background):
     return m
 
 def mapPixels(matrix, pixelMap, outShape):
+    """
+    Given a Task.Matrix as input, this function maps each pixel of that matrix
+    to an outputMatrix, given by outShape.
+    The dictionary pixelMap determines which pixel in the input matrix maps
+    to each pixel in the output matrix.
+    """
     inMatrix = matrix.m.copy()
     m = np.zeros(outShape, dtype=np.uint8)
     for i,j in np.ndindex(outShape):
@@ -920,6 +1030,9 @@ def switchColors(matrix, color1=None, color2=None):
 
 # %% Follow row/col patterns
 def identifyColor(m, pixelPos, c2c, rowStep=None, colStep=None):
+    """
+    Utility function for followPattern.
+    """
     if colStep!=None and rowStep!=None:
         i = 0
         while i+pixelPos[0] < m.shape[0]:
@@ -932,6 +1045,9 @@ def identifyColor(m, pixelPos, c2c, rowStep=None, colStep=None):
         return c2c
     
 def identifyColStep(m, c2c):
+    """
+    Utility function for followPattern.
+    """
     colStep = 1
     while colStep < int(m.shape[1]/2)+1:
         isGood = True
@@ -958,6 +1074,9 @@ def identifyColStep(m, c2c):
     return m.shape[1]
 
 def identifyRowStep(m, c2c):
+    """
+    Utility function for followPattern.
+    """
     rowStep = 1
     while rowStep < int(m.shape[0]/2)+1:
         isGood = True
@@ -985,7 +1104,9 @@ def identifyRowStep(m, c2c):
 
 def followPattern(matrix, rc, colorToChange=None, rowStep=None, colStep=None):
     """
-    'rc' can be "row", "column" or "both".
+    Given a Task.Matrix, this function turns it into a matrix that follows a
+    pattern. This will be made row-wise, column-wise or both, depending on the
+    parameter "rc". "rc" can be "row", "column" or "both".
     'colorToChange' is the number corresponding to the only color that changes,
     if any.
     'rowStep' and 'colStep' are only to be given if the rowStep/colStep is the
@@ -1192,6 +1313,28 @@ def multiplyPixelsAndXor(matrix, factor, falseColor):
         multipliedM[i*m.shape[0]:(i+1)*m.shape[0], j*m.shape[1]:(j+1)*m.shape[1]] = pixelwiseXor(m, newM, falseColor)
     return multipliedM
 
+# %% Operations considering all submatrices of task with outShapeFactor
+    
+def getSubmatrices(m, factor):
+    matrices = []
+    nRows = int(m.shape[0] / factor[0])
+    nCols = int(m.shape[1] / factor[1])
+    for i,j in np.ndindex(factor):
+        matrices.append(m[i*nRows:(i+1)*nRows, j*nCols:(j+1)*nCols])
+    return matrices
+    
+def pixelwiseAndInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
+    matrices = getSubmatrices(matrix.m.copy(), factor)
+    return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
+
+def pixelwiseOrInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
+    matrices = getSubmatrices(matrix.m.copy(), factor)
+    return pixelwiseOr(matrices, falseColor, targetColor, trueColor)
+
+def pixelwiseXorInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
+    matrices = getSubmatrices(matrix.m.copy(), factor)
+    return pixelwiseXor(matrices[0], matrices[1], falseColor, targetColor, trueColor)
+
 # %% Operations considering all submatrices of a grid
 
 def pixelwiseAndInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
@@ -1239,9 +1382,9 @@ def getPossibleOperations(t, c):
         # This model predicts the color of the shape in the output.
         
         if candTask.onlyShapeColorChanges:
-            if all(["predictLinearShapeModel" not in str(op.func) for op in c.ops]):
-                model = trainLinearShapeModel(candTask)
-                x.append(partial(predictLinearShapeModel, model=model,\
+            if all(["predictLinearModelShapeColor" not in str(op.func) for op in c.ops]):
+                model = trainLinearModelShapeColor(candTask)
+                x.append(partial(predictLinearModelShapeColor, model=model,\
                                  colors=set.union(*candTask.changedInColors+candTask.changedOutColors), \
                                  unchangedColors=candTask.unchangedColors, \
                                  shapePixelNumbers=candTask.shapePixelNumbers))
@@ -1400,6 +1543,43 @@ def getPossibleOperations(t, c):
             x.append(partial(multiplyPixelsAndAnd, factor=candTask.inShapeFactor,\
                              falseColor=c))
             
+    if hasattr(candTask, 'outShapeFactor'):
+        # TODO Select a submatrix following certain criteria
+        
+        # Pixelwise And
+        for c in candTask.commonOutColors:
+            x.append(partial(pixelwiseAndInSubmatrices, factor=candTask.outShapeFactor,\
+                             falseColor=c))
+        if len(candTask.totalOutColors) == 2:
+            for target in candTask.totalInColors:
+                for c in permutations(candTask.totalOutColors, 2):
+                    x.append(partial(pixelwiseAndInSubmatrices, \
+                                     factor=candTask.outShapeFactor, falseColor=c[0],\
+                                     targetColor=target, trueColor=c[1]))
+        
+        # Pixelwise Or
+        for c in candTask.commonOutColors:
+            x.append(partial(pixelwiseOrInSubmatrices, factor=candTask.outShapeFactor,\
+                             falseColor=c))
+        if len(candTask.totalOutColors) == 2:
+            for target in candTask.totalInColors:
+                for c in permutations(candTask.totalOutColors, 2):
+                    x.append(partial(pixelwiseOrInSubmatrices, \
+                                     factor=candTask.outShapeFactor, falseColor=c[0],\
+                                     targetColor=target, trueColor=c[1]))
+        
+        # Pixelwise Xor
+        if candTask.outShapeFactor in [(2,1), (1,2)]:
+            for c in candTask.commonOutColors:
+                x.append(partial(pixelwiseXorInSubmatrices, factor=candTask.outShapeFactor,\
+                                 falseColor=c))
+            if len(candTask.totalOutColors) == 2:
+                for target in candTask.totalInColors:
+                    for c in permutations(candTask.totalOutColors, 2):
+                        x.append(partial(pixelwiseXorInSubmatrices, \
+                                         factor=candTask.outShapeFactor, falseColor=c[0],\
+                                         targetColor=target, trueColor=c[1]))
+    
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         # Pixelwise And
         for c in candTask.commonOutColors:
