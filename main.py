@@ -142,11 +142,13 @@ def plot_sample(sample, predict=None):
     else:
         plot_pictures([sample.inMatrix.m, sample.outMatrix.m, predict], ['Input', 'Output', 'Predict'])
 
-def plot_task2(task):
+def plot_task(task):
     """
     Given a task (in its original format), this function plots all of its
     matrices.
     """
+    if type(task)==int:
+        task = allTasks[index[task]]
     len_train = len(task['train'])
     len_test  = len(task['test'])
     len_max   = max(len_train, len_test)
