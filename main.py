@@ -348,7 +348,7 @@ class Solution():
 
 solved = []
 
-for idx in tqdm(range(1), position=0, leave=True): 
+for idx in tqdm(range(50), position=0, leave=True): 
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -397,9 +397,9 @@ for idx in tqdm(range(1), position=0, leave=True):
                 x = recoverGrid(t, x)
             #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
-                #print(idx)
-                #print(c.ops)
-                #plot_task2(task)
-                #break
+                print(idx)
+                print(c.ops)
+                plot_task2(task)
+                break
                 solved.append(Solution(idx, taskId, c.ops))
                 break

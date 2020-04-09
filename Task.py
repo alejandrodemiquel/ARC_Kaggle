@@ -73,7 +73,7 @@ class Grid:
     An object of the class Grid is basically a collection of frontiers that
     have all the same color.
     It is useful to check, for example, whether the cells defined by the grid
-    always have the same size or not.   
+    always have the same size or not.
     
     ...
     
@@ -162,27 +162,27 @@ class Grid:
 
 # %% Shapes and subclasses
 class Shape:
-    def __init__(self, pixels, color, isBorder):
+    def __init__(self, m, xPos, yPos, background, isBorder):
         # pixels is a 2xn numpy array, where n is the number of pixels
-        self.color = color
-        self.nPixels = pixels.shape[0] # len(shape) should be equivalent
-        
-        # Construct the set of pixels (set of 2-tuples)
-        xMin = pixels[:,0].min()
-        yMin = pixels[:,1].min()
-        self.xLen = pixels[:,0].max() - xMin
-        self.yLen = pixels[:,1].max() - yMin
-        self.shape = (self.xLen, self.yLen)
-        self.position = (xMin, yMin)
-        self.pixels = set()
-        for i in range(self.nPixels):
-            self.pixels.add((pixels[i,0] - xMin, pixels[i,1] - yMin))
+        self.m = m
+        self.nPixels = m.size - np.count_nonzero(m==255)
+        self.background = background
+        self.shape = m.shape
+        self.position = (xPos, yPos)
+        self.pixels = set([(i,j) for i,j in np.ndindex(m.shape) if m[i,j]!=255])
             
         # Is the shape in the border?
         self.isBorder = isBorder
         
+        # Which colors does the shape have?
+        self.colors = set(np.unique(m)) - set([255])
+        self.nColors = len(self.colors)
+        if self.nColors==1:
+            self.color = next(iter(self.colors))
+        
         # Symmetries
         # Left-Right
+        """
         self.lrSymmetric = self.isLRSymmetric()
         # Up-Down
         self.udSymmetric = self.isUDSymmetric()
@@ -195,23 +195,24 @@ class Shape:
             self.d2Symmetric = False
         self.totalSymmetric = self.lrSymmetric and self.udSymmetric and \
         self.d1Symmetric and self.d2Symmetric
+        """
     
     def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
-        if sameColor:
-            if self.color != other.color:
-                return False
         if samePosition:
             if self.position != other.position:
                 return False
-        if rotation:
+        if sameColor:
+            m1 = self.m
+            m2 = other.m
+        else:
             m1 = self.shapeDummyMatrix()
             m2 = other.shapeDummyMatrix()
-            if any([np.all(m1==np.rot90(m2,x)) for x in range(4)]):
+        if rotation:
+            if any([np.array_equal(m1, np.rot90(m2,x)) for x in range(1,4)]):
                 return True
-        if self.xLen != other.xLen or self.yLen != other.yLen or np.any(self.pixels != other.pixels):
-            return False
-        return True
+        return np.array_equal(m1,m2)
     
+    """
     def isSubshape(self, other, sameColor=False, rotation=False):
         if sameColor:
             if self.color != other.color:
@@ -226,8 +227,9 @@ class Shape:
                 if Shape(np.array(np.rot90(m1,x).nonzero()).transpose(),self.color,self.isBorder).isSubshape(other):
                     return True
         return False
-
+    """
     
+    """
     def isLRSymmetric(self):
         for c in self.pixels:
             if (c[0], self.yLen - c[1]) not in self.pixels:
@@ -251,17 +253,7 @@ class Shape:
             if (c[1], c[0]) not in self.pixels:
                 return False
         return True
-    
-    def shapeMatrix(self):
-        """
-        Returns the smallest possible matrix containing the shape.
-        The pixels of the matrix that do not belong to the shape are equal to 
-        -1 (or 255).
-        """
-        m = np.full((self.xLen+1, self.yLen+1), -1, dtype=np.uint8)
-        for c in self.pixels:
-            m[c] = self.color
-        return m
+    """
     
     def shapeDummyMatrix(self):
         """
@@ -269,34 +261,59 @@ class Shape:
         of the matrix are ones and zeros, depending on whether the pixel is a
         shape pixel or not.
         """
-        m = np.zeros((self.xLen+1, self.yLen+1), dtype=np.uint8)
-        for c in self.pixels:
-            m[c] = 1
-        return m
+        return (self.m!=255).astype(np.uint8)    
+    
 
-def detectShapes(x, diagonals=False):
+def detectShapes(x, background, singleColor=False, diagonals=False):
     """
     Given a numpy array x (2D), returns a list of the Shapes present in x
     """
     # Helper function to add pixels to a shape
     def addPixelsAround(i,j):
         def addPixel(i,j):
-            if i < 0 or j < 0 or i > iMax or j > jMax or seen[i][j] == True or x[i][j] != color:
+            if i < 0 or j < 0 or i > iMax or j > jMax or seen[i,j] == True:
                 return
-            seen[i,j] = True
-            newShape.append([i,j])
+            if singleColor:
+                if x[i,j] != color:
+                    return
+                newShape[i,j] = color
+            else:
+                if x[i,j] == background:
+                    return
+                newShape[i,j] = x[i,j]
+            seen[i,j] = True                
             addPixelsAround(i,j)
         
         addPixel(i-1,j)
         addPixel(i+1,j)
         addPixel(i,j-1)
-        addPixel(i,j+1) 
+        addPixel(i,j+1)
         
         if diagonals:
             addPixel(i-1,j-1)
             addPixel(i-1,j+1)
             addPixel(i+1,j-1)
             addPixel(i+1,j+1)
+            
+    def crop(matrix):
+        ret = matrix.copy()
+        for k in range(x.shape[0]):
+            if any(matrix[k,:] != 255): # -1==255 for dtype=np.uint8
+                x0 = k
+                break
+        for k in reversed(range(x.shape[0])):
+            if any(matrix[k,:] != 255): # -1==255 for dtype=np.uint8
+                x1 = k
+                break
+        for k in range(x.shape[1]):
+            if any(matrix[:,k] != 255): # -1==255 for dtype=np.uint8
+                y0 = k
+                break
+        for k in reversed(range(x.shape[1])):
+            if any(matrix[:,k] != 255): # -1==255 for dtype=np.uint8
+                y1 = k
+                break
+        return ret[x0:x1+1,y0:y1+1], x0, y0
                 
     shapes = []
     seen = np.zeros(x.shape, dtype=bool)
@@ -305,9 +322,19 @@ def detectShapes(x, diagonals=False):
     for i, j in np.ndindex(x.shape):
         if seen[i,j] == False:
             seen[i,j] = True
-            newShape = [[i,j]]
-            color = x[i][j]
+            if not singleColor and x[i,j]==background:
+                continue
+            newShape = np.full((x.shape), -1, dtype=np.uint8)
+            newShape[i,j] = x[i,j]
+            if singleColor:
+                color = x[i][j]
             addPixelsAround(i,j)
+            m, xPos, yPos = crop(newShape)
+            isBorder = xPos==0 or yPos==0 or (xPos+m.shape[0]==x.shape[0]) or (yPos+m.shape[1]==x.shape[1])
+            s = Shape(m.copy(), xPos, yPos, background, isBorder)
+            shapes.append(s)
+    return shapes
+    """
             # Is the shape in the border?
             isBorder = False
             if any([c[0] == 0 or c[1] == 0 or c[0] == iMax or c[1] == jMax for c in newShape]):
@@ -419,6 +446,7 @@ class GeneralShape(Shape):
                 if isInHole(i,j):
                     nHoles += 1
         return nHoles
+    """
     
 
 # %% Class Matrix
@@ -444,15 +472,17 @@ class Matrix():
         self.backgroundColor = max(self.colorCount, key=self.colorCount.get)
         
         # Shapes
-        self.shapes = detectShapes(self.m)
+        self.shapes = detectShapes(self.m, self.backgroundColor, singleColor=True)
         self.nShapes = len(self.shapes)
-        self.dShapes = detectShapes(self.m, diagonals=True)
+        self.dShapes = detectShapes(self.m, self.backgroundColor, singleColor=True, diagonals=True)
         self.nDShapes = len(self.dShapes)
+        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
+        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         # Non-background shapes
-        self.notBackgroundShapes = [s for s in self.shapes if s.color != self.backgroundColor]
-        self.nNBShapes = len(self.notBackgroundShapes)
-        self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
-        self.nNBDShapes = len(self.notBackgroundDShapes)
+        #self.notBackgroundShapes = [s for s in self.shapes if s.color != self.backgroundColor]
+        #self.nNBShapes = len(self.notBackgroundShapes)
+        #self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
+        #self.nNBDShapes = len(self.notBackgroundDShapes)
         
         
         
@@ -530,7 +560,7 @@ class Matrix():
         """
         m = self.m.copy()
         col0 = m[:,0]
-        for i in range(1,int(m.shape[1]/2)):
+        for i in range(1,int(m.shape[1]/2)+1):
             if np.all(col0 == m[:,i]):
                 isPattern=True
                 for j in range(i):
@@ -549,7 +579,7 @@ class Matrix():
     def followsRowPattern(self):
         m = self.m.copy()
         row0 = m[0,:]
-        for i in range(1,int(m.shape[0]/2)):
+        for i in range(1,int(m.shape[0]/2)+1):
             if np.all(row0 == m[i,:]):
                 isPattern=True
                 for j in range(i):
@@ -590,10 +620,11 @@ class Sample():
             (self.outMatrix.shape[1] % self.inMatrix.shape[1]) == 0 :
                 self.inShapeFactor = (int(self.outMatrix.shape[0]/self.inMatrix.shape[0]),\
                                       int(self.outMatrix.shape[1]/self.inMatrix.shape[1]))
-        
+        """
         if self.sameShape:
             self.diffMatrix = Matrix((self.inMatrix.m - self.outMatrix.m).tolist())
             self.diffPixels = np.count_nonzero(self.diffMatrix.m)
+        """
         
         """
         # Is one a subset of the other?
@@ -689,13 +720,11 @@ class Task():
     
         # Are shapes of in (out) matrices always a factor of the shape of the 
         # out (in) matrices?
-        if self.allEqual([s.inShapeFactor for s in self.trainSamples\
-                                            if hasattr(s, 'inShapeFactor')]):
-            if hasattr(self.trainSamples[0], 'inShapeFactor'):
+        if all([hasattr(s, 'inShapeFactor') for s in self.trainSamples]):
+            if self.allEqual([s.inShapeFactor for s in self.trainSamples]):
                 self.inShapeFactor = self.trainSamples[0].inShapeFactor
-        if self.allEqual([s.outShapeFactor for s in self.trainSamples\
-                                            if hasattr(s, 'outShapeFactor')]):
-            if hasattr(self.trainSamples[0], 'outShapeFactor'):
+        if all([hasattr(s, 'outShapeFactor') for s in self.trainSamples]):
+            if self.allEqual([s.outShapeFactor for s in self.trainSamples]):
                 self.outShapeFactor = self.trainSamples[0].outShapeFactor
         
         # Check for I/O subsets
@@ -766,8 +795,10 @@ class Task():
                 self.unchangedColors = set.intersection(*self.unchangedColors)
 
         # Is the number of pixels changed always the same?
+        """
         if self.sameIOShapes:
             self.sameChanges = self.allEqual([s.diffPixels for s in self.trainSamples])
+        """
         
         # Is there always a background color? Which one?
         if self.allEqual([s.inMatrix.backgroundColor for s in self.trainSamples]) and\
