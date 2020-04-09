@@ -181,21 +181,14 @@ class Shape:
             self.color = next(iter(self.colors))
         
         # Symmetries
-        # Left-Right
-        """
-        self.lrSymmetric = self.isLRSymmetric()
-        # Up-Down
-        self.udSymmetric = self.isUDSymmetric()
-        # Diagonals (only if square)
-        if self.xLen == self.yLen:
-            self.d1Symmetric = self.isD1Symmetric()
-            self.d2Symmetric = self.isD2Symmetric()
+        self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
+        self.udSymmetric = np.array_equal(self.m, np.flipud(self.m))
+        if self.m.shape[0] == self.m.shape[1]:
+            self.d1Symmetric = np.array_equal(self.m, self.m.T)
+            self.d2Symmetric = np.array_equal(np.fliplr(self.m), (np.fliplr(self.m)).T)
         else:
             self.d1Symmetric = False
             self.d2Symmetric = False
-        self.totalSymmetric = self.lrSymmetric and self.udSymmetric and \
-        self.d1Symmetric and self.d2Symmetric
-        """
     
     def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
         if samePosition:
@@ -227,32 +220,6 @@ class Shape:
                 if Shape(np.array(np.rot90(m1,x).nonzero()).transpose(),self.color,self.isBorder).isSubshape(other):
                     return True
         return False
-    """
-    
-    """
-    def isLRSymmetric(self):
-        for c in self.pixels:
-            if (c[0], self.yLen - c[1]) not in self.pixels:
-                return False
-        return True
-    
-    def isUDSymmetric(self):
-        for c in self.pixels:
-            if (self.xLen - c[0], c[1]) not in self.pixels:
-                return False
-        return True
-    
-    def isD1Symmetric(self):
-        for c in self.pixels:
-            if (self.xLen - c[1], self.yLen - c[0]) not in self.pixels:
-                return False
-        return True
-    
-    def isD2Symmetric(self):
-        for c in self.pixels:
-            if (c[1], c[0]) not in self.pixels:
-                return False
-        return True
     """
     
     def shapeDummyMatrix(self):
@@ -447,7 +414,6 @@ class GeneralShape(Shape):
                     nHoles += 1
         return nHoles
     """
-    
 
 # %% Class Matrix
 class Matrix():
@@ -508,13 +474,13 @@ class Matrix():
                         break            
         
         # Symmetries
-        self.lrSymmetric = np.all(np.fliplr(self.m) == self.m)
+        self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
         # Up-Down
-        self.udSymmetric = np.all(np.flipud(self.m) == self.m)
+        self.udSymmetric = np.array_equal(self.m, np.flipud(self.m))
         # Diagonals (only if square)
         if self.m.shape[0] == self.m.shape[1]:
-            self.d1Symmetric = np.all(self.m == self.m.T)
-            self.d2Symmetric = np.all(np.fliplr(self.m) == (np.fliplr(self.m)).T)
+            self.d1Symmetric = np.array_equal(self.m, self.m.T)
+            self.d2Symmetric = np.array_equal(np.fliplr(self.m), (np.fliplr(self.m)).T)
         else:
             self.d1Symmetric = False
             self.d2Symmetric = False

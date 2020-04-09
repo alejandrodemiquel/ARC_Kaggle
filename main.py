@@ -345,10 +345,12 @@ class Solution():
         self.index = index
         self.taskId = taskId
         self.ops = ops
+        
+# %% Solution Loop
 
 solved = []
 
-for idx in tqdm(range(50), position=0, leave=True): 
+for idx in tqdm(range(3), position=0, leave=True): 
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
