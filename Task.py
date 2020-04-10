@@ -1,5 +1,6 @@
 import numpy as np
 from collections import Counter
+import copy
 
 # %% Frontiers
 class Frontier:
@@ -137,7 +138,6 @@ class Grid:
             hShape += 1
             
         self.shape = (hShape, vShape) # N of h cells x N of v cells
-        self.nCells = len(self.cells)
         self.cellList = []
         for cellRow in range(len(self.cells)):
             for cellCol in range(len(self.cells[0])):
@@ -145,6 +145,8 @@ class Grid:
         self.allCellsSameShape = len(set([c[0].shape for c in self.cellList])) == 1
         if self.allCellsSameShape:
             self.cellShape = self.cells[0][0][0].shape
+            
+        self.nCells = len(self.cellList)
             
         # Check whether each cell has one and only one color
         self.allCellsHaveOneColor = True
@@ -462,16 +464,13 @@ class Matrix():
         # Check if it's a grid and the dimensions of the cells
         self.isGrid = False
         if detectGrid:
-            if len(set(self.frontierColors)) == 1:
-                self.grid = Grid(self.m, self.frontiers)
-                self.isGrid = True
-            else:
-                for fc in set(self.frontierColors):
-                    possibleGrid = [f for f in self.frontiers if f.color==fc]
-                    self.grid = Grid(self.m, possibleGrid)
-                    if self.grid.allCellsSameShape:
-                        self.isGrid = True
-                        break            
+            for fc in set(self.frontierColors):
+                possibleGrid = [f for f in self.frontiers if f.color==fc]
+                possibleGrid = Grid(self.m, possibleGrid)
+                if possibleGrid.allCellsSameShape and possibleGrid.nCells > 1:
+                    self.grid = copy.deepcopy(possibleGrid)
+                    self.isGrid = True
+                    break            
         
         # Symmetries
         self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
