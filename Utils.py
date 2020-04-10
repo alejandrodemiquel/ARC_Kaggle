@@ -1540,9 +1540,9 @@ def getPossibleOperations(t, c):
                 ch.remove(0)
                 ch = [0] + ch
                 if hasattr(candTask, 'outShapeFactor'):
-                    x.append(partial(pixelOverlap, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
+                    x.append(partial(overlapSubmatrices, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
                 elif hasattr(candTask, 'outShapeFactorGrid'):
-                    x.append(partial(pixelOverlap, colorHierarchy=ch))
+                    x.append(partial(overlapSubmatrices, colorHierarchy=ch))
                     
         pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:
@@ -1631,7 +1631,7 @@ def getPossibleOperations(t, c):
 
 # %% Stuff added by Roderic
 
-def pixelOverlap(matrix, colorHierarchy, shapeFactor=None):
+def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     """
     This function returns the result of overlapping all submatrices of a given
     shape factor pixelswise with a given color hierarchy. 

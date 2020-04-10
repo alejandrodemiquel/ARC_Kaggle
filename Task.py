@@ -585,7 +585,7 @@ class Sample():
             (self.outMatrix.shape[1] % self.inMatrix.shape[1]) == 0 :
                 self.inShapeFactor = (int(self.outMatrix.shape[0]/self.inMatrix.shape[0]),\
                                       int(self.outMatrix.shape[1]/self.inMatrix.shape[1]))
-<<<<<<< HEAD
+
             #What if we ignore grid?
             if self.inMatrix.isGrid:
                 if self.inMatrix.grid.cells[0][0][0].shape == self.outMatrix.shape:
@@ -594,7 +594,6 @@ class Sample():
                 if self.outMatrix.grid.cells[0][0][0].shape == self.inMatrix.shape:
                     self.inShapeFactorGrid = self.outMatrix.grid.shape
             
-=======
         """
 >>>>>>> e409ceabc7fc6086904a66a0a2506192716fabac
         if self.sameShape:

@@ -352,16 +352,9 @@ class Solution():
         self.ops = ops
         
 # %% Solution Loop
-
-<<<<<<< HEAD
 solved = []
-#566,468
-for idx in tqdm([179, 256, 493, 766, 772], position=0, leave=True): 
-=======
-#solved = []
 
-for idx in tqdm([235,486,521,544,739], position=0, leave=True): 
->>>>>>> e409ceabc7fc6086904a66a0a2506192716fabac
+for idx in tqdm(range(1), position=0, leave=True): 
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
