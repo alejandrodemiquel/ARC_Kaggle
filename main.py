@@ -145,11 +145,13 @@ def plot_sample(sample, predict=None):
     else:
         plot_pictures([sample.inMatrix.m, sample.outMatrix.m, predict], ['Input', 'Output', 'Predict'])
 
-def plot_task2(task):
+def plot_task(task):
     """
     Given a task (in its original format), this function plots all of its
     matrices.
     """
+    if type(task)==int:
+        task = allTasks[index[task]]
     len_train = len(task['train'])
     len_test  = len(task['test'])
     len_max   = max(len_train, len_test)
@@ -348,10 +350,18 @@ class Solution():
         self.index = index
         self.taskId = taskId
         self.ops = ops
+        
+# %% Solution Loop
 
+<<<<<<< HEAD
 solved = []
 #566,468
 for idx in tqdm([179, 256, 493, 766, 772], position=0, leave=True): 
+=======
+#solved = []
+
+for idx in tqdm([235,486,521,544,739], position=0, leave=True): 
+>>>>>>> e409ceabc7fc6086904a66a0a2506192716fabac
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -400,9 +410,9 @@ for idx in tqdm([179, 256, 493, 766, 772], position=0, leave=True):
                 x = recoverGrid(t, x)
             #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
-                #print(idx)
-                #print(c.ops)
-                #plot_task2(task)
-                #break
-                solved.append(Solution(idx, taskId, c.ops))
+                print(idx)
+                print(c.ops)
+                plot_task(task)
                 break
+                #solved.append(Solution(idx, taskId, c.ops))
+                #break
