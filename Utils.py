@@ -839,11 +839,11 @@ def moveAllShapes(matrix, color, background, direction, until, nSteps):
     if direction == 'l':
         shapesToMove.sort(key=lambda x: x.position[1])
     if direction == 'r':
-        shapesToMove.sort(key=lambda x: x.position[1]+x.yLen, reverse=True)
+        shapesToMove.sort(key=lambda x: x.position[1]+x.shape[1], reverse=True)
     if direction == 'u':
         shapesToMove.sort(key=lambda x: x.position[0])  
     if direction == 'd':
-        shapesToMove.sort(key=lambda x: x.position[0]+x.xLen, reverse=True)
+        shapesToMove.sort(key=lambda x: x.position[0]+x.shape[0], reverse=True)
     m = matrix.m.copy()
     for s in shapesToMove:
         newMatrix = m.copy()
@@ -971,13 +971,12 @@ def mirror(matrix, axis):
         return m.T
     if axis == "d2":
         return m[::-1,::-1].T
-    
+
+"""
 def flipShape(matrix, shape, axis, background):
-    """
-    Axis can be lr, ud
-    """
+    # Axis can be lr, ud
     m = matrix.copy()
-    smallM = np.ones((shape.xLen+1, shape.yLen+1), dtype=np.uint8) * background
+    smallM = np.ones((shape.shape[0]+1, shape.shape[1]+1), dtype=np.uint8) * background
     for c in shape.pixels:
         smallM[c] = shape.color
     if axis == "lr":
@@ -994,6 +993,7 @@ def flipAllShapes(matrix, axis, color, background):
     for s in shapesToMirror:
         m = flipShape(m, s, axis, background)
     return m
+"""
 
 def mapPixels(matrix, pixelMap, outShape):
     """
@@ -1382,12 +1382,14 @@ def getPossibleOperations(t, c):
         # This model predicts the color of the shape in the output.
         
         if candTask.onlyShapeColorChanges:
+            """
             if all(["predictLinearModelShapeColor" not in str(op.func) for op in c.ops]):
                 model = trainLinearModelShapeColor(candTask)
                 x.append(partial(predictLinearModelShapeColor, model=model,\
                                  colors=set.union(*candTask.changedInColors+candTask.changedOutColors), \
                                  unchangedColors=candTask.unchangedColors, \
                                  shapePixelNumbers=candTask.shapePixelNumbers))
+            """
                 
             if all(["getBestLSTM" not in str(op.func) for op in c.ops]):        
                 x.append(getBestLSTM(candTask))
@@ -1485,10 +1487,12 @@ def getPossibleOperations(t, c):
                                                         until=uc))
                                                          
             # Mirror shapes
+            """
             for c in ctc:
                 for d in ["lr", "ud"]:
                     x.append(partial(flipAllShapes, axis=d, color=c, \
                                      background=t.backgroundColor))
+            """
                     
         #######################################################################
         # Other sameIOShapes functions
