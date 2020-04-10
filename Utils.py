@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from itertools import product, permutations
 from functools import partial
+from collections import Counter
 
 def identityM(matrix):
     """
@@ -1384,11 +1385,23 @@ def getPossibleOperations(t, c):
             model = trainLinearModel(candTask, cc, nc)
             x.append(partial(predictLinearModel, model=model, commonColors=cc,\
                              nChannels=nc, outShape=candTask.outShape))
-        
+            
+            #Cases where output colors are a subset of input colors
+            if candTask.sameNInColors and all(s.inhasoutColors for s in candTask.trainSamples):
+                ch = dict(sum([Counter(s.outMatrix.colorCount) for s in candTask.trainSamples],Counter()))
+                ch = sorted(ch, key=ch.get)
+                ch.remove(0)
+                ch = [0] + ch
+                if hasattr(candTask, 'outShapeFactor'):
+                    x.append(partial(pixelOverlap, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
+                elif hasattr(candTask, 'outShapeFactorGrid'):
+                    x.append(partial(pixelOverlap, colorHierarchy=ch))
+                    
         pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:
             x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
-                
+        
+        
     ###########################################################################
     # Other cases
     
@@ -1431,3 +1444,24 @@ def getPossibleOperations(t, c):
                                          targetColor=target, trueColor=c[1]))
             
     return x
+
+# %% Stuff added by Roderic
+
+def pixelOverlap(matrix, colorHierarchy, shapeFactor=None):
+    """
+    This function returns the result of overlapping all submatrices of a given
+    shape factor pixelswise with a given color hierarchy. 
+    
+    """
+    if shapeFactor == None:
+       submat = [t[0].m for t in matrix.grid.cellList]
+    
+    else:
+        matrix = matrix.m
+        sF = tuple(sin // sfact for sin, sfact in zip(matrix.shape, shapeFactor))
+        submat = [matrix[sF[0]*i:sF[0]*(i+1),sF[1]*j:sF[1]*(j+1)] for i,j in np.ndindex(shapeFactor)]
+    
+    m = np.zeros(submat[0].shape, dtype=np.uint8)
+    for i,j in np.ndindex(m.shape):
+        m[i,j] = colorHierarchy[max([colorHierarchy.index(x[i,j]) for x in submat])]
+    return m

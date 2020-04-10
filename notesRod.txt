@@ -1,0 +1,5 @@
+
+
+CropShape:
+First identify if output is in the input
+Then find identifying characteristic. 

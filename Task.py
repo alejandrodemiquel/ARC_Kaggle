@@ -590,7 +590,14 @@ class Sample():
             (self.outMatrix.shape[1] % self.inMatrix.shape[1]) == 0 :
                 self.inShapeFactor = (int(self.outMatrix.shape[0]/self.inMatrix.shape[0]),\
                                       int(self.outMatrix.shape[1]/self.inMatrix.shape[1]))
-        
+            #What if we ignore grid?
+            if self.inMatrix.isGrid:
+                if self.inMatrix.grid.cells[0][0][0].shape == self.outMatrix.shape:
+                    self.outShapeFactorGrid = self.inMatrix.grid.shape
+            if self.outMatrix.isGrid:
+                if self.outMatrix.grid.cells[0][0][0].shape == self.inMatrix.shape:
+                    self.inShapeFactorGrid = self.outMatrix.grid.shape
+            
         if self.sameShape:
             self.diffMatrix = Matrix((self.inMatrix.m - self.outMatrix.m).tolist())
             self.diffPixels = np.count_nonzero(self.diffMatrix.m)
@@ -621,6 +628,9 @@ class Sample():
         self.sameColors = len(self.colors) == len(self.commonColors)
         # Do they have the same number of colors?
         self.sameNumColors = self.inMatrix.nColors == self.outMatrix.nColors
+        # Does output contain all input colors or viceversa?
+        self.inhasoutColors = self.outMatrix.colors <= self.inMatrix.colors  
+        self.outhasinColors = self.inMatrix.colors <= self.outMatrix.colors
         # Which pixels have changed?
         self.changedPixels = Counter()
         if self.sameShape:
@@ -697,7 +707,15 @@ class Task():
                                             if hasattr(s, 'outShapeFactor')]):
             if hasattr(self.trainSamples[0], 'outShapeFactor'):
                 self.outShapeFactor = self.trainSamples[0].outShapeFactor
-        
+        if self.allEqual([s.inShapeFactorGrid for s in self.trainSamples\
+                                            if hasattr(s, 'inShapeFactorGrid')]):
+             if hasattr(self.trainSamples[0], 'inShapeFactorGrid'):
+                self.inShapeFactorGrid = self.trainSamples[0].inShapeFactorGrid
+        if self.allEqual([s.outShapeFactorGrid for s in self.trainSamples\
+                                            if hasattr(s, 'outShapeFactorGrid')]):
+             if hasattr(self.trainSamples[0], 'outShapeFactorGrid'):
+                self.outShapeFactorGrid = self.trainSamples[0].outShapeFactorGrid
+            
         # Check for I/O subsets
         """
         self.inSubsetOfOut = self.trainSamples[0].inSubsetOfOutIndices
@@ -791,6 +809,8 @@ class Task():
             self.gridCellIsOutputShape = all([s.gridCellIsOutputShape for s in self.trainSamples])
         if self.hasUnchangedGrid:
             self.gridCellsHaveOneColor = all([s.gridCellsHaveOneColor for s in self.trainSamples])
+        
+        
         
         # Shapes:
         # Does the task ONLY involve changing colors of shapes?

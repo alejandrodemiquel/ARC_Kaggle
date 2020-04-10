@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import copy
+import pickle
 
 import torch
 import torch.nn as nn
@@ -118,7 +119,9 @@ allTasks.update(valid_tasks)
 #df = pd.read_csv('info.csv', index_col=0)
 
 # index is a list containing the 800 ids of the tasks
-index = list(allTasks.keys())
+#index = list(allTasks.keys())
+with open('index.pickle','rb') as f:
+    index = pickle.load(f)
 
 cmap = colors.ListedColormap(
         ['#000000', '#0074D9','#FF4136','#2ECC40','#FFDC00',
@@ -347,8 +350,8 @@ class Solution():
         self.ops = ops
 
 solved = []
-
-for idx in tqdm(range(1), position=0, leave=True): 
+#566,468
+for idx in tqdm([179, 256, 493, 766, 772], position=0, leave=True): 
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
