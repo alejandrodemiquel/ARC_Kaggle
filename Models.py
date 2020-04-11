@@ -6,7 +6,7 @@ import torch.nn.functional as F
 # 12/800 solved (1,5%)
 # if t.sameIOShapes:
 class Model3K(nn.Module):
-    def __init__(self, ch=10, padVal = -1):
+    def __init__(self, ch=10, padVal=0):
         super(Model3K, self).__init__()
         self.conv3 = nn.Conv2d(ch, ch, kernel_size=3)
         self.pad1 = nn.ConstantPad2d(1, padVal)
@@ -18,7 +18,7 @@ class Model3K(nn.Module):
         return x
     
 class OneConvModel(nn.Module):
-    def __init__(self, ch=10, kernel=3, padVal = -1):
+    def __init__(self, ch=10, kernel=3, padVal=0):
         super(OneConvModel, self).__init__()
         self.conv = nn.Conv2d(ch, ch, kernel_size=kernel)
         self.pad = nn.ConstantPad2d(int((kernel-1)/2), padVal)
