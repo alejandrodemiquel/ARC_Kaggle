@@ -617,6 +617,9 @@ class Sample():
         self.sameColors = len(self.colors) == len(self.commonColors)
         # Do they have the same number of colors?
         self.sameNumColors = self.inMatrix.nColors == self.outMatrix.nColors
+        # Does output contain all input colors or viceversa?
+        self.inHasOutColors = self.outMatrix.colors <= self.inMatrix.colors  
+        self.outHasInColors = self.inMatrix.colors <= self.outMatrix.colors
         # Which pixels have changed?
         self.changedPixels = Counter()
         if self.sameShape:
@@ -636,6 +639,9 @@ class Sample():
         # Does the shape of the grid cells determine the output shape?
         if hasattr(self.inMatrix, "grid") and self.inMatrix.grid.allCellsSameShape:
             self.gridCellIsOutputShape = self.outMatrix.shape == self.inMatrix.grid.cellShape
+        # Does the shape of the input determine the shape of the grid cells of the output?
+        if hasattr(self.outMatrix, "grid") and self.outMatrix.grid.allCellsSameShape:
+            self.gridCellIsInputShape = self.inMatrix.shape == self.outMatrix.grid.cellShape
         # Do all the grid cells have one color?
         if self.gridIsUnchanged:
             self.gridCellsHaveOneColor = self.inMatrix.grid.allCellsHaveOneColor and\
@@ -785,6 +791,8 @@ class Task():
         self.hasUnchangedGrid = all([s.gridIsUnchanged for s in self.trainSamples])
         if all([hasattr(s, "gridCellIsOutputShape") for s in self.trainSamples]):
             self.gridCellIsOutputShape = all([s.gridCellIsOutputShape for s in self.trainSamples])
+        if all([hasattr(s, "gridCellIsInputShape") for s in self.trainSamples]):
+            self.gridCellIsInputShape = all([s.gridCellIsInputShape for s in self.trainSamples])
         if self.hasUnchangedGrid:
             self.gridCellsHaveOneColor = all([s.gridCellsHaveOneColor for s in self.trainSamples])
         
@@ -870,5 +878,4 @@ class Task():
                 
         # TODO Dealing with grids and frames
         
-        return orderedColors   
-    
+        return orderedColors       
