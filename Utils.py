@@ -318,34 +318,37 @@ def getBestCNN(t):
     """
     kernel = [3,5,7]
     pad = [0,-1]    
-    bestScore = 1000
+    bestScore = 100000
     for k, p in product(kernel, pad):
-        """
-        Forget the simple convolution for now. It's messing me task 3
-        cc = list(t.colors)
-        nc = len(cc)
+        cc = list(range(10))
+        model = trainCNN(t, commonColors=cc, nChannels=10, k=k, pad=p)
+        score = sum([incorrectPixels(predictCNN(t.trainSamples[s].inMatrix, model, cc, 10), \
+                                     t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
+        if score < bestScore:
+            bestScore=score
+            ret = partial(predictCNN, model=model, commonColors=cc, nChannels=10)
+        
+    return ret
+
+def getBestSameNSampleColorsCNN(t):
+    kernel = [3,5,7]
+    pad = [0,-1]    
+    bestScore = 100000
+    for k, p in product(kernel, pad):
+        cc = list(t.commonSampleColors)
+        nc = t.trainSamples[0].nColors
         model = trainCNN(t, commonColors=cc, nChannels=nc, k=k, pad=p)
         score = sum([incorrectPixels(predictCNN(t.trainSamples[s].inMatrix, model, cc, nc), \
-                                  t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
+                                     t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         if score < bestScore:
-            ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)
-        """
-        
-        if t.sameNSampleColors:
-            cc = list(t.commonSampleColors)
-            nc = t.trainSamples[0].nColors
-            model = trainCNN(t, commonColors=cc, nChannels=nc, k=k, pad=p)
-            score = sum([incorrectPixels(predictCNN(t.trainSamples[s].inMatrix, model, cc, nc), \
-                                      t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
-            if score < bestScore:
-                bestScore=score
-                ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)    
+            bestScore=score
+            ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)    
     return ret
 
 def getBestCNNDummyColor(t):
     kernel = [3,5,7]
     pad = [0,-1]    
-    bestScore = 1000
+    bestScore = 100000
     for k, p in product(kernel, pad):
         model = trainCNNDummyColor(t, k, p)
         score = sum([incorrectPixels(predictCNNDummyColor(t.trainSamples[s].inMatrix, model), \
@@ -354,8 +357,6 @@ def getBestCNNDummyColor(t):
             bestScore=score
             ret = partial(predictCNNDummyColor, model=model)    
     return ret
-
-    
 
 # If input always has the same shape and output always has the same shape
 # And there is always the same number of colors in each sample    
@@ -1445,8 +1446,9 @@ def getPossibleOperations(t, c):
         #######################################################################
         # CNNs
         
+        x.append(getBestCNN(candTask))
         if candTask.sameNSampleColors:
-            x.append(getBestCNN(candTask))
+            x.append(getBestSameNSampleColorsCNN(candTask))
 
         if t.backgroundColor != -1:
             x.append(getBestCNNDummyColor(candTask))
