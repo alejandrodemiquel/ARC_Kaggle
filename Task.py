@@ -191,6 +191,9 @@ class Shape:
         else:
             self.d1Symmetric = False
             self.d2Symmetric = False
+            
+        self.isRectangle = 255 not in np.unique(m)
+        self.isSquare = self.isRectangle and self.shape[0]==self.shape[1]
     
     def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
         if samePosition:
@@ -382,7 +385,7 @@ class Loop(Shape):
         super().__init__(pixels, color, isBorder)
         self.nHoles=1
         self.isSquare=False
-        self.isRectangle=False
+            self.isRectangle=False
         
 class Frame(Loop):
     def __init__(self, pixels, color, isBorder):
@@ -452,7 +455,11 @@ class Matrix():
         #self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
         #self.nNBDShapes = len(self.notBackgroundDShapes)
         
-        
+        self.shapeColorCounter = Counter([s.color for s in self.shapes])
+        self.blanks = []
+        for s in self.shapes:
+            if s.isRectangle and self.shapeColorCounter[s.color]==1:
+                self.blanks.append(s)
         
         # Frontiers
         self.frontiers = detectFrontiers(self.m)
@@ -648,9 +655,13 @@ class Sample():
                                          self.outMatrix.grid.allCellsHaveOneColor
         
         # Which shapes do they have in common? (normal diagonal, with pixels>1)
-        
-        # Is one a rotation of the other?
-        
+        self.inputHasBlank = len(self.inMatrix.blanks)>0
+        if self.inputHasBlank:
+            for s in self.inMatrix.blanks:
+                if s.shape == self.outMatrix.shape:
+                    self.blankToFill = s
+            
+                
         # Does the output matrix follow a pattern?
         self.followsRowPattern = self.outMatrix.followsRowPattern()
         self.followsColPattern = self.outMatrix.followsColPattern()
@@ -819,6 +830,9 @@ class Task():
                     for shape in s.inMatrix.shapes:
                         nPixels.add(shape.nPixels)
                 self.shapePixelNumbers =  list(nPixels)
+                
+        # Is the task about filling a blank?
+        self.fillTheBlank =  all([hasattr(s, 'blankToFill') for s in self.trainSamples])
                 
         # Do all output matrices follow a pattern?
         self.followsRowPattern = all([s.followsRowPattern != False for s in self.trainSamples])
