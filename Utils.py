@@ -2,6 +2,7 @@ import numpy as np
 import operator
 import copy
 import Models
+import Task
 import torch
 import torch.nn as nn
 from itertools import product, permutations
@@ -79,6 +80,8 @@ def dummifyColor(x, color):
     img[0] = x!=color
     img[1] = x==color
     return img
+
+# %% Symmetrize
 
 # 7/800 solved
 # if t.lrSymmetric or t.udSymmetric or t.d1Symmetric:
@@ -1142,6 +1145,54 @@ def followPattern(matrix, rc, colorToChange=None, rowStep=None, colStep=None):
                 k += rowStep
             
     return m
+
+# %% Fill the blank
+def fillTheBlankParameters(t):
+    matrices = []
+    for s in t.trainSamples:
+        m = s.inMatrix.m.copy()
+        blank = s.blankToFill
+        m[blank.position[0]:blank.position[0]+blank.shape[0],\
+          blank.position[1]:blank.position[1]+blank.shape[1]] = s.outMatrix.m.copy()
+        matrices.append(Task.Matrix(m))
+        
+    x = []
+    x.append(all([m.lrSymmetric for m in matrices]))
+    x.append(all([m.udSymmetric for m in matrices]))
+    x.append(all([m.d1Symmetric for m in matrices]))
+    x.append(all([m.d2Symmetric for m in matrices]))
+    return x
+
+def fillTheBlank(matrix, params):
+    m = matrix.m.copy()
+    if len(matrix.blanks) == 0:
+        return m
+    blank = matrix.blanks[0]
+    color = blank.color
+    pred = np.zeros(blank.shape, dtype=np.uint8)
+    
+    # lr
+    if params[0]:
+        for i,j in np.ndindex(blank.shape):
+            if m[blank.position[0]+i, m.shape[1]-1-(blank.position[1]+j)] != color:
+                pred[i,j] = m[blank.position[0]+i, m.shape[1]-1-(blank.position[1]+j)]
+    # ud
+    if params[1]:
+        for i,j in np.ndindex(blank.shape):
+            if m[m.shape[0]-1-(blank.position[0]+i), blank.position[1]+j] != color:
+                pred[i,j] = m[m.shape[0]-1-(blank.position[0]+i), blank.position[1]+j]
+    # d1
+    if params[2] and m.shape[0]==m.shape[1]:
+        for i,j in np.ndindex(blank.shape):
+            if m[blank.position[1]+j, blank.position[0]+i] != color:
+                pred[i,j] = m[blank.position[1]+j, blank.position[0]+i]
+    # d2 (persymmetric matrix)
+    if params[3] and m.shape[0]==m.shape[1]:
+        for i,j in np.ndindex(blank.shape):
+            if m[m.shape[1]-1-(blank.position[1]+j), m.shape[0]-1-(blank.position[0]+i)] != color:
+                pred[i,j] = m[m.shape[1]-1-(blank.position[1]+j), m.shape[0]-1-(blank.position[0]+i)]
+    
+    return pred
     
 # %% Operations with more than one matrix
 
@@ -1363,6 +1414,12 @@ def getPossibleOperations(t, c):
     candTask = c.t
     x = [] # List to be returned
     directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
+    
+    ###########################################################################
+    # Fill the blanks
+    if t.fillTheBlank:
+        params = fillTheBlankParameters(t)
+        x.append(partial(fillTheBlank, params=params))
     
     ###########################################################################
     # sameIOShapes
