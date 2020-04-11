@@ -1361,12 +1361,12 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     """
     if shapeFactor == None:
        submat = [t[0].m for t in matrix.grid.cellList]
-    
+
     else:
         matrix = matrix.m
         sF = tuple(sin // sfact for sin, sfact in zip(matrix.shape, shapeFactor))
         submat = [matrix[sF[0]*i:sF[0]*(i+1),sF[1]*j:sF[1]*(j+1)] for i,j in np.ndindex(shapeFactor)]
-    
+
     m = np.zeros(submat[0].shape, dtype=np.uint8)
     for i,j in np.ndindex(m.shape):
         m[i,j] = colorHierarchy[max([colorHierarchy.index(x[i,j]) for x in submat])]
@@ -1564,12 +1564,11 @@ def getPossibleOperations(t, c):
                 elif hasattr(candTask,'gridCellIsOutputShape'):
                     if candTask.gridCellIsOutputShape:
                         x.append(partial(overlapSubmatrices, colorHierarchy=ch))
-                    
+        
         pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:
             x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
-        
-        
+                
     ###########################################################################
     # Other cases
     

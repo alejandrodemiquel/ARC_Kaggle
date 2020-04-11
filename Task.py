@@ -585,7 +585,6 @@ class Sample():
             (self.outMatrix.shape[1] % self.inMatrix.shape[1]) == 0 :
                 self.inShapeFactor = (int(self.outMatrix.shape[0]/self.inMatrix.shape[0]),\
                                       int(self.outMatrix.shape[1]/self.inMatrix.shape[1]))
-
         """
         if self.sameShape:
             self.diffMatrix = Matrix((self.inMatrix.m - self.outMatrix.m).tolist())
@@ -698,7 +697,7 @@ class Task():
         if all([hasattr(s, 'outShapeFactor') for s in self.trainSamples]):
             if self.allEqual([s.outShapeFactor for s in self.trainSamples]):
                 self.outShapeFactor = self.trainSamples[0].outShapeFactor
-            
+        
         # Check for I/O subsets
         """
         self.inSubsetOfOut = self.trainSamples[0].inSubsetOfOutIndices
@@ -797,8 +796,6 @@ class Task():
         if self.hasUnchangedGrid:
             self.gridCellsHaveOneColor = all([s.gridCellsHaveOneColor for s in self.trainSamples])
         
-        
-        
         # Shapes:
         # Does the task ONLY involve changing colors of shapes?
         if self.sameIOShapes:
@@ -881,5 +878,4 @@ class Task():
                 
         # TODO Dealing with grids and frames
         
-        return orderedColors   
-    
+        return orderedColors       
