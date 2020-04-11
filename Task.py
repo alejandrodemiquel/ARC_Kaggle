@@ -191,6 +191,9 @@ class Shape:
         else:
             self.d1Symmetric = False
             self.d2Symmetric = False
+            
+        self.isRectangle = 255 not in np.unique(m)
+        self.isSquare = self.isRectangle and self.shape[0]==self.shape[1]
     
     def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
         if samePosition:

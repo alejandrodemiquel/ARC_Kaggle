@@ -316,7 +316,7 @@ def getBestCNN(t):
     There are as many channels as total colors or the minimum number of
     channels that is necessary.
     """
-    kernel = [3,5]
+    kernel = [3,5,7]
     pad = [0,-1]    
     bestScore = 1000
     for k, p in product(kernel, pad):
@@ -341,6 +341,21 @@ def getBestCNN(t):
                 bestScore=score
                 ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)    
     return ret
+
+def getBestCNNDummyColor(t):
+    kernel = [3,5,7]
+    pad = [0,-1]    
+    bestScore = 1000
+    for k, p in product(kernel, pad):
+        model = trainCNNDummyColor(t, k, p)
+        score = sum([incorrectPixels(predictCNNDummyColor(t.trainSamples[s].inMatrix, model), \
+                                      t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
+        if score < bestScore:
+            bestScore=score
+            ret = partial(predictCNNDummyColor, model=model)    
+    return ret
+
+    
 
 # If input always has the same shape and output always has the same shape
 # And there is always the same number of colors in each sample    
@@ -1430,17 +1445,12 @@ def getPossibleOperations(t, c):
         #######################################################################
         # CNNs
         
-        # TODO Delete the if once issue with task 3 is solved
         if candTask.sameNSampleColors:
             x.append(getBestCNN(candTask))
 
         if t.backgroundColor != -1:
-            model = trainCNNDummyColor(candTask, 5, -1)
-            x.append(partial(predictCNNDummyColor, model=model))
-            model = trainCNNDummyColor(candTask, 3, 0)
-            x.append(partial(predictCNNDummyColor, model=model))
-            #model = trainOneConvModelDummyColor(candTask, 7, -1)
-            #x.append(partial(predictConvModelDummyColor, model=model))
+            x.append(getBestCNNDummyColor(candTask))
+
             
         #cc = list(t.commonSampleColors)
         #model = trainCNNDummyCommonColors(t, cc, 3, -1)
@@ -1509,28 +1519,32 @@ def getPossibleOperations(t, c):
             for cc in candTask.colors - tuc:
                 x.append(partial(connectAnyPixels, pixelColor=pc, \
                                  connColor=cc, unchangedColors=uc))
+                
         for cc in candTask.commonColorChanges:
-            for cc in candTask.commonColorChanges:
-                for border, bs in product([True, False, None], ["big", "small", None]):
-                    x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
-                                     bigOrSmall=bs, isBorder=border))
+            for border, bs in product([True, False, None], ["big", "small", None]):
+                x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
+                                 bigOrSmall=bs, isBorder=border))
                 
     ###########################################################################
     # Cases in which the input has always the same shape, and the output too
     if candTask.sameInShape and candTask.sameOutShape and \
     all(candTask.trainSamples[0].inMatrix.shape == s.inMatrix.shape for s in candTask.testSamples):
+        """
         if candTask.backgroundColor != -1:
             model = trainLinearDummyModel(candTask)
             x.append(partial(predictLinearDummyModel, model=model, \
                              outShape=candTask.outShape,\
                              backgroundColor=candTask.backgroundColor))
+        """
         
+        """
         if candTask.sameNSampleColors:
             cc = list(candTask.commonSampleColors)
             nc = candTask.trainSamples[0].nColors
             model = trainLinearModel(candTask, cc, nc)
             x.append(partial(predictLinearModel, model=model, commonColors=cc,\
                              nChannels=nc, outShape=candTask.outShape))
+        """
         
         pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:

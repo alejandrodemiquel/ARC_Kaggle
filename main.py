@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import copy
+import pickle
 
 import torch
 import torch.nn as nn
@@ -118,7 +119,9 @@ allTasks.update(valid_tasks)
 #df = pd.read_csv('info.csv', index_col=0)
 
 # index is a list containing the 800 ids of the tasks
-index = list(allTasks.keys())
+#index = list(allTasks.keys())
+with open('index.pickle','rb') as f:
+    index = pickle.load(f)
 
 cmap = colors.ListedColormap(
         ['#000000', '#0074D9','#FF4136','#2ECC40','#FFDC00',
@@ -326,21 +329,23 @@ def tryOperations(t, c):
         cScore += sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                           t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
-        if cScore == 0:
-            b3c.addCandidate(newCandidate)
-            continue
+        b3c.addCandidate(newCandidate)
+        #if cScore == 0:
+        #    continue
         # If all the pixels that have been modified by applying op have been
         # modified correctly, execute tryOperations again with the resulting
         # candidate.
-        if t.sameIOShapes:
+        """
+        if t.sameIOShapes and "predict" not in str(op.func) and "getBest" not in str(op.func):
             if Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, c.t.trainSamples[s].outMatrix.m) == \
             Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, cTask["train"][s]["input"]) + \
             Utils.incorrectPixels(c.t.trainSamples[s].outMatrix.m, cTask["train"][s]["input"]):
                 b3c.addCandidate(newCandidate)
-                if newCandidate.t!=None:
-                    tryOperations(t, newCandidate)
+                #if newCandidate.t!=None:
+                newCandidate.generateTask()
+                tryOperations(t, newCandidate)
                 continue
-        b3c.addCandidate(newCandidate)
+        """
         
 class Solution():
     def __init__(self, index, taskId, ops):
@@ -352,7 +357,7 @@ class Solution():
 
 #solved = []
 
-for idx in tqdm([235,486,521,544,739], position=0, leave=True): 
+for idx in tqdm([186], position=0, leave=True): 
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -389,7 +394,7 @@ for idx in tqdm([235,486,521,544,739], position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -399,7 +404,7 @@ for idx in tqdm([235,486,521,544,739], position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            #plot_sample(t.testSamples[s], x)
+            plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 print(idx)
                 print(c.ops)
