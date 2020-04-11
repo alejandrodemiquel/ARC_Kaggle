@@ -586,16 +586,7 @@ class Sample():
                 self.inShapeFactor = (int(self.outMatrix.shape[0]/self.inMatrix.shape[0]),\
                                       int(self.outMatrix.shape[1]/self.inMatrix.shape[1]))
 
-            #What if we ignore grid?
-            if self.inMatrix.isGrid:
-                if self.inMatrix.grid.cells[0][0][0].shape == self.outMatrix.shape:
-                    self.outShapeFactorGrid = self.inMatrix.grid.shape
-            if self.outMatrix.isGrid:
-                if self.outMatrix.grid.cells[0][0][0].shape == self.inMatrix.shape:
-                    self.inShapeFactorGrid = self.outMatrix.grid.shape
-            
         """
->>>>>>> e409ceabc7fc6086904a66a0a2506192716fabac
         if self.sameShape:
             self.diffMatrix = Matrix((self.inMatrix.m - self.outMatrix.m).tolist())
             self.diffPixels = np.count_nonzero(self.diffMatrix.m)
@@ -628,8 +619,8 @@ class Sample():
         # Do they have the same number of colors?
         self.sameNumColors = self.inMatrix.nColors == self.outMatrix.nColors
         # Does output contain all input colors or viceversa?
-        self.inhasoutColors = self.outMatrix.colors <= self.inMatrix.colors  
-        self.outhasinColors = self.inMatrix.colors <= self.outMatrix.colors
+        self.inHasOutColors = self.outMatrix.colors <= self.inMatrix.colors  
+        self.outHasInColors = self.inMatrix.colors <= self.outMatrix.colors
         # Which pixels have changed?
         self.changedPixels = Counter()
         if self.sameShape:
@@ -649,6 +640,9 @@ class Sample():
         # Does the shape of the grid cells determine the output shape?
         if hasattr(self.inMatrix, "grid") and self.inMatrix.grid.allCellsSameShape:
             self.gridCellIsOutputShape = self.outMatrix.shape == self.inMatrix.grid.cellShape
+        # Does the shape of the input determine the shape of the grid cells of the output?
+        if hasattr(self.outMatrix, "grid") and self.outMatrix.grid.allCellsSameShape:
+            self.gridCellIsInputShape = self.inMatrix.shape == self.outMatrix.grid.cellShape
         # Do all the grid cells have one color?
         if self.gridIsUnchanged:
             self.gridCellsHaveOneColor = self.inMatrix.grid.allCellsHaveOneColor and\
@@ -704,14 +698,6 @@ class Task():
         if all([hasattr(s, 'outShapeFactor') for s in self.trainSamples]):
             if self.allEqual([s.outShapeFactor for s in self.trainSamples]):
                 self.outShapeFactor = self.trainSamples[0].outShapeFactor
-        if self.allEqual([s.inShapeFactorGrid for s in self.trainSamples\
-                                            if hasattr(s, 'inShapeFactorGrid')]):
-             if hasattr(self.trainSamples[0], 'inShapeFactorGrid'):
-                self.inShapeFactorGrid = self.trainSamples[0].inShapeFactorGrid
-        if self.allEqual([s.outShapeFactorGrid for s in self.trainSamples\
-                                            if hasattr(s, 'outShapeFactorGrid')]):
-             if hasattr(self.trainSamples[0], 'outShapeFactorGrid'):
-                self.outShapeFactorGrid = self.trainSamples[0].outShapeFactorGrid
             
         # Check for I/O subsets
         """
@@ -806,6 +792,8 @@ class Task():
         self.hasUnchangedGrid = all([s.gridIsUnchanged for s in self.trainSamples])
         if all([hasattr(s, "gridCellIsOutputShape") for s in self.trainSamples]):
             self.gridCellIsOutputShape = all([s.gridCellIsOutputShape for s in self.trainSamples])
+        if all([hasattr(s, "gridCellIsInputShape") for s in self.trainSamples]):
+            self.gridCellIsInputShape = all([s.gridCellIsInputShape for s in self.trainSamples])
         if self.hasUnchangedGrid:
             self.gridCellsHaveOneColor = all([s.gridCellsHaveOneColor for s in self.trainSamples])
         

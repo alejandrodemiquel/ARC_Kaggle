@@ -354,7 +354,7 @@ class Solution():
 # %% Solution Loop
 solved = []
 
-for idx in tqdm(range(1), position=0, leave=True): 
+for idx in tqdm([179,256,468,493,566,766,772], position=0, leave=True): 
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)

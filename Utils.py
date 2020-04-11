@@ -1351,6 +1351,26 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
     m2 = matrix.grid.cellList[1][0].m.copy()
     return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor)
 
+# %% Stuff added by Roderic
+
+def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
+    """
+    This function returns the result of overlapping all submatrices of a given
+    shape factor pixelswise with a given color hierarchy. 
+    
+    """
+    if shapeFactor == None:
+       submat = [t[0].m for t in matrix.grid.cellList]
+    
+    else:
+        matrix = matrix.m
+        sF = tuple(sin // sfact for sin, sfact in zip(matrix.shape, shapeFactor))
+        submat = [matrix[sF[0]*i:sF[0]*(i+1),sF[1]*j:sF[1]*(j+1)] for i,j in np.ndindex(shapeFactor)]
+    
+    m = np.zeros(submat[0].shape, dtype=np.uint8)
+    for i,j in np.ndindex(m.shape):
+        m[i,j] = colorHierarchy[max([colorHierarchy.index(x[i,j]) for x in submat])]
+    return m
 
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
@@ -1534,15 +1554,16 @@ def getPossibleOperations(t, c):
                              nChannels=nc, outShape=candTask.outShape))
             
             #Cases where output colors are a subset of input colors
-            if candTask.sameNInColors and all(s.inhasoutColors for s in candTask.trainSamples):
+            if candTask.sameNInColors and all(s.inHasOutColors for s in candTask.trainSamples):
                 ch = dict(sum([Counter(s.outMatrix.colorCount) for s in candTask.trainSamples],Counter()))
                 ch = sorted(ch, key=ch.get)
                 ch.remove(0)
                 ch = [0] + ch
                 if hasattr(candTask, 'outShapeFactor'):
                     x.append(partial(overlapSubmatrices, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
-                elif hasattr(candTask, 'outShapeFactorGrid'):
-                    x.append(partial(overlapSubmatrices, colorHierarchy=ch))
+                elif hasattr(candTask,'gridCellIsOutputShape'):
+                    if candTask.gridCellIsOutputShape:
+                        x.append(partial(overlapSubmatrices, colorHierarchy=ch))
                     
         pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:
@@ -1628,24 +1649,3 @@ def getPossibleOperations(t, c):
                                          targetColor=target, trueColor=c[1]))
             
     return x
-
-# %% Stuff added by Roderic
-
-def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
-    """
-    This function returns the result of overlapping all submatrices of a given
-    shape factor pixelswise with a given color hierarchy. 
-    
-    """
-    if shapeFactor == None:
-       submat = [t[0].m for t in matrix.grid.cellList]
-    
-    else:
-        matrix = matrix.m
-        sF = tuple(sin // sfact for sin, sfact in zip(matrix.shape, shapeFactor))
-        submat = [matrix[sF[0]*i:sF[0]*(i+1),sF[1]*j:sF[1]*(j+1)] for i,j in np.ndindex(shapeFactor)]
-    
-    m = np.zeros(submat[0].shape, dtype=np.uint8)
-    for i,j in np.ndindex(m.shape):
-        m[i,j] = colorHierarchy[max([colorHierarchy.index(x[i,j]) for x in submat])]
-    return m
