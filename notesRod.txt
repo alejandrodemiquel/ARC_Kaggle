@@ -1,5 +1,46 @@
 
 
-CropShape:
+- CropShape:
 First identify if output is in the input
 Then find identifying characteristic. 
+cropshape tasks:
+[13,35,56,78,87,110,120,133,173,176,194,215,216,217,262,270,289,299,318,345,264,383,395]
+
+
+- outshape is in input 
+	input:
+	- unique [56]
+	- more replicas [78]
+	- unique color strict/nonstrict [13,35,78,87]
+	- unique shape
+	- symmetric 
+	- largest [35,87]
+	- smallest
+
+	output:
+	- only shape strict/nonstrict [13,35,78,87,110,215,217,262,270]
+	- diff color [,]
+	- diff size [
+	- replicate [56,78,194,216]
+
+- color nonstric shape
+
+
+
+cropframe: 
+[90,]
+
+- overlap tasks:
+[179,256,468,493,566,766,772]
+
+replicateShape
+208
+insertShape
+deleteShape
+multiplyMatrix
+multiplyPixels
+
+
+b1=Shape(np.array([[1,2],[2,1]]),1,1,0,False)
+b2=Shape(np.array([[1,2],[2,1]]),1,1,0,False)
+b1==b2
