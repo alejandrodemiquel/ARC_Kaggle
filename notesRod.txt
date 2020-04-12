@@ -3,3 +3,12 @@
 CropShape:
 First identify if output is in the input
 Then find identifying characteristic. 
+
+[13,28,35,56,78,87,90,110,133,173,176,194,204,208]
+
+replicateShape
+
+insertShape
+deleteShape
+multiplyMatrix
+multiplyPixels
