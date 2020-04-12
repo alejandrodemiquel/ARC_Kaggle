@@ -419,26 +419,6 @@ class GeneralShape(Shape):
                     nHoles += 1
         return nHoles
     """
-# %% Shape distinctive attributes
-def attribute_list(shape, matrix, diagonal):
-    if diagonal:
-        shapes = [sh for sh in matrix.dShapes]
-    else:
-        shapes = [sh for sh in matrix.shapes]
-    shapes.remove(shape)
-    attributeList = []
-    if all(len(shape.pixels) > len(sh.pixels) for sh in shapes):
-        attributeList += ['Largest']
-    if all(shape.color != sh.color for sh in shapes):
-        if len(set([sh.color for sh in shapes])) == 1:
-            attributeList += ['UniqueColor']
-        else:   
-            attributeList += ['DifferentColor']
-    if np.all(shape.m == shape.m[::-1,::]):
-        attributeList += ['UDSymmetric']
-    if np.all(shape.m == shape.m[::,::-1]):
-        attributeList += ['LRSymmetric']
-    return set(attributeList)
         
 # %% Class Matrix
 class Matrix():

@@ -354,11 +354,7 @@ class Solution():
 # %% Solution Loop
 solved = []
 
-<<<<<<< HEAD
 for idx in tqdm([], position=0, leave=True): 
-=======
-for idx in tqdm([241, 350, 393, 399, 409, 453, 559, 736, 752, 783], position=0, leave=True):
->>>>>>> cropshape
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)

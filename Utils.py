@@ -1426,6 +1426,31 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
         m[i,j] = colorHierarchy[max([colorHierarchy.index(x[i,j]) for x in submat])]
     return m
 
+#Cropshape First Idea
+def attribute_list(shape, matrix, diagonal):
+    """
+    This function finds all attributes of shape in matrix
+    """
+    if diagonal:
+        shapes = [sh for sh in matrix.dShapes]
+    else:
+        shapes = [sh for sh in matrix.shapes]
+    shapes.remove(shape)
+    attributeList = []
+    if all(len(shape.pixels) > len(sh.pixels) for sh in shapes):
+        attributeList += ['Largest']
+    if all(shape.color != sh.color for sh in shapes):
+        if len(set([sh.color for sh in shapes])) == 1:
+            attributeList += ['UniqueColor']
+        else:   
+            attributeList += ['DifferentColor']
+    if np.all(shape.m == shape.m[::-1,::]):
+        attributeList += ['UDSymmetric']
+    if np.all(shape.m == shape.m[::,::-1]):
+        attributeList += ['LRSymmetric']
+    return set(attributeList)
+
+
 def crop_shape(matrix, attributes, diagonal):
     """
     This function crops the shape out of a matrix with the maximum score according to attributes
