@@ -419,7 +419,27 @@ class GeneralShape(Shape):
                     nHoles += 1
         return nHoles
     """
-
+# %% Shape distinctive attributes
+def attribute_list(shape, matrix, diagonal):
+    if diagonal:
+        shapes = [sh for sh in matrix.dShapes]
+    else:
+        shapes = [sh for sh in matrix.shapes]
+    shapes.remove(shape)
+    attributeList = []
+    if all(len(shape.pixels) > len(sh.pixels) for sh in shapes):
+        attributeList += ['Largest']
+    if all(shape.color != sh.color for sh in shapes):
+        if len(set([sh.color for sh in shapes])) == 1:
+            attributeList += ['UniqueColor']
+        else:   
+            attributeList += ['DifferentColor']
+    if np.all(shape.m == shape.m[::-1,::]):
+        attributeList += ['UDSymmetric']
+    if np.all(shape.m == shape.m[::,::-1]):
+        attributeList += ['LRSymmetric']
+    return set(attributeList)
+        
 # %% Class Matrix
 class Matrix():
     def __init__(self, m, detectGrid=True):
@@ -597,7 +617,6 @@ class Sample():
             self.diffMatrix = Matrix((self.inMatrix.m - self.outMatrix.m).tolist())
             self.diffPixels = np.count_nonzero(self.diffMatrix.m)
         """
-        
         """
         # Is one a subset of the other?
         self.inSmallerThanOut = all(self.inMatrix.shape[i] <= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
@@ -614,8 +633,20 @@ class Sample():
             for i, j in np.ndindex((self.inMatrix.shape[0] - self.outMatrix.shape[0] + 1, self.inMatrix.shape[1] - self.outMatrix.shape[1] + 1)):
                 if np.all(self.outMatrix.m == self.inMatrix.m[i:i+self.outMatrix.shape[0], j:j+self.outMatrix.shape[1]]):
                     self.outSubsetOfInIndices.add((i, j))
+            #Is output a single input shape?
+            if len(self.outSubsetOfInIndices) == 1:
+                #modify to compute background correctly
+                for sh in self.outMatrix.shapes:
+                    if sh.m.size == self.outMatrix.m.size:
+                        osh = sh
+                        self.outIsShape = True
+                        self.outIsShapeAttributes = []
+                        for ish in self.inMatrix.shapes:
+                            if ish.m == osh.m:
+                                break
+                        self.outIsShapeAttributes = attribute_list(ish, self.inMatrix)
+                        break
         """
-        
         # Which colors are there in the sample?
         self.colors = set(self.inMatrix.colors | self.outMatrix.colors)
         self.commonColors = set(self.inMatrix.colors & self.outMatrix.colors)
@@ -660,12 +691,21 @@ class Sample():
             for s in self.inMatrix.blanks:
                 if s.shape == self.outMatrix.shape:
                     self.blankToFill = s
-            
-                
+                    
+                    
+        """
+        #a shape in the input is in the output
+        oshm = [os.m for os in self.outMatrix.dShapes]
+        if any([any([np.array_equal(ish.m, osh) for osh in oshm]) for ish in s1.inMatrix.dShapes]):
+            if self.outMatrix
+            #maybe the shapes are non_diagonal
+            #if self.inMatrix.shapes:
+         """
+         
         # Does the output matrix follow a pattern?
         self.followsRowPattern = self.outMatrix.followsRowPattern()
         self.followsColPattern = self.outMatrix.followsColPattern()
-
+        
 # %% Class Task
 class Task():
     def __init__(self, t, i):
