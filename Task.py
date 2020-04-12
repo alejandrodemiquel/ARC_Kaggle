@@ -638,6 +638,8 @@ class Sample():
             self.changedInColors = set(change[0] for change in self.changedPixels.keys())
             self.changedOutColors = set(change[1] for change in self.changedPixels.keys())
             self.unchangedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
+            # Colors that stay unchanged
+            self.fixedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
         
         # Grids
         # Is the grid the same in the input and in the output?
@@ -769,6 +771,8 @@ class Task():
             self.commonChangedInColors = set.intersection(*self.changedInColors)
             self.changedOutColors = [s.changedOutColors for s in self.trainSamples]
             self.commonChangedOutColors = set.intersection(*self.changedOutColors)
+            # Are there any fixed colors?
+            self.fixedColors = set.intersection(*[s.fixedColors for s in self.trainSamples])
             # Does any color never change?
             if self.commonChangedInColors == set(self.changedInColors[0]):
                 self.unchangedColors = set(range(10)) - self.commonChangedInColors
