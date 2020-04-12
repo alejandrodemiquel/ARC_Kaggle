@@ -1410,8 +1410,8 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
 def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     """
     This function returns the result of overlapping all submatrices of a given
-    shape factor pixelswise with a given color hierarchy. 
-    
+    shape factor pixelswise with a given color hierarchy. Includes option to overlap
+    all grid cells.     
     """
     if shapeFactor == None:
        submat = [t[0].m for t in matrix.grid.cellList]
@@ -1426,6 +1426,50 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
         m[i,j] = colorHierarchy[max([colorHierarchy.index(x[i,j]) for x in submat])]
     return m
 
+#Cropshape First Idea
+def attribute_list(shape, matrix, diagonal):
+    """
+    This function finds all attributes of shape in matrix
+    """
+    if diagonal:
+        shapes = [sh for sh in matrix.dShapes]
+    else:
+        shapes = [sh for sh in matrix.shapes]
+    shapes.remove(shape)
+    attributeList = []
+    if all(len(shape.pixels) > len(sh.pixels) for sh in shapes):
+        attributeList += ['Largest']
+    if all(shape.color != sh.color for sh in shapes):
+        if len(set([sh.color for sh in shapes])) == 1:
+            attributeList += ['UniqueColor']
+        else:   
+            attributeList += ['DifferentColor']
+    if np.all(shape.m == shape.m[::-1,::]):
+        attributeList += ['UDSymmetric']
+    if np.all(shape.m == shape.m[::,::-1]):
+        attributeList += ['LRSymmetric']
+    return set(attributeList)
+
+
+def crop_shape(matrix, attributes, diagonal):
+    """
+    This function crops the shape out of a matrix with the maximum score according to attributes
+    """
+    if diagonal:
+        shapes = [sh for sh in matrix.dShapes]
+    else:
+        shapes = [sh for sh in matrix.shapes]
+    bestShape = []
+    score = 0
+    for sh in shapes:
+        shscore = len(attributes.intersection(attribute_list(sh, matrix, diagonal)))
+        if shscore > score:
+            score = shscore
+            bestShape = [sh]
+        elif shscore == score:
+            bestShape += [sh]
+    return bestShape[0]
+    
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
