@@ -1615,14 +1615,16 @@ def getPossibleOperations(t, c):
             
             #Cases where output colors are a subset of input colors
             if candTask.sameNInColors and all(s.inHasOutColors for s in candTask.trainSamples):
-                ch = dict(sum([Counter(s.outMatrix.colorCount) for s in candTask.trainSamples],Counter()))
-                ch = sorted(ch, key=ch.get)
-                ch.remove(0)
-                ch = [0] + ch
-                if hasattr(candTask, 'outShapeFactor'):
-                    x.append(partial(overlapSubmatrices, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
-                elif hasattr(candTask,'gridCellIsOutputShape'):
-                    if candTask.gridCellIsOutputShape:
+                if hasattr(candTask, 'outShapeFactor') or (hasattr(candTask,\
+                              'gridCellIsOutputShape') and candTask.gridCellIsOutputShape):
+                    ch = dict(sum([Counter(s.outMatrix.colorCount) for s in candTask.trainSamples],Counter()))
+                    ch = sorted(ch, key=ch.get)
+                    if t.backgroundColor in ch:
+                        ch.remove(t.backgroundColor)
+                    ch = [t.backgroundColor] + ch
+                    if hasattr(candTask, 'outShapeFactor'):
+                        x.append(partial(overlapSubmatrices, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
+                    else:
                         x.append(partial(overlapSubmatrices, colorHierarchy=ch))
         
         pixelMap = Models.pixelCorrespondence(candTask)
