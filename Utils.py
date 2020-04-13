@@ -1665,7 +1665,7 @@ def getPossibleOperations(t, c):
                     ch = sorted(ch, key=ch.get)
                     if t.backgroundColor in ch:
                         ch.remove(t.backgroundColor)
-                    ch = [t.backgroundColor] + ch
+                    ch = list(set([0,1,2,3,4,5,6,7,8,9]).difference(set(ch))) + ch
                     if hasattr(candTask, 'outShapeFactor'):
                         x.append(partial(overlapSubmatrices, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
                     else:
