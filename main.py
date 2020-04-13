@@ -354,10 +354,22 @@ class Solution():
 # %% Solution Loop
 solved = []
 
-for idx in tqdm([179,256,468,493,566,766,772], position=0, leave=True): 
+count = 0
+for idx in tqdm([105], position=0, leave=True): 
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
+    """
+    if t.sameIOShapes and all([len(x)==1 for x in t.changedInColors]) and len(t.commonChangedInColors)==1:
+        models = Utils.evolvingCNN(t)
+        colors = t.commonSampleColors
+        nChannels = t.trainSamples[0].nColors
+        rel, invRel = Utils.relDicts(list(colors))
+        pred = Utils.predictEvolvingCNN(models, t.testSamples[0].inMatrix.m, nChannels, rel)
+        if Utils.incorrectPixels(pred, t.testSamples[0].outMatrix.m) == 0:
+            count += 1
+            plot_task(idx)
+    """
     
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
