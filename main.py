@@ -25,7 +25,7 @@ train_path = data_path / 'training'
 valid_path = data_path / 'evaluation'
 test_path = data_path / 'test'
 
-train_tasks = { task.stem: json.load(task.open()) for task in train_path.iterdir() } 
+train_tasks = { task.stem: json.load(task.open()) for task in train_path.iterdir() }
 valid_tasks = { task.stem: json.load(task.open()) for task in valid_path.iterdir() }
 
 # Correct wrong cases:
@@ -127,14 +127,14 @@ cmap = colors.ListedColormap(
         ['#000000', '#0074D9','#FF4136','#2ECC40','#FFDC00',
          '#AAAAAA', '#F012BE', '#FF851B', '#7FDBFF', '#870C25'])
 norm = colors.Normalize(vmin=0, vmax=9)
-    
+
 def plot_pictures(pictures, labels):
     fig, axs = plt.subplots(1, len(pictures), figsize=(2*len(pictures),32))
     for i, (pict, label) in enumerate(zip(pictures, labels)):
         axs[i].imshow(np.array(pict), cmap=cmap, norm=norm)
         axs[i].set_title(label)
     plt.show()
-    
+
 def plot_sample(sample, predict=None):
     """
     This function plots a sample. sample is an object of the class Task.Sample.
@@ -185,14 +185,14 @@ def flattener(pred):
     str_pred = str_pred.replace('[[', '|')
     str_pred = str_pred.replace('][', '|')
     str_pred = str_pred.replace(']]', '|')
-    return str_pred                
+    return str_pred
 
 # %% Current approach
 class Candidate():
     """
     Objects of the class Candidate store the information about a possible
     candidate for the solution.
-    
+
     ...
     Attributes
     ----------
@@ -217,24 +217,24 @@ class Candidate():
         self.score = score
         self.tasks = tasks
         self.t = None
-    
+
     def __lt__(self, other):
         """
         A candidate is better than another one if its score is lower.
         """
         return self.score < other.score
-    
+
     def generateTask(self):
         """
         Assign to the attribute t the Task.Task object corresponding to the
         current task status.
         """
         self.t = Task.Task(self.tasks[-1], 'dummyIndex')
-    
+
 class Best3Candidates():
     """
     An object of this class stores the three best candidates of a task.
-    
+
     ...
     Attributes
     ----------
@@ -244,7 +244,7 @@ class Best3Candidates():
     """
     def __init__(self, Candidate1, Candidate2, Candidate3):
         self.candidates = [Candidate1, Candidate2, Candidate3]
-        
+
     def maxCandidate(self):
         """
         Returns the index of the candidate with highest score.
@@ -255,7 +255,7 @@ class Best3Candidates():
         if self.candidates[2] > self.candidates[x]:
             x = 2
         return x
-        
+
     def addCandidate(self, c):
         """
         Given a candidate c, this function substitutes c with the worst
@@ -268,7 +268,7 @@ class Best3Candidates():
                 c.generateTask()
                 self.candidates[iMaxCand] = c
                 break
-            
+
 def ignoreGrid(t, task):
     for s in range(t.nTrain):
         m = np.zeros(t.trainSamples[s].inMatrix.grid.shape, dtype=np.uint8)
@@ -288,7 +288,7 @@ def ignoreGrid(t, task):
         for i,j in np.ndindex(m.shape):
             m[i,j] = next(iter(t.testSamples[s].outMatrix.grid.cells[i][j][0].colors))
         task["test"][s]["output"] = m.tolist()
-        
+
 def recoverGrid(t, x):
     realX = t.testSamples[s].inMatrix.m.copy()
     cells = t.testSamples[s].inMatrix.grid.cells
@@ -299,7 +299,7 @@ def recoverGrid(t, x):
             for k,l in np.ndindex(cellShape):
                 realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
     return realX
-            
+
 def tryOperations(t, c):
     """
     Given a Task.Task t and a Candidate c, this function applies all the
@@ -344,18 +344,19 @@ def tryOperations(t, c):
                     tryOperations(t, newCandidate)
                 continue
         b3c.addCandidate(newCandidate)
-        
+
 class Solution():
     def __init__(self, index, taskId, ops):
         self.index = index
         self.taskId = taskId
         self.ops = ops
-        
+
 # %% Solution Loop
 solved = []
 
-count = 0
-for idx in tqdm([105], position=0, leave=True): 
+
+for idx in tqdm([105], position=0, leave=True):
+
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -370,18 +371,18 @@ for idx in tqdm([105], position=0, leave=True):
             count += 1
             plot_task(idx)
     """
-    
+
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
         ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
         t2 = Task.Task(cTask, taskId)
     else:
         t2 = t
-        
+
     c = Candidate([], [task])
     c.t = t2
     b3c = Best3Candidates(c, c, c)
-    
+
     # Generate the three candidates with best possible score
     prevScore = sum([c.score for c in b3c.candidates])
     firstIt = True
@@ -399,7 +400,7 @@ for idx in tqdm([105], position=0, leave=True):
             break
         else:
             prevScore = score
-          
+
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
