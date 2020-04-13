@@ -59,16 +59,22 @@ def relDicts(colors):
         rel[i] = [colors[i]]
     return rel, invRel
 
-def dummify(x, nChannels, rel):
+def dummify(x, nChannels, rel=None):
     """
     Given a matrix and a relationship given by relDicts, this function returns
     a nColors x shape(x) matrix consisting only of ones and zeros. For each
     channel (corresponding to a color), each element will be 1 if in the 
     original matrix x that pixel is of the corresponding color.
+    If rel is not specified, it is expected that the values of x range from
+    0 to nChannels-1.
     """
     img = np.full((nChannels, x.shape[0], x.shape[1]), 0, dtype=np.uint8)
-    for i in range(len(rel)):
-        img[i] = np.isin(x,rel[i])
+    if rel==None:
+        for i in range(nChannels):
+            img[i] = x==i
+    else:
+        for i in range(len(rel)):
+            img[i] = np.isin(x,rel[i])
     return img
 
 def dummifyColor(x, color):
@@ -348,6 +354,139 @@ def getBestSameNSampleColorsCNN(t):
             bestScore=score
             ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)    
     return ret
+
+# %% CNN learning the output
+    
+def getNeighbourColors(m, i, j):
+    """
+    Given a matrix m and a position i,j, this function returns a list of the
+    values of the neighbours of (i,j).
+    """
+    x = []
+    if i>0:
+        x.append(m[i-1,j])
+    if j>0:
+        x.append(m[i,j-1])
+    if i<m.shape[0]-1:
+        x.append(m[i+1,j])
+    if j<m.shape[1]-1:
+        x.append(m[i,j+1])
+    return x
+
+def getDNeighbourColors(m, i, j):
+    """
+    Given a matrix m and a position i,j, this function returns a list of the
+    values of the diagonal neighbours of (i,j).
+    """
+    x = []
+    if i>0 and j>0:
+        x.append(m[i-1,j-1])
+    if i<m.shape[0]-1 and j>0:
+        x.append(m[i+1,j-1])
+    if i>0 and j<m.shape[1]-1:
+        x.append(m[i-1,j+1])
+    if i<m.shape[0]-1 and j<m.shape[1]-1:
+        x.append(m[i+1,j+1])
+    return x
+
+def colorNeighbours(mIn, mOut ,i, j):
+    if i>0:
+        mIn[i-1,j] = mOut[i-1,j]
+    if j>0:
+        mIn[i,j-1] = mOut[i,j-1]
+    if i<mIn.shape[0]-1:
+        mIn[i+1,j] = mOut[i+1,j]
+    if j<mIn.shape[1]-1:
+        mIn[i,j+1] = mOut[i,j+1]
+        
+def colorDNeighbours(mIn, mOut, i, j):
+    colorNeighbours(mIn, mOut ,i, j)
+    if i>0 and j>0:
+        mIn[i-1,j-1] = mOut[i-1,j-1]
+    if i<mIn.shape[0]-1 and j>0:
+        mIn[i+1,j-1] = mOut[i+1,j-1]
+    if i>0 and j<mIn.shape[1]-1:
+        mIn[i-1,j+1] = mOut[i-1,j+1]
+    if i<mIn.shape[0]-1 and j<mIn.shape[1]-1:
+        mIn[i+1,j+1] = mOut[i+1,j+1]
+    
+    
+# if len(t.changedInColors)==1 (the background color, where everything evolves)
+# 311/800 tasks satisfy this condition
+# Do I need inMatrix.nColors+fixedColors to be iqual for every sample?
+def evolvingCNN(t):
+    def evolveInputMatrices(mIn, mOut):
+        reference = [m.copy() for m in mIn]
+        for m in range(t.nTrain):
+            for i,j in np.ndindex(mIn[m].shape):
+                if referenceIsFixed and reference[m][i,j] in fixedColors:
+                    colorDNeighbours(mIn[m], mOut[m], i, j)
+                elif reference[m][i,j] in changedOutColors:
+                    colorDNeighbours(mIn[m], mOut[m], i, j)
+    
+    fixedColors = t.fixedColors
+    colors = t.commonSampleColors
+    changedInColors = t.commonChangedInColors
+    changedOutColors = t.commonChangedOutColors
+    nChannels = t.trainSamples[0].nColors
+    referenceIsFixed = t.trainSamples[0].inMatrix.nColors == len(t.fixedColors)+1
+    
+    rel, invRel = relDicts(list(colors))
+    
+    outMatrices = [s.outMatrix.m.copy() for s in t.trainSamples]
+    referenceOutput = [s.inMatrix.m.copy() for s in t.trainSamples]
+
+    kernel = 5
+    pad = 0
+    models = []
+    
+    for i in range(5):
+        inMatrices = [dummify(m, nChannels, rel) for m in referenceOutput]
+        evolveInputMatrices(referenceOutput, outMatrices)
+        outMatrices1 = [m.copy() for m in referenceOutput]
+        for m in outMatrices1:
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = invRel[m[i,j]]
+        
+        model = Models.OneConvModel(nChannels, kernel, pad)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+        #losses = np.zeros(100)
+        for e in range(100):
+            optimizer.zero_grad()
+            loss = 0.0
+            for m in range(t.nTrain):
+                x = torch.tensor(inMatrices[m]).unsqueeze(0).float()
+                y = torch.tensor(outMatrices1[m]).unsqueeze(0).long()
+                y_pred = model(x)
+                loss += criterion(y_pred, y)
+            loss.backward()
+            optimizer.step()
+            #losses[e] = loss
+        models.append(model)
+        
+    return models
+
+@torch.no_grad()
+def predictEvolvingCNN(models, matrix, nChannels, rel):
+    m = matrix.copy()
+    pred = np.zeros(m.shape, dtype=np.uint8)
+    for i in range(len(models)):
+        if i==0:
+            x = dummify(m, nChannels, rel)
+        else:
+            x = dummify(x, nChannels)
+        x = torch.tensor(x).unsqueeze(0).float()
+        x = models[i](x).argmax(1).squeeze(0).numpy()
+            
+    for i,j in np.ndindex(m.shape):
+        if x[i,j] not in rel.keys():
+            pred[i,j] = x[i,j]
+        else:
+            pred[i,j] = rel[x[i,j]][0]
+    return pred
+
+# %% Linear Models
 
 # If input always has the same shape and output always has the same shape
 # And there is always the same number of colors in each sample    
@@ -682,6 +821,8 @@ def changeColorShapes(matrix, shapes, color):
     if len(shapes) == 0:
         return matrix
     m = matrix.copy()
+    if color not in list(range(10)):
+        return m
     for s in shapes:
         for c in s.pixels:
             m[tuple(map(operator.add, c, s.position))] = color
