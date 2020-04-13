@@ -1588,23 +1588,32 @@ def shapeAttributeList(shape, matrix, diagonal):
     """
     This function finds all attributes of shape in matrix
     """
+    global idx
+    if not shape in matrix.dShapes:
+        print(idx)
+        return set()
     if diagonal:
         shapes = [sh for sh in matrix.dShapes if sh.color != 0]#matrix.backgroundColor]
     else:
         shapes = [sh for sh in matrix.shapes if sh.color != 0]#matrix.backgroundColor]
     shapes.remove(shape)
+    if len(shapes) == 0:
+        return set(['OneShape'])
     attributeList = []
     if len(shape.pixels) > max(len(sh.pixels) for sh in shapes):
         attributeList += ['Largest']
     if all(shape.color != sh.color for sh in shapes):
+        attributeList += ['DifferentColor']
         if len(set([sh.color for sh in shapes])) == 1:
             attributeList += ['UniqueColor']
-        else:   
-            attributeList += ['DifferentColor']
     if np.all(shape.m == shape.m[::-1,::]):
         attributeList += ['UDSymmetric']
+    else:
+        attributeList += ['NonUDSymmetric']
     if np.all(shape.m == shape.m[::,::-1]):
         attributeList += ['LRSymmetric']
+    else:
+        attributeList += ['NonLRSymmetric']
     shpx = [sh.pixels for sh in shapes]
     if shpx.count(shape.pixels) == 0:
         attributeList += ['UniqueShape']
@@ -1918,10 +1927,8 @@ def getPossibleOperations(t, c):
                                          targetColor=target, trueColor=c[1]))
     
     # Cropshape
-    """
     if hasattr(candTask, 'outIsInShapeD') and candTask.outIsInShapeD:
         attrs = set.intersection(*[shapeAttributeList(s.outIsInShapeD[0], s.inMatrix, True) for s in candTask.trainSamples])
         x.append(partial(cropShape,attributes=attrs,diagonal=True))
-    """
         
     return x
