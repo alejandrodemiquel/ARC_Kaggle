@@ -329,21 +329,7 @@ def tryOperations(t, c):
         cScore += sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                           t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
-        if cScore == 0:
-            b3c.addCandidate(newCandidate)
-            continue
-        # If all the pixels that have been modified by applying op have been
-        # modified correctly, execute tryOperations again with the resulting
-        # candidate.
-        if t.sameIOShapes:
-            if Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, c.t.trainSamples[s].outMatrix.m) == \
-            Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, cTask["train"][s]["input"]) + \
-            Utils.incorrectPixels(c.t.trainSamples[s].outMatrix.m, cTask["train"][s]["input"]):
-                b3c.addCandidate(newCandidate)
-                if newCandidate.t!=None:
-                    tryOperations(t, newCandidate)
-                continue
-        b3c.addCandidate(newCandidate)
+        b3c.addCandidate(newCandidate)       
 
 class Solution():
     def __init__(self, index, taskId, ops):
