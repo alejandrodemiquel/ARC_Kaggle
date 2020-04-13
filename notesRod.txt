@@ -4,7 +4,7 @@
 First identify if output is in the input
 Then find identifying characteristic. 
 cropshape tasks:
-[13,35,56,78,87,110,120,133,173,176,194,215,216,217,262,270,289,299,318,345,264,383,395]
+[13,35,56,78,87,110,120,133,173,176,194,215,216,217,262,270,289,299,318,345,264,383,395,440,445,464,473,488,509,578,586,635,655,676,689,712,727,768,774,785]
 
 
 - outshape is in input 
@@ -22,8 +22,11 @@ cropshape tasks:
 	- diff color [,]
 	- diff size [
 	- replicate [56,78,194,216]
-solved: 13, 262
-
+should solve 78 (more copies),110 (grey pixel attached), 383
+solved: 13,30,35,173,262,299,578,727
+changes color: 133, 120(just one pixel)
+megashape: 270, 289
+background 318
 
 - color nonstric shape
 
