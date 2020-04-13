@@ -342,7 +342,7 @@ solved = []
 
 count = 0
 count0 = 0
-for idx in tqdm(range(800), position=0, leave=True):
+for idx in tqdm(range(100), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -407,7 +407,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 print(idx)
                 print(c.ops)
-                plot_task(task)
+                #plot_task(task)
                 break
                 #solved.append(Solution(idx, taskId, c.ops))
                 #break

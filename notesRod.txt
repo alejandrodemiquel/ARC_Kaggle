@@ -22,6 +22,8 @@ cropshape tasks:
 	- diff color [,]
 	- diff size [
 	- replicate [56,78,194,216]
+solved: 13, 262
+
 
 - color nonstric shape
 
