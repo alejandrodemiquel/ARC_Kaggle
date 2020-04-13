@@ -357,7 +357,7 @@ def getBestSameNSampleColorsCNN(t):
 
 # %% CNN learning the output
     
-def getNeighbourColors(m, i, j):
+def getNeighbourColors(m, i, j, border=-1):
     """
     Given a matrix m and a position i,j, this function returns a list of the
     values of the neighbours of (i,j).
@@ -365,15 +365,23 @@ def getNeighbourColors(m, i, j):
     x = []
     if i>0:
         x.append(m[i-1,j])
+    else:
+        x.append(border)
     if j>0:
         x.append(m[i,j-1])
+    else:
+        x.append(border)
     if i<m.shape[0]-1:
         x.append(m[i+1,j])
+    else:
+        x.append(border)
     if j<m.shape[1]-1:
         x.append(m[i,j+1])
+    else:
+        x.append(border)
     return x
 
-def getDNeighbourColors(m, i, j):
+def getDNeighbourColors(m, i, j, border=-1):
     """
     Given a matrix m and a position i,j, this function returns a list of the
     values of the diagonal neighbours of (i,j).
@@ -381,13 +389,24 @@ def getDNeighbourColors(m, i, j):
     x = []
     if i>0 and j>0:
         x.append(m[i-1,j-1])
+    else:
+        x.append(border)
     if i<m.shape[0]-1 and j>0:
         x.append(m[i+1,j-1])
+    else:
+        x.append(border)
     if i>0 and j<m.shape[1]-1:
         x.append(m[i-1,j+1])
+    else:
+        x.append(border)
     if i<m.shape[0]-1 and j<m.shape[1]-1:
         x.append(m[i+1,j+1])
+    else:
+        x.append(border)
     return x
+
+def getAllNeighbourColors(m, i, j, border=-1):
+    return getNeighbourColors(m,i,j,border) + getDNeighbourColors(m,i,j,border)
 
 def colorNeighbours(mIn, mOut ,i, j):
     if i>0:
@@ -409,12 +428,11 @@ def colorDNeighbours(mIn, mOut, i, j):
         mIn[i-1,j+1] = mOut[i-1,j+1]
     if i<mIn.shape[0]-1 and j<mIn.shape[1]-1:
         mIn[i+1,j+1] = mOut[i+1,j+1]
-    
-    
+     
 # if len(t.changedInColors)==1 (the background color, where everything evolves)
 # 311/800 tasks satisfy this condition
 # Do I need inMatrix.nColors+fixedColors to be iqual for every sample?
-def evolvingCNN(t):
+def evolve(t, border):
     def evolveInputMatrices(mIn, mOut):
         reference = [m.copy() for m in mIn]
         for m in range(t.nTrain):
@@ -424,6 +442,18 @@ def evolvingCNN(t):
                 elif reference[m][i,j] in changedOutColors:
                     colorDNeighbours(mIn[m], mOut[m], i, j)
     
+    def getMostSimilarTuple(tup):
+        if tup in colorFromNeighbours.keys():
+            return tup
+        mostNEqualNeighbours = -1
+        for x in colorFromNeighbours.keys():
+            nEqualNeighbours = sum(tuple(i == j for i, j in zip(x, tup)))
+            if nEqualNeighbours > mostNEqualNeighbours:
+                bestTuple = x
+                mostNEqualNeighbours = nEqualNeighbours
+        return bestTuple
+            
+    
     fixedColors = t.fixedColors
     colors = t.commonSampleColors
     changedInColors = t.commonChangedInColors
@@ -431,60 +461,46 @@ def evolvingCNN(t):
     nChannels = t.trainSamples[0].nColors
     referenceIsFixed = t.trainSamples[0].inMatrix.nColors == len(t.fixedColors)+1
     
-    rel, invRel = relDicts(list(colors))
-    
     outMatrices = [s.outMatrix.m.copy() for s in t.trainSamples]
     referenceOutput = [s.inMatrix.m.copy() for s in t.trainSamples]
-
-    kernel = 5
-    pad = 0
-    models = []
-    
-    for i in range(5):
-        inMatrices = [dummify(m, nChannels, rel) for m in referenceOutput]
+    colorFromNeighbours = {}
+    for i in range(10):
+        referenceInput = [m.copy() for m in referenceOutput]
         evolveInputMatrices(referenceOutput, outMatrices)
-        outMatrices1 = [m.copy() for m in referenceOutput]
-        for m in outMatrices1:
-            for i,j in np.ndindex(m.shape):
-                m[i,j] = invRel[m[i,j]]
+        for m in range(t.nTrain):
+            for i,j in np.ndindex(referenceInput[m].shape):
+                if referenceInput[m][i,j] != referenceOutput[m][i,j]:
+                    neighbourColors = tuple(getAllNeighbourColors(referenceInput[m],i,j,border))
+                    colorFromNeighbours[neighbourColors] = referenceOutput[m][i,j]
+         
+    m = t.testSamples[0].inMatrix.m.copy()
+    for step in range(10):
+        newM = m.copy()
+        for i,j in np.ndindex(m.shape):
+            tup = tuple(getAllNeighbourColors(m,i,j,border))
+            #tup = getMostSimilarTuple(tup)
+            if tup in colorFromNeighbours.keys():
+                newM[i,j] = colorFromNeighbours[tup] 
+        if np.array_equal(newM,m):
+            break
+        m = newM.copy()
         
-        model = Models.OneConvModel(nChannels, kernel, pad)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
-        #losses = np.zeros(100)
-        for e in range(100):
-            optimizer.zero_grad()
-            loss = 0.0
-            for m in range(t.nTrain):
-                x = torch.tensor(inMatrices[m]).unsqueeze(0).float()
-                y = torch.tensor(outMatrices1[m]).unsqueeze(0).long()
-                y_pred = model(x)
-                loss += criterion(y_pred, y)
-            loss.backward()
-            optimizer.step()
-            #losses[e] = loss
-        models.append(model)
+    return m
+    
+    
+    """
+    referenceOutput = [s.inMatrix.m.copy() for s in t.trainSamples]
+    
+    allReferences = []
+    allReferences.append(referenceOutput)
+    for i in range(5):
+        evolveInputMatrices(referenceOutput, outMatrices)
+        allReferences.append(referenceOutput)
         
-    return models
-
-@torch.no_grad()
-def predictEvolvingCNN(models, matrix, nChannels, rel):
-    m = matrix.copy()
-    pred = np.zeros(m.shape, dtype=np.uint8)
-    for i in range(len(models)):
-        if i==0:
-            x = dummify(m, nChannels, rel)
-        else:
-            x = dummify(x, nChannels)
-        x = torch.tensor(x).unsqueeze(0).float()
-        x = models[i](x).argmax(1).squeeze(0).numpy()
-            
-    for i,j in np.ndindex(m.shape):
-        if x[i,j] not in rel.keys():
-            pred[i,j] = x[i,j]
-        else:
-            pred[i,j] = rel[x[i,j]][0]
-    return pred
+    m = t.testSamples[0].inMatrix.m.copy()
+    for step in range(5):
+        for i,j in np.ndindex(m.shape):
+    """
 
 # %% Linear Models
 

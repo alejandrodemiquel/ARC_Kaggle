@@ -340,21 +340,24 @@ class Solution():
 # %% Solution Loop
 solved = []
 
-
-for idx in tqdm([105], position=0, leave=True):
-
+count = 0
+count0 = 0
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
     """
-    if t.sameIOShapes and all([len(x)==1 for x in t.changedInColors]) and len(t.commonChangedInColors)==1:
-        models = Utils.evolvingCNN(t)
-        colors = t.commonSampleColors
-        nChannels = t.trainSamples[0].nColors
-        rel, invRel = Utils.relDicts(list(colors))
-        pred = Utils.predictEvolvingCNN(models, t.testSamples[0].inMatrix.m, nChannels, rel)
+    if t.sameIOShapes and all([len(x)==1 for x in t.changedInColors]) and\
+    len(t.commonChangedInColors)==1 and t.sameNSampleColors and t.allEqual(t.sampleColors):
+        pred = Utils.evolve(t, -1)
         if Utils.incorrectPixels(pred, t.testSamples[0].outMatrix.m) == 0:
             count += 1
+            print(idx)
+            plot_task(idx)
+        pred = Utils.evolve(t, 0)
+        if Utils.incorrectPixels(pred, t.testSamples[0].outMatrix.m) == 0:
+            print(idx)
+            count0 += 1
             plot_task(idx)
     """
 

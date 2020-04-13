@@ -923,6 +923,83 @@ for idx in tqdm(range(800), position=0, leave=True):
         if t.followsColPattern and not t.followsRowPattern:
             plot_sample(t.testSamples[0], Utils.followPattern(t.testSamples[0].inMatrix, "col", c2c, None, colStep))
 
+# %% evolvingCNN
+# if len(t.changedInColors)==1 (the background color, where everything evolves)
+# 311/800 tasks satisfy this condition
+# Do I need inMatrix.nColors+fixedColors to be iqual for every sample?
+def evolvingCNN(t):
+    def evolveInputMatrices(mIn, mOut):
+        reference = [m.copy() for m in mIn]
+        for m in range(t.nTrain):
+            for i,j in np.ndindex(mIn[m].shape):
+                if referenceIsFixed and reference[m][i,j] in fixedColors:
+                    colorDNeighbours(mIn[m], mOut[m], i, j)
+                elif reference[m][i,j] in changedOutColors:
+                    colorDNeighbours(mIn[m], mOut[m], i, j)
+    
+    fixedColors = t.fixedColors
+    colors = t.commonSampleColors
+    changedInColors = t.commonChangedInColors
+    changedOutColors = t.commonChangedOutColors
+    nChannels = t.trainSamples[0].nColors
+    referenceIsFixed = t.trainSamples[0].inMatrix.nColors == len(t.fixedColors)+1
+    
+    rel, invRel = relDicts(list(colors))
+    
+    outMatrices = [s.outMatrix.m.copy() for s in t.trainSamples]
+    referenceOutput = [s.inMatrix.m.copy() for s in t.trainSamples]
+
+    kernel = 5
+    pad = 0
+    models = []
+    
+    for i in range(5):
+        inMatrices = [dummify(m, nChannels, rel) for m in referenceOutput]
+        evolveInputMatrices(referenceOutput, outMatrices)
+        outMatrices1 = [m.copy() for m in referenceOutput]
+        for m in outMatrices1:
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = invRel[m[i,j]]
+        
+        model = Models.OneConvModel(nChannels, kernel, pad)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+        #losses = np.zeros(100)
+        for e in range(100):
+            optimizer.zero_grad()
+            loss = 0.0
+            for m in range(t.nTrain):
+                x = torch.tensor(inMatrices[m]).unsqueeze(0).float()
+                y = torch.tensor(outMatrices1[m]).unsqueeze(0).long()
+                y_pred = model(x)
+                loss += criterion(y_pred, y)
+            loss.backward()
+            optimizer.step()
+            #losses[e] = loss
+        models.append(model)
+        
+    return models
+
+@torch.no_grad()
+def predictEvolvingCNN(models, matrix, nChannels, rel):
+    m = matrix.copy()
+    pred = np.zeros(m.shape, dtype=np.uint8)
+    for i in range(len(models)):
+        if i==0:
+            x = dummify(m, nChannels, rel)
+        else:
+            x = dummify(x, nChannels)
+        x = torch.tensor(x).unsqueeze(0).float()
+        x = models[i](x).argmax(1).squeeze(0).numpy()
+            
+    for i,j in np.ndindex(m.shape):
+        if x[i,j] not in rel.keys():
+            pred[i,j] = x[i,j]
+        else:
+            pred[i,j] = rel[x[i,j]][0]
+    return pred
+
+
 # %% Problem that only requires color changes:
 # There are 69 tasks that satisfy the given requirements
 # Solves 8/69 for dShapes:
