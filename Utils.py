@@ -1934,10 +1934,11 @@ def getPossibleOperations(t, c):
         #######################################################################
         # CNNs
         
-        x.append(getBestCNN(candTask))
+        #x.append(getBestCNN(candTask))
         if candTask.sameNSampleColors:
             x.append(getBestSameNSampleColorsCNN(candTask))
 
+        """
         if t.backgroundColor != -1:
             model = trainCNNDummyColor(candTask, 5, -1)
             x.append(partial(predictCNNDummyColor, model=model))
@@ -1945,6 +1946,7 @@ def getPossibleOperations(t, c):
             x.append(partial(predictCNNDummyColor, model=model))
             #model = trainOneConvModelDummyColor(candTask, 7, -1)
             #x.append(partial(predictConvModelDummyColor, model=model))
+        """
             
         #cc = list(t.commonSampleColors)
         #model = trainCNNDummyCommonColors(t, cc, 3, -1)
@@ -2023,6 +2025,7 @@ def getPossibleOperations(t, c):
     # Cases in which the input has always the same shape, and the output too
     if candTask.sameInShape and candTask.sameOutShape and \
     all(candTask.trainSamples[0].inMatrix.shape == s.inMatrix.shape for s in candTask.testSamples):
+        """
         if candTask.backgroundColor != -1:
             model = trainLinearDummyModel(candTask)
             x.append(partial(predictLinearDummyModel, model=model, \
@@ -2035,7 +2038,9 @@ def getPossibleOperations(t, c):
             model = trainLinearModel(candTask, cc, nc)
             x.append(partial(predictLinearModel, model=model, commonColors=cc,\
                              nChannels=nc, outShape=candTask.outShape))
+        """
             
+        if candTask.sameNSampleColors:
             #Cases where output colors are a subset of input colors
             if candTask.sameNInColors and all(s.inHasOutColors for s in candTask.trainSamples):
                 if hasattr(candTask, 'outShapeFactor') or (hasattr(candTask,\

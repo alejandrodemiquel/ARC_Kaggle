@@ -340,8 +340,14 @@ class Solution():
 # %% Solution Loop
 solved = []
 
+targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
+                 170,189,198,224,229,242,254,255,257,267,279,282,285,287,298,322,\
+                 330,335,344,347,348,377,386,428,449,457,482,496,507,517,525,\
+                 526,531,552,573,579,585,607,629,631,648,678,703,706,731,731,\
+                 750,790,791,796,797]
+
 count = 0
-for idx in tqdm(range(800), position=0, leave=True):
+for idx in tqdm(targetedTasks, position=0, leave=True):
 
     taskId = index[idx]
     task = allTasks[taskId]
@@ -392,8 +398,8 @@ for idx in tqdm(range(800), position=0, leave=True):
             #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 print(idx)
-                print(c.ops)
-                #plot_task(task)
-                break
+                print(str(c.ops)[18:50])
+                plot_task(task)
+                #break
                 #solved.append(Solution(idx, taskId, c.ops))
                 #break
