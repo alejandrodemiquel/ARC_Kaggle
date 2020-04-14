@@ -597,10 +597,28 @@ class Sample():
             self.diffMatrix = Matrix((self.inMatrix.m - self.outMatrix.m).tolist())
             self.diffPixels = np.count_nonzero(self.diffMatrix.m)
         """
-        """
-        # Is one a subset of the other?
+        # Is one a subset of the other? for now always includes diagonals
         self.inSmallerThanOut = all(self.inMatrix.shape[i] <= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
         self.outSmallerThanIn = all(self.inMatrix.shape[i] >= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
+        # Is the output a shape (faster than checking if is a subset?
+        if self.outSmallerThanIn:
+            self.outIsShapeD = [sh for sh in self.outMatrix.dShapes if (sh.shape == self.outMatrix.shape and sh.color != 0)]#matrix.backgroundColor]
+            #if len(self.outIsShapeD) == 0:
+            #    self.outIsShapeD = None
+            #self.outIsShape = [sh for sh in self.outMatrix.shapes if sh.shape == self.outMatrix.shape]
+            #it will either be 0 or 1????????
+            if len(self.outIsShapeD) == 1:
+                #is it an input shape?
+                self.outIsInShapeD = [sh for sh in self.inMatrix.dShapes if np.all(sh.m == self.outIsShapeD[0].m)]
+               
+        """ 
+        if any(sh.shape == self.outMatrix.shape for sh in self.outMatrix.dShapes):
+                self.outIsShapeD = True
+                if any(sh.shape == self.outMatrix.shape for sh in self.outMatrix.shapes):
+                    self.outIsShape = True
+        if self.outIsShapeD:
+            """
+        """
         # Is the output a subset of the input?
         self.inSubsetOfOutIndices = set()
         if self.inSmallerThanOut:
@@ -740,6 +758,9 @@ class Task():
         for s in self.trainSamples:
             self.outSubsetOfIn = set.intersection(self.outSubsetOfIn, s.outSubsetOfInIndices)
         """
+        #is output a shape in the input
+        if all([hasattr(s, 'outIsInShapeD') for s in self.trainSamples]) and all(len(s.outIsInShapeD)>0 for s in self.trainSamples):
+            self.outIsInShapeD = True
         
         # Symmetries:
         # Are all outputs LR, UD, D1 or D2 symmetric?

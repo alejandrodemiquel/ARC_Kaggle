@@ -1790,49 +1790,65 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     return m
 
 #Cropshape First Idea
-def attribute_list(shape, matrix, diagonal):
+def shapeAttributeList(shape, matrix, diagonal):
     """
     This function finds all attributes of shape in matrix
     """
+    global idx
+    if not shape in matrix.dShapes:
+        print(idx)
+        return set()
     if diagonal:
-        shapes = [sh for sh in matrix.dShapes]
+        shapes = [sh for sh in matrix.dShapes if sh.color != 0]#matrix.backgroundColor]
     else:
-        shapes = [sh for sh in matrix.shapes]
+        shapes = [sh for sh in matrix.shapes if sh.color != 0]#matrix.backgroundColor]
     shapes.remove(shape)
+    if len(shapes) == 0:
+        return set(['OneShape'])
     attributeList = []
-    if all(len(shape.pixels) > len(sh.pixels) for sh in shapes):
+    if len(shape.pixels) > max(len(sh.pixels) for sh in shapes):
         attributeList += ['Largest']
     if all(shape.color != sh.color for sh in shapes):
+        attributeList += ['DifferentColor']
         if len(set([sh.color for sh in shapes])) == 1:
             attributeList += ['UniqueColor']
-        else:   
-            attributeList += ['DifferentColor']
     if np.all(shape.m == shape.m[::-1,::]):
         attributeList += ['UDSymmetric']
+    else:
+        attributeList += ['NonUDSymmetric']
     if np.all(shape.m == shape.m[::,::-1]):
         attributeList += ['LRSymmetric']
+    else:
+        attributeList += ['NonLRSymmetric']
+    shpx = [sh.pixels for sh in shapes]
+    if shpx.count(shape.pixels) == 0:
+        attributeList += ['UniqueShape']
+    #most repeated
+    #has a reference
+        
     return set(attributeList)
 
 
-def crop_shape(matrix, attributes, diagonal):
+def cropShape(matrix, attributes, diagonal):
     """
     This function crops the shape out of a matrix with the maximum score according to attributes
     """
     if diagonal:
-        shapes = [sh for sh in matrix.dShapes]
+        shapes = [sh for sh in matrix.dShapes if sh.color != 0]#matrix.backgroundColor]
     else:
-        shapes = [sh for sh in matrix.shapes]
-    bestShape = []
+        shapes = [sh for sh in matrix.shapes if sh.color != 0]#matrix.backgroundColor]
+    bestShapes = []
     score = 0
     for sh in shapes:
-        shscore = len(attributes.intersection(attribute_list(sh, matrix, diagonal)))
+        shscore = len(attributes.intersection(shapeAttributeList(sh, matrix, diagonal)))
         if shscore > score:
             score = shscore
-            bestShape = [sh]
+            bestShapes = [sh]
         elif shscore == score:
-            bestShape += [sh]
-    return bestShape[0]
-    
+            bestShapes += [sh]
+    bestShape = bestShapes[0].m
+    bestShape[bestShape==255]=0#matrix.backgroundColor
+    return bestShape
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
@@ -2149,5 +2165,10 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
-            
+    
+    # Cropshape
+    if hasattr(candTask, 'outIsInShapeD') and candTask.outIsInShapeD:
+        attrs = set.intersection(*[shapeAttributeList(s.outIsInShapeD[0], s.inMatrix, True) for s in candTask.trainSamples])
+        x.append(partial(cropShape,attributes=attrs,diagonal=True))
+        
     return x

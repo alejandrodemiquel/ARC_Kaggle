@@ -329,7 +329,7 @@ def tryOperations(t, c):
         cScore += sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                           t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
-        b3c.addCandidate(newCandidate)       
+        b3c.addCandidate(newCandidate)
 
 class Solution():
     def __init__(self, index, taskId, ops):
@@ -342,9 +342,10 @@ solved = []
 
 count = 0
 for idx in tqdm(range(800), position=0, leave=True):
+
     taskId = index[idx]
     task = allTasks[taskId]
-    t = Task.Task(task, taskId)            
+    t = Task.Task(task, taskId)
 
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
@@ -392,7 +393,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 print(idx)
                 print(c.ops)
-                plot_task(task)
+                #plot_task(task)
                 break
                 #solved.append(Solution(idx, taskId, c.ops))
                 #break
