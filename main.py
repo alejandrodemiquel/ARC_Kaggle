@@ -341,25 +341,10 @@ class Solution():
 solved = []
 
 count = 0
-count0 = 0
 for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
-    t = Task.Task(task, taskId)
-    """
-    if t.sameIOShapes and all([len(x)==1 for x in t.changedInColors]) and\
-    len(t.commonChangedInColors)==1 and t.sameNSampleColors and t.allEqual(t.sampleColors):
-        pred = Utils.evolve(t, -1)
-        if Utils.incorrectPixels(pred, t.testSamples[0].outMatrix.m) == 0:
-            count += 1
-            print(idx)
-            plot_task(idx)
-        pred = Utils.evolve(t, 0)
-        if Utils.incorrectPixels(pred, t.testSamples[0].outMatrix.m) == 0:
-            print(idx)
-            count0 += 1
-            plot_task(idx)
-    """
+    t = Task.Task(task, taskId)            
 
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
