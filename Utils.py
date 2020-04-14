@@ -1008,9 +1008,15 @@ def insertShape(matrix, shape):
     same matrix but with the shape inserted.
     """
     m = matrix.copy()
-    for c in shape.pixels:
-        if c[0] < matrix.shape[0] and c[1] < matrix.shape[1]:
-            m[tuple(map(operator.add, c, shape.position))] = shape.color
+    if hasattr(shape, 'color'):
+        for c in shape.pixels:
+            if c[0] < matrix.shape[0] and c[1] < matrix.shape[1]:
+                m[tuple(map(operator.add, c, shape.position))] = shape.color
+    else:
+        shapeM = shape.m.copy()
+        for i,j in np.ndindex(shape.shape):
+            if shapeM[i,j] != 255:
+                m[tuple(map(operator.add, (i,j), shape.position))] = shapeM[i,j]
     return m
 
 def deleteShape(matrix, shape, backgroundColor):
@@ -1201,11 +1207,14 @@ def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
       
     return insertShape(m, s) 
     
-def moveAllShapes(matrix, color, background, direction, until, nSteps):
+def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None):
     """
     direction can be l, r, u, d, ul, ur, dl, dr, h, v, d1, d2, all, any
     """
-    shapesToMove = [s for s in matrix.shapes if s.color in color]
+    if color==None:
+        shapesToMove = matrix.multicolorShapes
+    else:
+        shapesToMove = [s for s in matrix.shapes if s.color in color]
     if direction == 'l':
         shapesToMove.sort(key=lambda x: x.position[1])
     if direction == 'r':
@@ -1935,8 +1944,8 @@ def getPossibleOperations(t, c):
         # CNNs
         
         #x.append(getBestCNN(candTask))
-        if candTask.sameNSampleColors:
-            x.append(getBestSameNSampleColorsCNN(candTask))
+        #if candTask.sameNSampleColors:
+        #    x.append(getBestSameNSampleColorsCNN(candTask))
 
         """
         if t.backgroundColor != -1:
@@ -1967,6 +1976,9 @@ def getPossibleOperations(t, c):
                     x.append(partial(rotate, angle = angle))
                 
             # Move shapes
+            for d in directions:
+                x.append(partial(moveAllShapes, background=candTask.backgroundColor, \
+                                 until=-2, direction=d))
             colorsToChange = list(candTask.colors - candTask.unchangedColors -\
                                   set({candTask.backgroundColor}))
             ctc = [[c] for c in colorsToChange] + [colorsToChange] # Also all colors
