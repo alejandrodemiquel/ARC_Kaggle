@@ -884,7 +884,7 @@ class Task():
         # 1: Colors that appear in every sample, input and output, and never
         # change. Only valid if t.sameIOShapes
         if self.sameIOShapes:
-            for c in self.unchangedColors:
+            for c in self.fixedColors:
                 if c in self.testSamples[0].inMatrix.colors:
                     orderedColors.append(c)
         # 2: Colors that appear in every sample and are always changed from,

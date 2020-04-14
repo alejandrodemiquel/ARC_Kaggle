@@ -357,56 +357,74 @@ def getBestSameNSampleColorsCNN(t):
 
 # %% CNN learning the output
     
-def getNeighbourColors(m, i, j, border=-1):
+def getNeighbourColors(m, i, j, border=0):
     """
     Given a matrix m and a position i,j, this function returns a list of the
     values of the neighbours of (i,j).
     """
     x = []
-    if i>0:
-        x.append(m[i-1,j])
-    else:
-        x.append(border)
-    if j>0:
-        x.append(m[i,j-1])
-    else:
-        x.append(border)
-    if i<m.shape[0]-1:
-        x.append(m[i+1,j])
-    else:
-        x.append(border)
-    if j<m.shape[1]-1:
-        x.append(m[i,j+1])
-    else:
-        x.append(border)
+    y = m[i-1,j] if i>0 else border
+    x.append(y)
+    y = m[i,j-1] if j>0 else border
+    x.append(y)
+    y = m[i+1,j] if i<m.shape[0]-1 else border
+    x.append(y)
+    y = m[i,j+1] if j<m.shape[1]-1 else border
+    x.append(y)
     return x
 
-def getDNeighbourColors(m, i, j, border=-1):
+def getDNeighbourColors(m, i, j, kernel=3, border=0):
     """
     Given a matrix m and a position i,j, this function returns a list of the
     values of the diagonal neighbours of (i,j).
     """
     x = []
-    if i>0 and j>0:
-        x.append(m[i-1,j-1])
-    else:
-        x.append(border)
-    if i<m.shape[0]-1 and j>0:
-        x.append(m[i+1,j-1])
-    else:
-        x.append(border)
-    if i>0 and j<m.shape[1]-1:
-        x.append(m[i-1,j+1])
-    else:
-        x.append(border)
-    if i<m.shape[0]-1 and j<m.shape[1]-1:
-        x.append(m[i+1,j+1])
-    else:
-        x.append(border)
+    y = m[i-1,j-1] if (i>0 and j>0) else border
+    x.append(y)
+    y = m[i+1,j-1] if (i<m.shape[0]-1 and j>0) else border
+    x.append(y)
+    y = m[i-1,j+1] if (i>0 and j<m.shape[1]-1) else border
+    x.append(y)
+    y = m[i+1,j+1] if (i<m.shape[0]-1 and j<m.shape[1]-1) else border
+    x.append(y)
+    
+    if kernel==5:
+        y = m[i-2,j-2] if (i>1 and j>1) else border
+        x.append(y)
+        y = m[i-1,j-2] if (i>0 and j>1) else border
+        x.append(y)
+        y = m[i,j-2] if j>1 else border
+        x.append(y)
+        y = m[i+1,j-2] if (i<m.shape[0]-1 and j>1) else border
+        x.append(y)
+        y = m[i+2,j-2] if (i<m.shape[0]-2 and j>1) else border
+        x.append(y)
+        y = m[i+2,j-1] if (i<m.shape[0]-2 and j>0) else border
+        x.append(y)
+        y = m[i+2,j] if i<m.shape[0]-2 else border
+        x.append(y)
+        y = m[i+2,j+1] if (i<m.shape[0]-2 and j<m.shape[1]-1) else border
+        x.append(y)
+        y = m[i+2,j+2] if (i<m.shape[0]-2 and j<m.shape[1]-2) else border
+        x.append(y)
+        y = m[i+1,j+2] if (i<m.shape[0]-1 and j<m.shape[1]-2) else border
+        x.append(y)
+        y = m[i,j+2] if j<m.shape[1]-2 else border
+        x.append(y)
+        y = m[i-1,j+2] if (i>0 and j<m.shape[1]-2) else border
+        x.append(y)
+        y = m[i-2,j+2] if (i>1 and j<m.shape[1]-2) else border
+        x.append(y)
+        y = m[i-2,j+1] if (i>1 and j<m.shape[1]-1) else border
+        x.append(y)
+        y = m[i-2,j] if i>1 else border
+        x.append(y)
+        y = m[i-2,j-1] if (i>1 and j>0) else border
+        x.append(y)
     return x
 
-def getAllNeighbourColors(m, i, j, border=-1):
-    return getNeighbourColors(m,i,j,border) + getDNeighbourColors(m,i,j,border)
+def getAllNeighbourColors(m, i, j, kernel=3, border=0):
+    return getNeighbourColors(m,i,j,border) + getDNeighbourColors(m,i,j,kernel,border)
 
 def colorNeighbours(mIn, mOut ,i, j):
     if i>0:
@@ -432,61 +450,249 @@ def colorDNeighbours(mIn, mOut, i, j):
 # if len(t.changedInColors)==1 (the background color, where everything evolves)
 # 311/800 tasks satisfy this condition
 # Do I need inMatrix.nColors+fixedColors to be iqual for every sample?
-def evolve(t, border):
+def evolve(t, kernel=3, border=0, includeRotations=False):
     def evolveInputMatrices(mIn, mOut):
         reference = [m.copy() for m in mIn]
-        for m in range(t.nTrain):
+        for m in range(len(mIn)):
             for i,j in np.ndindex(mIn[m].shape):
                 if referenceIsFixed and reference[m][i,j] in fixedColors:
                     colorDNeighbours(mIn[m], mOut[m], i, j)
                 elif reference[m][i,j] in changedOutColors:
                     colorDNeighbours(mIn[m], mOut[m], i, j)
     
-    def getMostSimilarTuple(tup):
-        if tup in colorFromNeighbours.keys():
-            return tup
-        mostNEqualNeighbours = -1
-        for x in colorFromNeighbours.keys():
-            nEqualNeighbours = sum(tuple(i == j for i, j in zip(x, tup)))
-            if nEqualNeighbours > mostNEqualNeighbours:
-                bestTuple = x
-                mostNEqualNeighbours = nEqualNeighbours
-        return bestTuple
-            
+    nColors = t.trainSamples[0].nColors
     
-    fixedColors = t.fixedColors
-    colors = t.commonSampleColors
-    changedInColors = t.commonChangedInColors
-    changedOutColors = t.commonChangedOutColors
-    nChannels = t.trainSamples[0].nColors
-    referenceIsFixed = t.trainSamples[0].inMatrix.nColors == len(t.fixedColors)+1
+    if not t.allEqual(t.sampleColors):
+        sampleRel = []
+        sampleInvRel = []
+        commonColors = t.orderedColors
+        for s in t.trainSamples:
+            colors = commonColors.copy()
+            for i,j in np.ndindex(s.inMatrix.shape):
+                if s.inMatrix.m[i,j] not in colors:
+                    colors.append(s.inMatrix.m[i,j])
+                    if len(colors) == nColors:
+                        break
+            if len(colors) != nColors:
+                for i,j in np.ndindex(s.outMatrix.shape):
+                    if s.outMatrix.m[i,j] not in colors:
+                        colors.append(s.outMatrix.m[i,j])
+                        if len(colors) == nColors:
+                            break
+            rel, invRel = relDicts(colors)
+            sampleRel.append(rel)
+            sampleInvRel.append(invRel)
+            
+        fixedColors = set()
+        for c in t.fixedColors:
+            fixedColors.add(sampleInvRel[0][c])
+        changedOutColors = set()
+        for c in t.commonChangedOutColors:
+            changedOutColors.add(sampleInvRel[0][c])
+        for c in range(len(commonColors), nColors):
+            changedOutColors.add(c)
+    else:
+        fixedColors = t.fixedColors
+        changedOutColors = t.commonChangedOutColors
+        
+    referenceIsFixed = t.trainSamples[0].inMatrix.nColors == len(fixedColors)+1
     
     outMatrices = [s.outMatrix.m.copy() for s in t.trainSamples]
     referenceOutput = [s.inMatrix.m.copy() for s in t.trainSamples]
-    colorFromNeighbours = {}
+    
+    if includeRotations:
+        for i in range(1,4):
+            for m in range(t.nTrain):
+                #if t.allEqual(t.sampleColors):
+                    #outMatrices.append(np.rot90(outMatrices[m], i))
+                    #referenceOutput.append(np.rot90(referenceOutput[m], i))
+                #else:
+                outMatrices.append(np.rot90(outMatrices[m].copy(), i))
+                referenceOutput.append(np.rot90(referenceOutput[m].copy(), i))
+                    
+    
+    if not t.allEqual(t.sampleColors):
+        for m in range(len(outMatrices)):
+            for i,j in np.ndindex(outMatrices[m].shape):
+                outMatrices[m][i,j] = sampleInvRel[m%t.nTrain][outMatrices[m][i,j]]
+                referenceOutput[m][i,j] = sampleInvRel[m%t.nTrain][referenceOutput[m][i,j]]
+    
+    colorFromNeighboursK2 = {}
+    colorFromNeighboursK3 = {}
+    colorFromNeighboursK5 = {}
     for i in range(10):
         referenceInput = [m.copy() for m in referenceOutput]
         evolveInputMatrices(referenceOutput, outMatrices)
-        for m in range(t.nTrain):
+        for m in range(len(outMatrices)):
             for i,j in np.ndindex(referenceInput[m].shape):
                 if referenceInput[m][i,j] != referenceOutput[m][i,j]:
-                    neighbourColors = tuple(getAllNeighbourColors(referenceInput[m],i,j,border))
-                    colorFromNeighbours[neighbourColors] = referenceOutput[m][i,j]
-         
-    m = t.testSamples[0].inMatrix.m.copy()
-    for step in range(10):
-        newM = m.copy()
+                    neighbourColors = tuple(getNeighbourColors(referenceInput[m],i,j,border))
+                    colorFromNeighboursK2[neighbourColors] = referenceOutput[m][i,j]
+                    neighbourColors = tuple(getAllNeighbourColors(referenceInput[m],i,j,3,border))
+                    colorFromNeighboursK3[neighbourColors] = referenceOutput[m][i,j]
+                    neighbourColors = tuple(getAllNeighbourColors(referenceInput[m],i,j,5,border))
+                    colorFromNeighboursK5[neighbourColors] = referenceOutput[m][i,j]
+             
+    colorfromNeighboursK3Background = {}
+    for m in outMatrices:
         for i,j in np.ndindex(m.shape):
-            tup = tuple(getAllNeighbourColors(m,i,j,border))
+            if m[i,j] in t.commonChangedInColors:
+                neighbourColors = tuple(getAllNeighbourColors(m,i,j,3,border))
+                colorfromNeighboursK3Background[neighbourColors] = m[i,j]
+        
+    
+    return [colorFromNeighboursK2, colorFromNeighboursK3,\
+            colorFromNeighboursK5, colorfromNeighboursK3Background]
+
+"""
+def getMostSimilarTuple(tup):
+    if tup in colorFromNeighbours.keys():
+        return tup
+    mostNEqualNeighbours = -1
+    for x in colorFromNeighbours.keys():
+        nEqualNeighbours = sum(tuple(i == j for i, j in zip(x, tup)))
+        if nEqualNeighbours > mostNEqualNeighbours:
+            bestTuple = x
+            mostNEqualNeighbours = nEqualNeighbours
+    return bestTuple
+"""
+
+def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),\
+                changedInColors=set(), referenceIsFixed=False, commonColors=set(),\
+                kernel=None, border=0):
+    
+    def colorPixel(m,newM,i,j):
+        if newM[i,j] not in cic:
+            return
+        if kernel==None:
+            tup3 = tuple(getAllNeighbourColors(m,i,j,3,border))
+            tup5 = tuple(getAllNeighbourColors(m,i,j,5,border))
             #tup = getMostSimilarTuple(tup)
-            if tup in colorFromNeighbours.keys():
-                newM[i,j] = colorFromNeighbours[tup] 
+            if tup3 in cfn[1].keys():
+                if tup3 in cfn[3].keys():
+                    if tup5 in cfn[2].keys():
+                        newM[i,j] = cfn[2][tup5]
+                else:
+                    newM[i,j] = cfn[1][tup3] 
+            elif tup5 in cfn[2].keys():
+                newM[i,j] = cfn[2][tup5]
+        elif kernel==2:
+            tup2 = tuple(getNeighbourColors(m,i,j,border))
+            if tup2 in cfn[0].keys():
+                newM[i,j] = cfn[0][tup2]
+        elif kernel==3:
+            tup3 = tuple(getAllNeighbourColors(m,i,j,3,border))
+            if tup3 in cfn[1].keys():
+                newM[i,j] = cfn[1][tup3]
+        elif kernel==5:
+            tup5 = tuple(getAllNeighbourColors(m,i,j,5,border))
+            if tup5 in cfn[2].keys():
+                newM[i,j] = cfn[2][tup5]
+        
+        #seen[i,j] = True
+        #colorPixelsAround(m,newM,i,j)
+        
+    
+    def colorPixelsAround(m,newM,i,j):
+        if i>0:
+            colorPixel(m,newM,i-1,j)
+        if j>0:
+            colorPixel(m,newM,i,j-1)
+        if i<m.shape[0]-1:
+            colorPixel(m,newM,i+1,j)
+        if j<m.shape[1]-1:
+            colorPixel(m,newM,i,j+1)
+        if i>0 and j>0:
+            colorPixel(m,newM,i-1,j-1)
+        if i<m.shape[0]-1 and j>0:
+            colorPixel(m,newM,i+1,j-1)
+        if i>0 and j<m.shape[1]-1:
+            colorPixel(m,newM,i-1,j+1)
+        if i<m.shape[0]-1 and j<m.shape[1]-1:
+            colorPixel(m,newM,i+1,j+1)
+        
+    
+    m = matrix.m.copy()
+    
+    if len(commonColors) > 0:
+        colors = list(commonColors.copy())
+        for i,j in np.ndindex(m.shape):
+            if m[i,j] not in colors:
+                colors.append(m[i,j])
+        rel, invRel = relDicts(colors)
+        
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = invRel[m[i,j]]
+            
+        fc = set()
+        for c in fixedColors:
+            fc.add(invRel[c])        
+        coc = set()
+        for c in changedOutColors:
+            coc.add(invRel[c])
+        for c in range(len(commonColors), nColors):
+            coc.add(c)
+        cic = set()
+        for c in changedInColors:
+            cic.add(invRel[c])
+    else:
+        fc = fixedColors
+        coc = changedOutColors
+        cic = changedInColors
+    
+    while True:
+        newM = m.copy()
+        #seen = np.zeros(m.shape, dtype=np.bool)
+        for i,j in np.ndindex(m.shape):
+            if referenceIsFixed and m[i,j] in fixedColors:
+                colorPixelsAround(m,newM,i,j)
+                #colorPixel(m,newM,i,j)
+            elif m[i,j] in coc:
+                colorPixelsAround(m,newM,i,j)
+                #colorPixel(m,newM,i,j)
         if np.array_equal(newM,m):
             break
         m = newM.copy()
+            
+    """
+    while True:
+        newM = m.copy()
+        for i,j in np.ndindex(m.shape):
+            if m[i,j] not in fc:
+                if kernel==None:
+                    tup3 = tuple(getAllNeighbourColors(m,i,j,3,border))
+                    tup5 = tuple(getAllNeighbourColors(m,i,j,5,border))
+                    #tup = getMostSimilarTuple(tup)
+                    if tup3 in cfn[1].keys():
+                        if tup3 in cfn[3].keys():
+                            if tup5 in cfn[2].keys():
+                                newM[i,j] = cfn[2][tup5]
+                        else:
+                            newM[i,j] = cfn[1][tup3] 
+                    elif tup5 in cfn[2].keys():
+                        newM[i,j] = cfn[2][tup5]
+                elif kernel==2:
+                    tup2 = tuple(getNeighbourColors(m,i,j,border))
+                    if tup2 in cfn[0].keys():
+                        newM[i,j] = cfn[0][tup2]
+                elif kernel==3:
+                    tup3 = tuple(getAllNeighbourColors(m,i,j,3,border))
+                    if tup3 in cfn[1].keys():
+                        newM[i,j] = cfn[1][tup3]
+                elif kernel==5:
+                    tup5 = tuple(getAllNeighbourColors(m,i,j,5,border))
+                    if tup5 in cfn[2].keys():
+                        newM[i,j] = cfn[2][tup5]
+        if np.array_equal(newM,m):
+            break
+        m = newM.copy()
+    """
+        
+    if len(commonColors) > 0:
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = rel[m[i,j]][0]
         
     return m
-    
     
     """
     referenceOutput = [s.inMatrix.m.copy() for s in t.trainSamples]
@@ -1831,7 +2037,41 @@ def getPossibleOperations(t, c):
         pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:
             x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
-                
+                      
+    ###########################################################################
+    # Evolve
+    if t.sameIOShapes and all([len(x)==1 for x in t.changedInColors]) and\
+    len(t.commonChangedInColors)==1 and t.sameNSampleColors:
+        nColors = t.trainSamples[0].nColors
+        fc = t.fixedColors
+        cic = t.commonChangedInColors
+        coc = t.commonChangedOutColors
+        refIsFixed = t.trainSamples[0].inMatrix.nColors == len(fc)+1
+        
+        cfn = evolve(t)
+        if t.allEqual(t.sampleColors):
+            x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
+                changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
+            x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
+                changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
+        else:
+            x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
+                commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
+            x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
+                commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
+            
+        cfn = evolve(t, includeRotations=True)
+        if t.allEqual(t.sampleColors):
+            x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
+                changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
+            x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
+                changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
+        else:
+            x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
+                commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
+            x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
+                commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
+    
     ###########################################################################
     # Other cases
     
