@@ -29,3 +29,6 @@ predictLinearDummyModel: 129, 667, 707
 predictLinearModelShapeColor: 146, 168, 195, 197, 301, 329, 368, 489, 599, 664
 
 
+overlapSubmatrices: 179, 256, 320, 371, 468, 493, 566, 684, 766, 772
+cropShape: 30, 35, 173, 206, 262, 299, 578, 727
+cropShape chiripa: 13, 110, 442, 690
