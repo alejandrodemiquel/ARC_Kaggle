@@ -1798,7 +1798,7 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
         m[i,j] = colorHierarchy[max([colorHierarchy.index(x[i,j]) for x in submat])]
     return m
 
-#Cropshape First Idea
+#Cropshape Single Color Shapes
 def shapeAttributeList(shape, matrix, diagonal):
     """
     This function finds all attributes of shape in matrix
@@ -1829,9 +1829,13 @@ def shapeAttributeList(shape, matrix, diagonal):
         attributeList += ['LRSymmetric']
     else:
         attributeList += ['NonLRSymmetric']
-    shpx = [sh.pixels for sh in shapes]
-    if shpx.count(shape.pixels) == 0:
+    
+    shc=np.sum(shape.hasSameShape(sh,sameColor=True, samePosition=False, rotation=False) for sh in shapes)
+    attributeList += [len(shapes)]
+    if shc == 0:
         attributeList += ['UniqueShape']
+    if shc >= len(shapes)/2-1:
+        attributeList += ['MostRepeated']
     #most repeated
     #has a reference
         

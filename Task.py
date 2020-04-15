@@ -566,7 +566,6 @@ class Matrix():
                 if isPattern:
                     return i
         return False
-                        
 
 # %% Class Sample
 class Sample():
