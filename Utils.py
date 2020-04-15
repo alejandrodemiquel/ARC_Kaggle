@@ -1010,7 +1010,8 @@ def insertShape(matrix, shape):
     m = matrix.copy()
     if hasattr(shape, 'color'):
         for c in shape.pixels:
-            if c[0] < matrix.shape[0] and c[1] < matrix.shape[1]:
+            if c[0]+shape.position[0] < matrix.shape[0] and \
+            c[1]+shape.position[1] < matrix.shape[1]:
                 m[tuple(map(operator.add, c, shape.position))] = shape.color
     else:
         shapeM = shape.m.copy()
