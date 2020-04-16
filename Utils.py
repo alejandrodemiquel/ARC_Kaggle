@@ -1270,7 +1270,8 @@ def moveAllShapesToClosest(matrix, colorToMove, background, until):
             m = moveShapeToClosest(m, s, background, until)
     return m
 
-def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()):
+def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set(),\
+                  allowedChanges={}, lineExclusive=False):
     """
     Given a matrix, this function connects all the pixels that have the same
     color. This means that, for example, all the pixels between two red pixels
@@ -1281,6 +1282,8 @@ def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()
     the one given by this parameter.
     If there are any colors in the "unchangedColors" set, then they it is made
     sure that they remain unchanged.
+    "allowedChanges" is a dictionary determining which color changes are
+    allowed. It's exclusive with the options unchangedColors and connColor.
     """
     m = matrix.copy()
     # Row
@@ -1288,42 +1291,67 @@ def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()
         lowLimit = 0
         while lowLimit < m.shape[1] and m[i, lowLimit] != pixelColor:
             lowLimit += 1
+        lowLimit += 1
         upLimit = m.shape[1]-1
         while upLimit > lowLimit and m[i, upLimit] != pixelColor:
             upLimit -= 1
         if upLimit > lowLimit:
+            if lineExclusive:
+                for j in range(lowLimit, upLimit):
+                    if m[i,j] == pixelColor:
+                        lowLimit = upLimit
+                        break
             for j in range(lowLimit, upLimit):
-                if m[i,j] != pixelColor and m[i,j] not in unchangedColors:
-                    m[i,j] = connColor
+                if connColor != None:
+                    if m[i,j] != pixelColor and m[i,j] not in unchangedColors:
+                        m[i,j] = connColor
+                else:
+                    if m[i,j] in allowedChanges.keys():
+                        m[i,j] = allowedChanges[m[i,j]]
        
     # Column             
     for j in range(m.shape[1]):
         lowLimit = 0
         while lowLimit < m.shape[0] and m[lowLimit, j] != pixelColor:
             lowLimit += 1
+        lowLimit += 1
         upLimit = m.shape[0]-1
         while upLimit > lowLimit and m[upLimit, j] != pixelColor:
             upLimit -= 1
         if upLimit > lowLimit:
+            if lineExclusive:
+                for i in range(lowLimit, upLimit):
+                    if m[i,j] == pixelColor:
+                        lowLimit = upLimit
+                        break
             for i in range(lowLimit, upLimit):
-                if m[i,j] != pixelColor and m[i,j] not in unchangedColors:
-                    m[i,j] = connColor
+                if connColor != None:
+                    if m[i,j] != pixelColor and m[i,j] not in unchangedColors:
+                        m[i,j] = connColor
+                else:
+                    if m[i,j] in allowedChanges.keys():
+                        m[i,j] = allowedChanges[m[i,j]]
  
     return m
 
-def connectAnyPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()):
+def connectAnyPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set(),\
+                     allowedChanges={}, lineExclusive=False):
     m = matrix.m.copy()
     if pixelColor==None:
         if connColor==None:
             for c in matrix.colors - set([matrix.backgroundColor]):
-                m = connectPixels(m, c, c)
+                m = connectPixels(m, c, c, lineExclusive=lineExclusive)
             return m
         else:
             for c in matrix.colors - set([matrix.backgroundColor]):
-                m = connectPixels(m, c, connColor)
+                m = connectPixels(m, c, connColor, lineExclusive=lineExclusive)
             return m
     else:
-        m = connectPixels(m, pixelColor, connColor, unchangedColors)
+        if len(allowedChanges)>0:
+            m = connectPixels(m, pixelColor, allowedChanges=allowedChanges,\
+                              lineExclusive=lineExclusive)
+        else:
+            m = connectPixels(m, pixelColor, connColor, unchangedColors, lineExclusive=lineExclusive)
     return m
 
 def rotate(matrix, angle):
@@ -1888,7 +1916,7 @@ def getPossibleOperations(t, c):
             x.append(partial(colorMap, cMap=dict(candTask.colorChanges)))
             
         # Symmetrize
-        if len(set.union(*candTask.changedInColors)) == 1:
+        if all([len(x)==1 for x in candTask.changedInColors]):
             color = next(iter(t.changedInColors[0]))
             axis = []
             if candTask.lrSymmetric:
@@ -2027,8 +2055,8 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         x.append(partial(connectAnyPixels))
-        if len(set.union(*t.changedOutColors)) == 1:
-            x.append(partial(connectAnyPixels, connColor = next(iter(t.changedOutColors[0]))))
+        if all([len(x)==1 for x in candTask.changedInColors]):
+            x.append(partial(connectAnyPixels, connColor=next(iter(t.changedOutColors[0]))))
         if hasattr(candTask, "unchangedColors"):
             uc = candTask.unchangedColors
         else:
@@ -2041,6 +2069,11 @@ def getPossibleOperations(t, c):
             for cc in candTask.colors - tuc:
                 x.append(partial(connectAnyPixels, pixelColor=pc, \
                                  connColor=cc, unchangedColors=uc))
+        for pc in candTask.colors - candTask.commonChangedInColors:
+            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(t.colorChanges)))
+            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(t.colorChanges),\
+                             lineExclusive=True))
+                
         for cc in candTask.commonColorChanges:
             for cc in candTask.commonColorChanges:
                 for border, bs in product([True, False, None], ["big", "small", None]):
