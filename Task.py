@@ -566,6 +566,67 @@ class Matrix():
                 if isPattern:
                     return i
         return False
+    
+    def getShapeAttributes(self, backgroundColor=0, singleColor=True, diagonals=True):
+            if singleColor: 
+                if diagonals:   
+                    shapeList = [sh for sh in self.dShapes if sh.color != backgroundColor] 
+                else:   
+                    shapeList = [sh for sh in self.shapes if sh.color != backgroundColor]
+            else:
+                if diagonals: 
+                    shapeList = [sh for sh in self.multicolorDShapes if sh.color != backgroundColor]
+                else:
+                    shapeList = [sh for sh in self.multicolorShapes if sh.color != backgroundColor]
+            attrList =[[] for i in range(len(shapeList))]
+            if singleColor:
+                cc = Counter([s.color for s in shapeList])
+            #is it the only shape?
+            if len(shapeList) == 1:
+                return [['OneSh']]
+            largest, smallest, mcopies = -1, 1000, 0
+            ila, ism = [], []
+            for i in range(len(shapeList)):
+                #copies 
+                attrList[i] += [np.count_nonzero([np.all(shapeList[i].m==osh.m) for osh in shapeList])]
+                if attrList[i][0] > mcopies:
+                    mcopies = attrList[i][0]
+                #largest?
+                if len(shapeList[i].pixels) >= largest:
+                    ila += [i]
+                    if len(shapeList[i].pixels) > largest:
+                        largest = len(shapeList[i].pixels)
+                        ila = [i]
+                #smallest?
+                if len(shapeList[i].pixels) <= smallest:
+                    ism += [i]
+                    if len(shapeList[i].pixels) < smallest:
+                        smallest = len(shapeList[i].pixels)
+                        ism = [i]
+                #unique color?
+                if singleColor:
+                    if cc[shapeList[i].color] == 1:
+                        attrList[i] += ['UnCo']
+                else:
+                    continue
+                #symmetric?
+                if shapeList[i].lrSymmetric:
+                    attrList[i] += ['LrSy']
+                if shapeList[i].udSymmetric:
+                    attrList[i] += ['UdSy']
+                if shapeList[i].d1Symmetric: 
+                    attrList[i] += ['D1Sy']
+                if shapeList[i].d2Symmetric:
+                    attrList[i] += ['D2Sy']
+        
+            if len(ism) == 1:
+                attrList[ism[0]] += ['SmSh']
+            if len(ila) == 1:
+                attrList[ila[0]] += ['LaSh']
+            for i in range(len(shapeList)):
+                if attrList[i][0] == mcopies:
+                    attrList[i] += ['MoCo']
+            return set([l[1:] for l in attrList])
 
 # %% Class Sample
 class Sample():

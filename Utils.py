@@ -1862,6 +1862,26 @@ def cropShape(matrix, attributes, diagonal):
     bestShape = bestShapes[0].m
     bestShape[bestShape==255]=0#matrix.backgroundColor
     return bestShape
+
+def cropShape2(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True):
+    """
+    This function crops the shape out of a matrix with the maximum score according to attributes
+    """
+    bestShapes = []
+    score = 0
+    attrList = matrix.getShapeAttributes(backgroundColor, singleColor, diagonals):
+    for i in range(len(matrix.shapes)):
+        shscore = len(attributes.intersection(attrList[i]))
+        if shscore > score:
+            score = shscore
+            bestShapes = [  ]
+        elif shscore == score:
+            bestShapes += [sh]
+    bestShape = bestShapes[0].m
+    bestShape[bestShape==255]=0#matrix.backgroundColor
+    return bestShape
+
+
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
