@@ -1934,7 +1934,7 @@ def getPossibleOperations(t, c):
             
         # Symmetrize
         if all([len(x)==1 for x in candTask.changedInColors]):
-            color = next(iter(t.changedInColors[0]))
+            color = next(iter(candTask.changedInColors[0]))
             axis = []
             if candTask.lrSymmetric:
                 axis.append("lr")
@@ -2073,7 +2073,7 @@ def getPossibleOperations(t, c):
         # Other sameIOShapes functions
         x.append(partial(connectAnyPixels))
         if all([len(x)==1 for x in candTask.changedInColors]):
-            x.append(partial(connectAnyPixels, connColor=next(iter(t.changedOutColors[0]))))
+            x.append(partial(connectAnyPixels, connColor=next(iter(candTask.changedOutColors[0]))))
         if hasattr(candTask, "unchangedColors"):
             uc = candTask.unchangedColors
         else:
@@ -2087,8 +2087,8 @@ def getPossibleOperations(t, c):
                 x.append(partial(connectAnyPixels, pixelColor=pc, \
                                  connColor=cc, unchangedColors=uc))
         for pc in candTask.colors - candTask.commonChangedInColors:
-            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(t.colorChanges)))
-            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(t.colorChanges),\
+            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges)))
+            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges),\
                              lineExclusive=True))
                 
         for cc in candTask.commonColorChanges:
@@ -2153,9 +2153,9 @@ def getPossibleOperations(t, c):
                 changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
         else:
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
-                commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
+                commonColors=candTask.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
-                commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
+                commonColors=candTask.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
             
         cfn = evolve(candTask, includeRotations=True)
         if t.allEqual(candTask.sampleColors):
@@ -2165,9 +2165,9 @@ def getPossibleOperations(t, c):
                 changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
         else:
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
-                commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
+                commonColors=candTask.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
-                commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
+                commonColors=candTask.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
     
     ###########################################################################
     # Other cases
