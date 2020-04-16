@@ -93,10 +93,11 @@ def dummifyColor(x, color):
 # 7/800 solved
 # if t.lrSymmetric or t.udSymmetric or t.d1Symmetric:
 # if len(t.changingColors) == 1:
-def Symmetrize(task, color):
+def symmetrize(matrix, axis, color):
     """
-    Given a task and a color, this function tries to turn pixels of that color
-    into some other one in order to make the matrices symmetric.
+    Given a matrix and a color, this function tries to turn pixels of that
+    given color into some other one in order to make the matrix symmetric.
+    "axis" is a list or set specifying the symmetry axis (lr, ud, d1 or d2).
     """
     # Left-Right
     def LRSymmetrize(m, color):
@@ -124,33 +125,38 @@ def Symmetrize(task, color):
 
     # Main diagonal
     def D1Symmetrize(m, color):
-        for i in range(m.shape[0]):
-            for j in range(m.shape[1]):
-                if m[i,j] != m[j,i]:
-                    if m[i,j] == color:
-                        m[i,j] = m[j,i]
-                    else:
-                        m[j,i] = m[i,j]
+        for i,j in np.ndindex(m.shape):
+            if m[i,j] != m[j,i]:
+                if m[i,j] == color:
+                    m[i,j] = m[j,i]
+                else:
+                    m[j,i] = m[i,j]
         return m
     
-    # TODO
-    #def D2Symmetrize(matrix, color):
+    def D2Symmetrize(matrix, color):
+        for i,j in np.ndindex(m.shape):
+            if m[i,j] != m[m.shape[0]-j-1, m.shape[1]-i-1]:
+                if m[i,j] == color:
+                    m[i,j] = m[m.shape[0]-j-1, m.shape[1]-i-1]
+                else:
+                    m[m.shape[0]-j-1, m.shape[1]-i-1] = m[i,j]
+        return m
     
-    ret = []
-    for s in task.testSamples:
-        newMatrix = s.inMatrix.m
-        while True:
-            prevMatrix = newMatrix
-            if task.lrSymmetric:
-                newMatrix = LRSymmetrize(newMatrix, color)
-            if task.udSymmetric:
-                newMatrix = UDSymmetrize(newMatrix, color)
-            if task.d1Symmetric:
-                newMatrix = D1Symmetrize(newMatrix, color)
-            if np.all(newMatrix == prevMatrix):
-                break
-        ret.append(newMatrix)
-    return ret
+    m = matrix.m.copy()
+    while True:
+        prevMatrix = m.copy()
+        if "lr" in axis:
+            m = LRSymmetrize(m, color)
+        if "ud" in axis:
+            m = UDSymmetrize(m, color)
+        if "d1" in axis:
+            m = D1Symmetrize(m, color)
+        if "d2" in axis:
+            m = D2Symmetrize(m, color)
+        if np.array_equal(prevMatrix, m):
+            break
+            
+    return m
 
 # %% Train and predict models  
 """
@@ -1881,6 +1887,20 @@ def getPossibleOperations(t, c):
         if len(set([cc[0] for cc in candTask.colorChanges])) == ncc and ncc != 0:
             x.append(partial(colorMap, cMap=dict(candTask.colorChanges)))
             
+        # Symmetrize
+        if len(set.union(*candTask.changedInColors)) == 1:
+            color = next(iter(t.changedInColors[0]))
+            axis = []
+            if candTask.lrSymmetric:
+                axis.append("lr")
+            if candTask.udSymmetric:
+                axis.append("ud")
+            if candTask.d1Symmetric:
+                axis.append("d1")
+            if candTask.d2Symmetric:
+                axis.append("d2")
+            x.append(partial(symmetrize, axis=axis, color=color))
+            
         #######################################################################
         # For LinearShapeModel we need to have the same shapes in the input
         # and in the output, and in the exact same positions.
@@ -2067,16 +2087,16 @@ def getPossibleOperations(t, c):
                       
     ###########################################################################
     # Evolve
-    if t.sameIOShapes and all([len(x)==1 for x in t.changedInColors]) and\
-    len(t.commonChangedInColors)==1 and t.sameNSampleColors:
-        nColors = t.trainSamples[0].nColors
-        fc = t.fixedColors
-        cic = t.commonChangedInColors
-        coc = t.commonChangedOutColors
-        refIsFixed = t.trainSamples[0].inMatrix.nColors == len(fc)+1
+    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
+        nColors = candTask.trainSamples[0].nColors
+        fc = candTask.fixedColors
+        cic = candTask.commonChangedInColors
+        coc = candTask.commonChangedOutColors
+        refIsFixed = candTask.trainSamples[0].inMatrix.nColors == len(fc)+1
         
-        cfn = evolve(t)
-        if t.allEqual(t.sampleColors):
+        cfn = evolve(candTask)
+        if t.allEqual(candTask.sampleColors):
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
                 changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
@@ -2087,8 +2107,8 @@ def getPossibleOperations(t, c):
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
                 commonColors=t.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
             
-        cfn = evolve(t, includeRotations=True)
-        if t.allEqual(t.sampleColors):
+        cfn = evolve(candTask, includeRotations=True)
+        if t.allEqual(candTask.sampleColors):
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
                 changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\

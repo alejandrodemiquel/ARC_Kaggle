@@ -20,7 +20,7 @@ class Model3K(nn.Module):
 class OneConvModel(nn.Module):
     def __init__(self, ch=10, kernel=3, padVal = -1):
         super(OneConvModel, self).__init__()
-        self.conv = nn.Conv2d(ch, ch, kernel_size=kernel)
+        self.conv = nn.Conv2d(ch, ch, kernel_size=kernel, bias=0)
         self.pad = nn.ConstantPad2d(int((kernel-1)/2), padVal)
         
     def forward(self, x, steps=1):
