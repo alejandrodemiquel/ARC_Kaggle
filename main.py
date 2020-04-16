@@ -315,14 +315,14 @@ def tryOperations(t, c):
         for s in range(t.nTrain):
             cTask["train"][s]["input"] = op(c.t.trainSamples[s].inMatrix).tolist()
             if t.sameIOShapes and len(t.unchangedColors) != 0:
-                cTask["train"][s]["input"] = Utils.correctUnchangedColors(\
+                cTask["train"][s]["input"] = Utils.correctFixedColors(\
                      c.t.trainSamples[s].inMatrix.m,\
                      np.array(cTask["train"][s]["input"]),\
                      t.unchangedColors).tolist()
         for s in range(t.nTest):
             cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
             if t.sameIOShapes and len(t.unchangedColors) != 0:
-                cTask["test"][s]["input"] = Utils.correctUnchangedColors(\
+                cTask["test"][s]["input"] = Utils.correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
                      np.array(cTask["test"][s]["input"]),\
                      t.unchangedColors).tolist()
@@ -388,8 +388,8 @@ for idx in tqdm(range(799), position=0, leave=True):
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
-                if t2.sameIOShapes and len(t2.unchangedColors) != 0:
-                    x = Utils.correctUnchangedColors(x, newX, t.unchangedColors)
+                if t2.sameIOShapes and len(t2.fixedColors) != 0:
+                    x = Utils.correctFixedColors(x, newX, t.fixedColors)
                 else:
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:

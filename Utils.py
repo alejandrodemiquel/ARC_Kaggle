@@ -15,10 +15,10 @@ def identityM(matrix):
     """
     return matrix.m
 
-def correctUnchangedColors(inMatrix, x, unchangedColors):
+def correctFixedColors(inMatrix, x, fixedColors):
     """
     Given an input matrix (inMatrix), an output matrix (x) and a set of colors
-    that should not change between the input and the output (unchangedColors),
+    that should not change between the input and the output (fixedColors),
     this function returns a copy of x, but correcting the pixels that 
     shouldn't have changed back into the original, unchanged color.
     
@@ -26,7 +26,7 @@ def correctUnchangedColors(inMatrix, x, unchangedColors):
     """
     m = x.copy()
     for i,j in np.ndindex(m.shape):
-        if inMatrix[i,j] in unchangedColors:
+        if inMatrix[i,j] in fixedColors:
             m[i,j] = inMatrix[i,j]
     return m
                 
