@@ -347,7 +347,7 @@ targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
                  750,790,791,796,797]
 
 count = 0
-for idx in tqdm([78], position=0, leave=True):
+for idx in tqdm([270], position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -397,9 +397,9 @@ for idx in tqdm([78], position=0, leave=True):
             #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
-                #print(str(c.ops)[18:50])
-                #plot_task(task)
+                print(str(c.ops))
+                plot_task(task)
                 #break
                 solved.append(Solution(idx, taskId, c.ops))
                 solvedIds.append(idx)
-                #break
+                break

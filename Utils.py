@@ -8,6 +8,7 @@ import torch.nn as nn
 from itertools import product, permutations
 from functools import partial
 from collections import Counter
+from random import randint
 
 def identityM(matrix):
     """
@@ -1799,6 +1800,38 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     return m
 
 #Cropshape Single Color Shapes
+
+def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True):
+    """
+    This function crops the shape out of a matrix with the maximum score according to attributes
+    """
+    
+    if singleColor: 
+        if diagonals:   
+            shapeList = [sh for sh in matrix.dShapes]
+        else:   
+            shapeList = [sh for sh in matrix.shapes]
+    else:
+        if diagonals: 
+            shapeList = [sh for sh in matrix.multicolorDShapes]
+        else:
+            shapeList = [sh for sh in matrix.multicolorShapes]
+
+    bestShapes = []
+    score = 0
+    attrList = matrix.getShapeAttributes(backgroundColor=backgroundColor, singleColor=singleColor, diagonals=diagonals)
+    for i in range(len(shapeList)):
+        shscore = len(attributes.intersection(attrList[i]))
+        if shscore > score:
+            score = shscore
+            bestShapes = [i]
+        elif shscore == score:
+            bestShapes += [i]
+    bestShape = shapeList[bestShapes[randint(0,len(bestShapes)-1)]].m
+    bestShape[bestShape==255]=backgroundColor
+    return bestShape
+
+'''
 def shapeAttributeList(shape, matrix, diagonal):
     """
     This function finds all attributes of shape in matrix
@@ -1862,26 +1895,7 @@ def cropShape(matrix, attributes, diagonal):
     bestShape = bestShapes[0].m
     bestShape[bestShape==255]=0#matrix.backgroundColor
     return bestShape
-
-def cropShape2(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True):
-    """
-    This function crops the shape out of a matrix with the maximum score according to attributes
-    """
-    bestShapes = []
-    score = 0
-    attrList = matrix.getShapeAttributes(backgroundColor, singleColor, diagonals):
-    for i in range(len(matrix.shapes)):
-        shscore = len(attributes.intersection(attrList[i]))
-        if shscore > score:
-            score = shscore
-            bestShapes = [  ]
-        elif shscore == score:
-            bestShapes += [sh]
-    bestShape = bestShapes[0].m
-    bestShape[bestShape==255]=0#matrix.backgroundColor
-    return bestShape
-
-
+'''
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
@@ -2206,10 +2220,11 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
-    
+                        
     # Cropshape
-    if hasattr(candTask, 'outIsInShapeD') and candTask.outIsInShapeD:
-        attrs = set.intersection(*[shapeAttributeList(s.outIsInShapeD[0], s.inMatrix, True) for s in candTask.trainSamples])
-        x.append(partial(cropShape,attributes=attrs,diagonal=True))
+    if hasattr(candTask, 'outIsInDShape') and candTask.outIsInDShape:
+        attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
+                singleColor=True, diagonals=True)[s.inMatrix.dShapes.index(s.outIsInDShape[0])] for s in candTask.trainSamples])
+        x.append(partial(cropShape,attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True))
         
     return x

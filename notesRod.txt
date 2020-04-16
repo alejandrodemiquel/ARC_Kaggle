@@ -1,3 +1,15 @@
+Task.Sample:
+	- identify when output is an input shape...
+	- backgound color problem
+Task.Task:
+	- attribute outIsInShape.
+CropShape:
+
+Matrix.shapeAttributeList:
+	- maybe then call shape and embed attribute there?
+
+
+
 ------------Crop-------------
 crop tasks:
 [13,35,56,78,87,110,120,133,173,176,194,215,216,217,262,270,289,299,318,345,264,383,395,440,445,464,473,488,509,578,586,635,655,676,689,712,727,768,774,785]
@@ -8,7 +20,7 @@ CropShape:
 - Identify characteristic attributes
 - Crop
 
-solved: 30, 35, 173, 206, 262, 299, 578, 727
+solves: 30, 35, 78, 173, 206, 262, 299, 578, 727
 solved chiripa: 13, 110, 442, 690
 
 Missing: general background, shape changes color, reference attributes
