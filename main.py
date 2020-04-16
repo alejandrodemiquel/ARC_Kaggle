@@ -300,7 +300,7 @@ def recoverGrid(t, x):
                 realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
     return realX
 
-def tryOperations(t, c):
+def tryOperations(t, c, firstIt=False):
     """
     Given a Task.Task t and a Candidate c, this function applies all the
     operations that make sense to the input matrices of c. After a certain
@@ -329,7 +329,11 @@ def tryOperations(t, c):
         cScore += sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                           t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
-        b3c.addCandidate(newCandidate)
+        if firstIt and str(op)[29:60].startswith("cropShape"):
+            newCandidate.generateTask()
+            tryOperations(t, newCandidate)
+        else:
+            b3c.addCandidate(newCandidate)
 
 class Solution():
     def __init__(self, index, taskId, ops):
@@ -347,7 +351,7 @@ targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
                  750,790,791,796,797]
 
 count = 0
-for idx in tqdm(range(799), position=0, leave=True):
+for idx in tqdm([56], position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -371,7 +375,7 @@ for idx in tqdm(range(799), position=0, leave=True):
         for c in copyB3C.candidates:
             if c.score == 0:
                 continue
-            tryOperations(t2, c)
+            tryOperations(t2, c, firstIt)
             if firstIt:
                 firstIt = False
                 break
@@ -384,7 +388,7 @@ for idx in tqdm(range(799), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -394,7 +398,7 @@ for idx in tqdm(range(799), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            #plot_sample(t.testSamples[s], x)
+            plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 #print(str(c.ops)[18:50])
