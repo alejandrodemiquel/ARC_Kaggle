@@ -451,15 +451,21 @@ def colorDNeighbours(mIn, mOut, i, j):
 # 311/800 tasks satisfy this condition
 # Do I need inMatrix.nColors+fixedColors to be iqual for every sample?
 def evolve(t, kernel=3, border=0, includeRotations=False):
-    def evolveInputMatrices(mIn, mOut):
+    def evolveInputMatrices(mIn, mOut, changeCIC=False):
         reference = [m.copy() for m in mIn]
         for m in range(len(mIn)):
-            for i,j in np.ndindex(mIn[m].shape):
-                if referenceIsFixed and reference[m][i,j] in fixedColors:
-                    colorDNeighbours(mIn[m], mOut[m], i, j)
-                elif reference[m][i,j] in changedOutColors:
-                    colorDNeighbours(mIn[m], mOut[m], i, j)
-    
+            if changeCIC:
+                for i,j in np.ndindex(mIn[m].shape):
+                    if mIn[m][i,j] not in set.union(fixedColors, changedOutColors): 
+                        colorDNeighbours(mIn[m], mOut[m], i, j)
+                        break
+            else:
+                for i,j in np.ndindex(mIn[m].shape):
+                    if referenceIsFixed and reference[m][i,j] in fixedColors:
+                        colorDNeighbours(mIn[m], mOut[m], i, j)
+                    elif reference[m][i,j] in changedOutColors:
+                        colorDNeighbours(mIn[m], mOut[m], i, j)
+                    
     nColors = t.trainSamples[0].nColors
     
     if not t.allEqual(t.sampleColors):
@@ -523,6 +529,8 @@ def evolve(t, kernel=3, border=0, includeRotations=False):
     for i in range(10):
         referenceInput = [m.copy() for m in referenceOutput]
         evolveInputMatrices(referenceOutput, outMatrices)
+        if np.all([np.array_equal(referenceInput[m], referenceOutput[m]) for m in range(len(referenceInput))]):
+            evolveInputMatrices(referenceOutput, outMatrices, True)
         for m in range(len(outMatrices)):
             for i,j in np.ndindex(referenceInput[m].shape):
                 if referenceInput[m][i,j] != referenceOutput[m][i,j]:
@@ -532,7 +540,14 @@ def evolve(t, kernel=3, border=0, includeRotations=False):
                     colorFromNeighboursK3[neighbourColors] = referenceOutput[m][i,j]
                     neighbourColors = tuple(getAllNeighbourColors(referenceInput[m],i,j,5,border))
                     colorFromNeighboursK5[neighbourColors] = referenceOutput[m][i,j]
-             
+       
+    colorFromNeighboursK2 = {k:v for k,v in colorFromNeighboursK2.items() if \
+                             not all([x not in set.union(changedOutColors, fixedColors) for x in k])}
+    colorFromNeighboursK3 = {k:v for k,v in colorFromNeighboursK3.items() if \
+                             not all([x not in set.union(changedOutColors, fixedColors) for x in k])}
+    colorFromNeighboursK5 = {k:v for k,v in colorFromNeighboursK5.items() if \
+                             not all([x not in set.union(changedOutColors, fixedColors) for x in k])}
+                
     colorfromNeighboursK3Background = {}
     for m in outMatrices:
         for i,j in np.ndindex(m.shape):
@@ -562,7 +577,7 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
                 kernel=None, border=0):
     
     def colorPixel(m,newM,i,j):
-        if newM[i,j] not in cic:
+        if newM[i,j] not in cic and colorAroundCIC==False:
             return
         if kernel==None:
             tup3 = tuple(getAllNeighbourColors(m,i,j,3,border))
@@ -589,10 +604,6 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
             if tup5 in cfn[2].keys():
                 newM[i,j] = cfn[2][tup5]
         
-        #seen[i,j] = True
-        #colorPixelsAround(m,newM,i,j)
-        
-    
     def colorPixelsAround(m,newM,i,j):
         if i>0:
             colorPixel(m,newM,i-1,j)
@@ -610,7 +621,6 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
             colorPixel(m,newM,i-1,j+1)
         if i<m.shape[0]-1 and j<m.shape[1]-1:
             colorPixel(m,newM,i+1,j+1)
-        
     
     m = matrix.m.copy()
     
@@ -640,53 +650,29 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
         coc = changedOutColors
         cic = changedInColors
     
+    it = 0
+    colorAroundCIC=False
     while True:
+        it += 1
         newM = m.copy()
         #seen = np.zeros(m.shape, dtype=np.bool)
+        if colorAroundCIC:
+            for i,j in np.ndindex(m.shape):
+                colorPixelsAround(m,newM,i,j)
+            colorAroundCIC=False
+            m=newM.copy()
+            continue
         for i,j in np.ndindex(m.shape):
             if referenceIsFixed and m[i,j] in fixedColors:
                 colorPixelsAround(m,newM,i,j)
-                #colorPixel(m,newM,i,j)
             elif m[i,j] in coc:
                 colorPixelsAround(m,newM,i,j)
-                #colorPixel(m,newM,i,j)
         if np.array_equal(newM,m):
-            break
+            if it==1:
+                colorAroundCIC=True
+            else:
+                break
         m = newM.copy()
-            
-    """
-    while True:
-        newM = m.copy()
-        for i,j in np.ndindex(m.shape):
-            if m[i,j] not in fc:
-                if kernel==None:
-                    tup3 = tuple(getAllNeighbourColors(m,i,j,3,border))
-                    tup5 = tuple(getAllNeighbourColors(m,i,j,5,border))
-                    #tup = getMostSimilarTuple(tup)
-                    if tup3 in cfn[1].keys():
-                        if tup3 in cfn[3].keys():
-                            if tup5 in cfn[2].keys():
-                                newM[i,j] = cfn[2][tup5]
-                        else:
-                            newM[i,j] = cfn[1][tup3] 
-                    elif tup5 in cfn[2].keys():
-                        newM[i,j] = cfn[2][tup5]
-                elif kernel==2:
-                    tup2 = tuple(getNeighbourColors(m,i,j,border))
-                    if tup2 in cfn[0].keys():
-                        newM[i,j] = cfn[0][tup2]
-                elif kernel==3:
-                    tup3 = tuple(getAllNeighbourColors(m,i,j,3,border))
-                    if tup3 in cfn[1].keys():
-                        newM[i,j] = cfn[1][tup3]
-                elif kernel==5:
-                    tup5 = tuple(getAllNeighbourColors(m,i,j,5,border))
-                    if tup5 in cfn[2].keys():
-                        newM[i,j] = cfn[2][tup5]
-        if np.array_equal(newM,m):
-            break
-        m = newM.copy()
-    """
         
     if len(commonColors) > 0:
         for i,j in np.ndindex(m.shape):
@@ -1010,7 +996,8 @@ def insertShape(matrix, shape):
     m = matrix.copy()
     if hasattr(shape, 'color'):
         for c in shape.pixels:
-            if c[0] < matrix.shape[0] and c[1] < matrix.shape[1]:
+            if c[0]+shape.position[0] < matrix.shape[0] and \
+            c[1]+shape.position[1] < matrix.shape[1]:
                 m[tuple(map(operator.add, c, shape.position))] = shape.color
     else:
         shapeM = shape.m.copy()
@@ -1320,10 +1307,15 @@ def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()
 
 def connectAnyPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()):
     m = matrix.m.copy()
-    if pixelColor==None and connColor==None:
-        for c in matrix.colors - set([matrix.backgroundColor]):
-            m = connectPixels(m, c, c)
-        return m
+    if pixelColor==None:
+        if connColor==None:
+            for c in matrix.colors - set([matrix.backgroundColor]):
+                m = connectPixels(m, c, c)
+            return m
+        else:
+            for c in matrix.colors - set([matrix.backgroundColor]):
+                m = connectPixels(m, c, connColor)
+            return m
     else:
         m = connectPixels(m, pixelColor, connColor, unchangedColors)
     return m
@@ -2015,6 +2007,8 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         x.append(partial(connectAnyPixels))
+        if len(set.union(*t.changedOutColors)) == 1:
+            x.append(partial(connectAnyPixels, connColor = next(iter(t.changedOutColors[0]))))
         if hasattr(candTask, "unchangedColors"):
             uc = candTask.unchangedColors
         else:
