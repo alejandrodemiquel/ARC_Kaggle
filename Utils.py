@@ -1724,7 +1724,24 @@ def multiplyMatrix(matrix, factor):
     """
     m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
     for i,j in np.ndindex(factor):
-        m[i*matrix.shape[0]:(i+1)*matrix.shape[0], j*matrix.shape[1]:(j+1)*matrix.shape[1]] = matrix.m
+        m[i*matrix.shape[0]:(i+1)*matrix.shape[0], j*matrix.shape[1]:(j+1)*matrix.shape[1]] = matrix.m.copy()
+    return m
+
+def matrixTopLeft(matrix, factor, background=0):
+    """
+    Copy the matrix into the top left corner of the multiplied matrix
+    """
+    m = np.full(tuple(s * f for s, f in zip(matrix.shape, factor)), background, dtype=np.uint8)
+    m[0:matrix.shape[0], 0:matrix.shape[1]] = matrix.m.copy()
+    return m
+    
+def matrixBotRight(matrix, factor, background=0):
+    """
+    Copy the matrix into the bottom right corner of the multiplied matrix
+    """
+    m = np.full(tuple(s * f for s, f in zip(matrix.shape, factor)), background, dtype=np.uint8)
+    m[(factor[0]-1)*matrix.shape[0]:factor[0]*matrix.shape[0], \
+      (factor[1]-1)*matrix.shape[1]:factor[1]*matrix.shape[1]]
     return m
 
 def multiplyPixelsAndAnd(matrix, factor, falseColor):
@@ -2158,6 +2175,8 @@ def getPossibleOperations(t, c):
     if hasattr(candTask, 'inShapeFactor'):
         x.append(partial(multiplyPixels, factor=candTask.inShapeFactor))
         x.append(partial(multiplyMatrix, factor=candTask.inShapeFactor))
+        x.append(partial(matrixTopLeft, factor=candTask.inShapeFactor))
+        x.append(partial(matrixBotRight, factor=candTask.inShapeFactor))
         
         for c in candTask.commonSampleColors:
             x.append(partial(multiplyPixelsAndAnd, factor=candTask.inShapeFactor,\
