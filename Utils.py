@@ -1801,16 +1801,18 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
     
 def getFactor(matrix, factor):
     if factor == "squared":
-        factor = (matrix.shape[0]**2, matrix.shape[1]**2)
+        f = (matrix.shape[0], matrix.shape[1])
     elif factor == "xSquared":
-        factor = (matrix.shape[0]**2, matrix.shape[1])
+        f = (matrix.shape[0], 1)
     elif factor == "ySquared":
-        factor = (matrix.shape[0], matrix.shape[1]**2)
+        f = (1, matrix.shape[1])
     elif factor == "nColors":
-        factor = (matrix.shape[0]*matrix.nColors, matrix.shape[1]*matrix.nColors)
+        f = (matrix.nColors, matrix.nColors)
     elif factor == "nColors-1":
-        factor = (matrix.shape[0]*matrix.nColors, matrix.shape[1]*matrix.nColors)
-    return factor
+        f = (matrix.nColors-1, matrix.nColors-1)
+    else:
+        f = factor
+    return f
 
 def multiplyPixels(matrix, factor):
     """
