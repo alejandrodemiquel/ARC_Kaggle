@@ -329,7 +329,7 @@ def tryOperations(t, c, firstIt=False):
         cScore += sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                           t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
-        if firstIt and str(op)[29:60].startswith("cropShape"):
+        if firstIt and (str(op)[29:60].startswith("cropShape") or str(op)[29:60].startswith("switchColors")):
             newCandidate.generateTask()
             tryOperations(t, newCandidate)
         else:
@@ -388,7 +388,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -398,7 +398,7 @@ for idx in tqdm(range(800), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            #plot_sample(t.testSamples[s], x)
+            plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 #print(str(c.ops)[18:50])
