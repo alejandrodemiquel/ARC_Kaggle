@@ -1799,8 +1799,7 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
         m[i,j] = colorHierarchy[max([colorHierarchy.index(x[i,j]) for x in submat])]
     return m
 
-#Cropshape Single Color Shapes
-
+#Cropshape
 def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True):
     """
     This function crops the shape out of a matrix with the maximum score according to attributes
@@ -1831,71 +1830,6 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
     bestShape[bestShape==255]=backgroundColor
     return bestShape
 
-'''
-def shapeAttributeList(shape, matrix, diagonal):
-    """
-    This function finds all attributes of shape in matrix
-    """
-    global idx
-    if not shape in matrix.dShapes:
-        print(idx)
-        return set()
-    if diagonal:
-        shapes = [sh for sh in matrix.dShapes if sh.color != 0]#matrix.backgroundColor]
-    else:
-        shapes = [sh for sh in matrix.shapes if sh.color != 0]#matrix.backgroundColor]
-    shapes.remove(shape)
-    if len(shapes) == 0:
-        return set(['OneShape'])
-    attributeList = []
-    if len(shape.pixels) > max(len(sh.pixels) for sh in shapes):
-        attributeList += ['Largest']
-    if all(shape.color != sh.color for sh in shapes):
-        attributeList += ['DifferentColor']
-        if len(set([sh.color for sh in shapes])) == 1:
-            attributeList += ['UniqueColor']
-    if np.all(shape.m == shape.m[::-1,::]):
-        attributeList += ['UDSymmetric']
-    else:
-        attributeList += ['NonUDSymmetric']
-    if np.all(shape.m == shape.m[::,::-1]):
-        attributeList += ['LRSymmetric']
-    else:
-        attributeList += ['NonLRSymmetric']
-    
-    shc=np.sum(shape.hasSameShape(sh,sameColor=True, samePosition=False, rotation=False) for sh in shapes)
-    attributeList += [len(shapes)]
-    if shc == 0:
-        attributeList += ['UniqueShape']
-    if shc >= len(shapes)/2-1:
-        attributeList += ['MostRepeated']
-    #most repeated
-    #has a reference
-        
-    return set(attributeList)
-
-
-def cropShape(matrix, attributes, diagonal):
-    """
-    This function crops the shape out of a matrix with the maximum score according to attributes
-    """
-    if diagonal:
-        shapes = [sh for sh in matrix.dShapes if sh.color != 0]#matrix.backgroundColor]
-    else:
-        shapes = [sh for sh in matrix.shapes if sh.color != 0]#matrix.backgroundColor]
-    bestShapes = []
-    score = 0
-    for sh in shapes:
-        shscore = len(attributes.intersection(shapeAttributeList(sh, matrix, diagonal)))
-        if shscore > score:
-            score = shscore
-            bestShapes = [sh]
-        elif shscore == score:
-            bestShapes += [sh]
-    bestShape = bestShapes[0].m
-    bestShape[bestShape==255]=0#matrix.backgroundColor
-    return bestShape
-'''
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
@@ -2226,5 +2160,10 @@ def getPossibleOperations(t, c):
         attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
                 singleColor=True, diagonals=True)[s.inMatrix.dShapes.index(s.outIsInDShape[0])] for s in candTask.trainSamples])
         x.append(partial(cropShape,attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True))
+        
+    #if hasattr(candTask, 'outIsInMulticolorShape') and candTask.outIsInMulticolorShape and candTask.backgroundColor == 0:
+    #    attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
+    #            singleColor=False, diagonals=False)[s.inMatrix.multicolorShapes.index(s.outIsInNonBMulticolorShape[0])] for s in candTask.trainSamples])
+    #    x.append(partial(cropShape,attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True))
         
     return x

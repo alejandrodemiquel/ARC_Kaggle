@@ -20,6 +20,9 @@ CropShape:
 - Identify characteristic attributes
 - Crop
 
+reference: 87, 110, 111, 116, 120, 142, 181, 205, 244q
+other ref: 153, 158, 208, 223, 229, 389
+
 solves: 30, 35, 78, 173, 206, 262, 299, 578, 727
 solved chiripa: 13, 110, 442, 690
 
@@ -51,7 +54,7 @@ output is input frame with different color:
 	- 395
 	- reference: 768
 
-outshape is factor: 383
+outshape is factor: 383,133
 megashape: 13, 87, 270, 289
 
 OTHER: 440 move shapes to grid, 445 
