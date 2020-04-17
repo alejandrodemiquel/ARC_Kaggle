@@ -2051,20 +2051,20 @@ def getPossibleOperations(t, c):
     """ 
     candTask = c.t
     x = [] # List to be returned
-    directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
     
     ###########################################################################
     # Fill the blanks
     if t.fillTheBlank:
         params = fillTheBlankParameters(t)
         x.append(partial(fillTheBlank, params=params))
+        
+    if all([n==2 for n in candTask.nInColors]):
+            x.append(partial(switchColors))
     
     ###########################################################################
     # sameIOShapes
     if candTask.sameIOShapes:
         
-        if all([n==2 for n in candTask.nInColors]):
-            x.append(partial(switchColors))
         #######################################################################
         # ColorMap
         ncc = len(candTask.colorChanges)
