@@ -37,6 +37,8 @@ def incorrectPixels(m1, m2):
     """
     Returns the number of incorrect pixels (0 is best)
     """
+    if m1.shape != m2.shape:
+        return 1000
     return np.sum(m1!=m2)
 
 def deBackgroundizeMatrix(m, color):
@@ -1857,28 +1859,43 @@ def matrixBotRight(matrix, factor, background=0):
       (factor[1]-1)*matrix.shape[1]:factor[1]*matrix.shape[1]]
     return m
 
-"""
-def getBestMosaic(t, factor):
-    background = t.backgroundColor
-    bMatrix = np.full(matrix.shape, background, dtype=np.uint8)
+def getBestMosaic(t):
+    factor = t.inShapeFactor
     ops = []
     ops.append(partial(identityM))
-    ops.append(partial(bMatrix))
-    for axis in ["lr", "ud", "d1", "d2"]:
-        ops.append(partial(mirror, axis=axis))
-    for angle in [90,180,270]:
-        ops.append(partial(rotate, angle=angle))
+    ops.append(partial(mirror, axis="lr"))
+    ops.append(partial(mirror, axis="ud"))
+    ops.append(partial(rotate, angle=180))
+    if t.inMatricesSquared:
+        ops.append(partial(mirror, axis="d1"))
+        ops.append(partial(mirror, axis="d2"))
+        ops.append(partial(rotate, angle=90))
+        ops.append(partial(rotate, angle=270))
+    bestOps = []
+    for i in range(factor[0]):
+        bestOps.append([])
+        for j in range(factor[1]):
+            bestScore = 1000
+            bestOp = partial(identityM)
+            for op in ops:
+                score = 0
+                for s in t.trainSamples:
+                    inM = s.inMatrix.m.copy()
+                    outM = s.outMatrix.m[i*inM.shape[0]:(i+1)*inM.shape[0], j*inM.shape[1]:(j+1)*inM.shape[1]]
+                    score += incorrectPixels(op(inM),outM)
+                if score < bestScore:
+                    bestScore = score
+                    bestOp = op
+            bestOps[i].append(bestOp)
+    return bestOps
 
-def generateMosaic(matrix, factor, background=0):
-    def backgroundMatrix(m):
-        return bMatrix
-    factor = getFactor(matrix, factor)
-    m = np.full(tuple(s * f for s, f in zip(matrix.shape, factor)), background, dtype=np.uint8)
-    bMatrix = np.full(matrix.shape, background, dtype=np.uint8)
-    #for i,j in np.ndindex(factor):
-    
+def generateMosaic(matrix, ops, factor):
+    m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
+    for i in range(factor[0]):
+        for j in range(factor[1]):
+            m[i*matrix.shape[0]:(i+1)*matrix.shape[0], j*matrix.shape[1]:(j+1)*matrix.shape[1]] = \
+            ops[i][j](matrix)
     return m
-"""
 
 def multiplyPixelsAndAnd(matrix, factor, falseColor):
     """
@@ -2288,8 +2305,6 @@ def getPossibleOperations(t, c):
     if hasattr(candTask, 'inShapeFactor'):
         x.append(partial(multiplyPixels, factor=candTask.inShapeFactor))
         x.append(partial(multiplyMatrix, factor=candTask.inShapeFactor))
-        x.append(partial(matrixTopLeft, factor=candTask.inShapeFactor))
-        x.append(partial(matrixBotRight, factor=candTask.inShapeFactor))
         
         for c in candTask.commonSampleColors:
             x.append(partial(multiplyPixelsAndAnd, factor=candTask.inShapeFactor,\
@@ -2298,6 +2313,10 @@ def getPossibleOperations(t, c):
                              falseColor=c))
             x.append(partial(multiplyPixelsAndXor, factor=candTask.inShapeFactor,\
                              falseColor=c))
+            
+        if type(candTask.inShapeFactor)==tuple:
+            ops = getBestMosaic(candTask)
+            x.append(partial(generateMosaic, ops=ops, factor=candTask.inShapeFactor))
             
     if hasattr(candTask, 'outShapeFactor'):
         # TODO Select a submatrix following certain criteria
