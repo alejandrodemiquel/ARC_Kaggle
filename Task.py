@@ -210,7 +210,12 @@ class Shape:
                 return True
         return np.array_equal(m1,m2)
     
+    def __eq__ (self, other):
+        return np.all(self.m == other.m)
+
     """
+    def __hash__(self):
+        return self.m
     def isSubshape(self, other, sameColor=False, rotation=False):
         if sameColor:
             if self.color != other.color:
@@ -449,11 +454,15 @@ class Matrix():
         self.nDShapes = len(self.dShapes)
         self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
+        #Since black is the most common background color. 
+        #self.nonBMulticolorShapes = detectShapes(self.m, 0)
+        #self.nonBMulticolorDShapes = detectShapes(self.m, 0, diagonals=True)
         # Non-background shapes
         #self.notBackgroundShapes = [s for s in self.shapes if s.color != self.backgroundColor]
         #self.nNBShapes = len(self.notBackgroundShapes)
         #self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
         #self.nNBDShapes = len(self.notBackgroundDShapes)
+        
         
         self.shapeColorCounter = Counter([s.color for s in self.shapes])
         self.blanks = []
@@ -566,7 +575,86 @@ class Matrix():
                 if isPattern:
                     return i
         return False
-                        
+    
+    def getShapeAttributes(self, backgroundColor=0, singleColor=True, diagonals=True):
+        '''
+        Returns list of shape attributes that matches list of shapes
+        Add:
+            - is border
+            - has neighbors
+            - is reference
+            - is referenced
+        '''
+        if singleColor: 
+            if diagonals:   
+                shapeList = [sh for sh in self.dShapes]# if sh.color != backgroundColor] 
+            else:   
+                shapeList = [sh for sh in self.shapes]# if sh.color != backgroundColor]
+        else:
+            if diagonals: 
+                shapeList = [sh for sh in self.multicolorDShapes]# if sh.color != backgroundColor]
+            else:
+                shapeList = [sh for sh in self.multicolorShapes]# if sh.color != backgroundColor]
+        attrList =[[] for i in range(len(shapeList))]
+        if singleColor:
+            cc = Counter([s.color for s in shapeList])
+        #is it the only shape?
+        if len(shapeList) == 1:
+            return [['OneSh']]
+        largest, smallest, mcopies = -1, 1000, 0
+        ila, ism = [], []
+        for i in range(len(shapeList)):
+            if singleColor:
+                if shapeList[i].color == backgroundColor:
+                    continue
+            #copies 
+            attrList[i] += [np.count_nonzero([np.all(shapeList[i].m==osh.m) for osh in shapeList])]
+            if attrList[i][0] > mcopies:
+                mcopies = attrList[i][0]
+            #largest?
+            if len(shapeList[i].pixels) >= largest:
+                ila += [i]
+                if len(shapeList[i].pixels) > largest:
+                    largest = len(shapeList[i].pixels)
+                    ila = [i]
+            #smallest?
+            if len(shapeList[i].pixels) <= smallest:
+                ism += [i]
+                if len(shapeList[i].pixels) < smallest:
+                    smallest = len(shapeList[i].pixels)
+                    ism = [i]
+            #unique color?
+            if singleColor:
+                if cc[shapeList[i].color] == 1:
+                    attrList[i] += ['UnCo']
+            else:
+                attrList[i] += [shapeList[i].nColors]
+            #symmetric?
+            if shapeList[i].lrSymmetric:
+                attrList[i] += ['LrSy']
+            else:
+                attrList[i] += ['NlrSy']
+            if shapeList[i].udSymmetric:
+                attrList[i] += ['UdSy']
+            else:
+                attrList[i] += ['NudSy']
+            if shapeList[i].d1Symmetric: 
+                attrList[i] += ['D1Sy']
+            else:
+                attrList[i] += ['ND1Sy']
+            if shapeList[i].d2Symmetric:
+                attrList[i] += ['D2Sy']
+            else:
+                attrList[i] += ['ND2Sy']
+    
+        if len(ism) == 1:
+            attrList[ism[0]] += ['SmSh']
+        if len(ila) == 1:
+            attrList[ila[0]] += ['LaSh']
+        for i in range(len(shapeList)):
+            if len(attrList[i]) > 0 and attrList[i][0] == mcopies:
+                attrList[i] += ['MoCo','MoCoW']
+        return [set(l[1:]) for l in attrList]
 
 # %% Class Sample
 class Sample():
@@ -602,15 +690,32 @@ class Sample():
         self.outSmallerThanIn = all(self.inMatrix.shape[i] >= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
         # Is the output a shape (faster than checking if is a subset?
         if self.outSmallerThanIn:
-            self.outIsShapeD = [sh for sh in self.outMatrix.dShapes if (sh.shape == self.outMatrix.shape and sh.color != 0)]#matrix.backgroundColor]
-            #if len(self.outIsShapeD) == 0:
-            #    self.outIsShapeD = None
-            #self.outIsShape = [sh for sh in self.outMatrix.shapes if sh.shape == self.outMatrix.shape]
-            #it will either be 0 or 1????????
-            if len(self.outIsShapeD) == 1:
-                #is it an input shape?
-                self.outIsInShapeD = [sh for sh in self.inMatrix.dShapes if np.all(sh.m == self.outIsShapeD[0].m)]
-               
+            #this could be better
+            self.outIsDShape = [sh for sh in self.outMatrix.dShapes if (sh.shape == self.outMatrix.shape)]# and sh.color != s.inMatrix.backgroundColor)]
+            self.outIsShape = [sh for sh in self.outMatrix.shapes if (sh.shape == self.outMatrix.shape)]# and sh.color != s.inMatrix.backgroundColor)]
+            self.outIsMulticolorDShape = [sh for sh in self.outMatrix.multicolorDShapes if (sh.shape == self.outMatrix.shape)]
+            self.outIsMulticolorShape = [sh for sh in self.outMatrix.multicolorShapes if (sh.shape == self.outMatrix.shape)]
+            #self.outIsNonBMulticolorDShape = [sh for sh in self.outMatrix.nonBMulticolorDShapes if (sh.shape == self.outMatrix.shape)]
+            #self.outIsNonBMulticolorShape = [sh for sh in self.outMatrix.nonBMulticolorShapes if (sh.shape == self.outMatrix.shape)]
+            
+            if len(self.outIsDShape) > 0:
+                self.outIsInDShape = []
+                for sout in self.outIsDShape:
+                    for sin in self.inMatrix.dShapes:
+                        if np.all(sout.m == sin.m):
+                            self.outIsInDShape += [sin]
+                            break
+
+            #if len(self.outIsNonBMulticolorShape) > 0:
+            #    self.outIsInNonBMulticolorShape = []
+            #    for sout in self.outIsNonBMulticolorShape:
+            #        for sin in self.inMatrix.multicolorShapes:
+            #            if np.all(sout.m == sin.m):
+            #                self.outIsInNonBMulticolorShape += [sin]
+            #                break
+        
+        
+        
         """ 
         if any(sh.shape == self.outMatrix.shape for sh in self.outMatrix.dShapes):
                 self.outIsShapeD = True
@@ -692,15 +797,6 @@ class Sample():
                 if s.shape == self.outMatrix.shape:
                     self.blankToFill = s
                     
-                    
-        """
-        #a shape in the input is in the output
-        oshm = [os.m for os in self.outMatrix.dShapes]
-        if any([any([np.array_equal(ish.m, osh) for osh in oshm]) for ish in s1.inMatrix.dShapes]):
-            if self.outMatrix
-            #maybe the shapes are non_diagonal
-            #if self.inMatrix.shapes:
-         """
          
         # Does the output matrix follow a pattern?
         self.followsRowPattern = self.outMatrix.followsRowPattern()
@@ -778,9 +874,6 @@ class Task():
         for s in self.trainSamples:
             self.outSubsetOfIn = set.intersection(self.outSubsetOfIn, s.outSubsetOfInIndices)
         """
-        #is output a shape in the input
-        if all([hasattr(s, 'outIsInShapeD') for s in self.trainSamples]) and all(len(s.outIsInShapeD)>0 for s in self.trainSamples):
-            self.outIsInShapeD = True
         
         # Symmetries:
         # Are all outputs LR, UD, D1 or D2 symmetric?
@@ -853,6 +946,21 @@ class Task():
             self.backgroundColor = self.trainSamples[0].inMatrix.backgroundColor
         else:
             self.backgroundColor = -1
+            
+         #is output a shape in the input
+        if all([hasattr(s, 'outIsInDShape') for s in self.trainSamples]) and all(len(s.outIsInDShape)==1 for s in self.trainSamples):
+            self.outIsInDShape = True
+        if all([hasattr(s, 'outIsInShape') for s in self.trainSamples]) and all(len(s.outIsInShape)>0 for s in self.trainSamples):
+            self.outIsInShape = True
+        if all([hasattr(s, 'outIsInNonBMulticolorDShape') for s in self.trainSamples]) and all(len(s.outIsInNonBMulticolorDShape)>0 for s in self.trainSamples) and self.backgroundColor == 0:
+            self.outIsInMulticolorDShape = True
+        if all([hasattr(s, 'outIsInNonBMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInNonBMulticolorShape)>0 for s in self.trainSamples) and self.backgroundColor == 0:
+            self.outIsInMulticolorShape = True
+        #if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
+        #    self.outIsInMulticolorShape = True
+        #if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
+        #    self.outIsInMulticolorShape = True
+        
         """
         if len(self.commonInColors) == 1 and len(self.commonOutColors) == 1 and \
         next(iter(self.commonInColors)) == next(iter(self.commonOutColors)):

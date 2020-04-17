@@ -1,3 +1,14 @@
+Task.Sample:
+	- identify when output is an input shape...
+	- backgound color problem
+Task.Task:
+	- attribute outIsInShape.
+CropShape:
+
+Matrix.shapeAttributeList:
+	- maybe then call shape and embed attribute there?
+
+
 
 ------------Crop-------------
 crop tasks:
@@ -9,25 +20,51 @@ CropShape:
 - Identify characteristic attributes
 - Crop
 
-solved: 30, 35, 173, 206, 262, 299, 578, 727
+reference: 87, 110, 111, 116, 120, 142, 181, 205, 244q
+other ref: 153, 158, 208, 223, 229, 389
+
+solves: 30, 35, 78, 173, 206, 262, 299, 578, 727
 solved chiripa: 13, 110, 442, 690
 
 Missing: general background, shape changes color, reference attributes
 
 Should solve: [13,78,87,110,215,217,270]
-Replicate: [56,78,194,216]
 
-should solve 78 (more copies),110 (grey pixel attached), 383
+output is input shape missing attribute: 
+	- more copies 78:
+	- reference 110, 345
+	- holes 488	
 
-changes color: 133, 120(just one pixel)
-megashape: 13, 270, 289
+
+output is input shape with different color:
+	- 133
+	- referece 87, 120
+	 - 774 rightmost
+output is replicated input shape:
+	- 56, 194, 212, 216, 464
+	- reference 509
+
+output is input frame:
+	- 176, 215, 217*, 270, 318, 473, 488, 586, 635, 
+	- more copies: 785
+	- unique 712
+
+output is input frame with different color:
+	- 289
+	- 395
+	- reference: 768
+
+outshape is factor: 383,133
+megashape: 13, 87, 270, 289
+
+OTHER: 440 move shapes to grid, 445 
+
+and other functions:
 background 318
+Replicate: [56,194,216]
 
 CropFrame:
 - Identify if output is in input
 - Identify characteristic attributes
 - Crop
-
--------- overlap tasks (SOLVED)----------
-[179, 256, 320, 371, 468, 493, 566, 684, 766, 772]
 
