@@ -745,6 +745,26 @@ class Task():
         if all([hasattr(s, 'inShapeFactor') for s in self.trainSamples]):
             if self.allEqual([s.inShapeFactor for s in self.trainSamples]):
                 self.inShapeFactor = self.trainSamples[0].inShapeFactor
+            elif all([s.inMatrix.shape[0]**2 == s.outMatrix.shape[0] and \
+                      s.inMatrix.shape[1]**2 == s.outMatrix.shape[1] \
+                      for s in self.trainSamples]):
+                self.inShapeFactor = "squared"
+            elif all([s.inMatrix.shape[0]**2 == s.outMatrix.shape[0] and \
+                      s.inMatrix.shape[1] == s.outMatrix.shape[1] \
+                      for s in self.trainSamples]):
+                self.inShapeFactor = "xSquared"
+            elif all([s.inMatrix.shape[0] == s.outMatrix.shape[0] and \
+                      s.inMatrix.shape[1]**2 == s.outMatrix.shape[1] \
+                      for s in self.trainSamples]):
+                self.inShapeFactor = "ySquared"
+            elif all([s.inMatrix.shape[0]*s.inMatrix.nColors == s.outMatrix.shape[0] and \
+                     s.inMatrix.shape[1]*s.inMatrix.nColors == s.outMatrix.shape[1] \
+                     for s in self.trainSamples]):
+                self.inShapeFactor = "nColors"
+            elif all([s.inMatrix.shape[0]*(s.inMatrix.nColors-1) == s.outMatrix.shape[0] and \
+                     s.inMatrix.shape[1]*(s.inMatrix.nColors-1) == s.outMatrix.shape[1] \
+                     for s in self.trainSamples]):
+                self.inShapeFactor = "nColors-1"
         if all([hasattr(s, 'outShapeFactor') for s in self.trainSamples]):
             if self.allEqual([s.outShapeFactor for s in self.trainSamples]):
                 self.outShapeFactor = self.trainSamples[0].outShapeFactor

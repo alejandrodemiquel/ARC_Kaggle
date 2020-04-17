@@ -13,7 +13,10 @@ def identityM(matrix):
     """
     Function that, given Matrix, returns its corresponding numpy.ndarray m
     """
-    return matrix.m
+    if isinstance(matrix, np.ndarray):
+        return matrix.copy()
+    else:
+        return matrix.m.copy()
 
 def correctFixedColors(inMatrix, x, fixedColors):
     """
@@ -581,7 +584,7 @@ def getMostSimilarTuple(tup):
 def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),\
                 changedInColors=set(), referenceIsFixed=False, commonColors=set(),\
                 kernel=None, border=0):
-    
+        
     def colorPixel(m,newM,i,j):
         if newM[i,j] not in cic and colorAroundCIC==False:
             return
@@ -682,7 +685,10 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
         
     if len(commonColors) > 0:
         for i,j in np.ndindex(m.shape):
-            m[i,j] = rel[m[i,j]][0]
+            if m[i,j] in rel.keys():
+                m[i,j] = rel[m[i,j]][0]
+            else:
+                m[i,j] = rel[0][0] # Patch for bug in task 22
         
     return m
     
@@ -1136,7 +1142,8 @@ def extendColorAcross(matrix, color, direction, until, untilBorder = True):
     #if direction == "h" or direction == "l":
     #if direction == "h" or direction == "r":
     return m
-        
+    
+# %% Move shapes    
 
 def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
     """
@@ -1229,10 +1236,10 @@ def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None):
             m = moveShape(m, s, background, direction, until, nSteps)
     return m
     
-def moveShapeToClosest(matrix, shape, background, until):
+def moveShapeToClosest(matrix, shape, background, until, diagonals=False):
     """
     Given a matrix (numpy.ndarray) and a Task.Shape, this function moves the
-    given shape until the colosest shape with the color given by "until".
+    given shape until the closest shape with the color given by "until".
     """
     m = matrix.copy()
     s = copy.deepcopy(shape)
@@ -1255,11 +1262,28 @@ def moveShapeToClosest(matrix, shape, background, until):
             if pixelPos[1]+nSteps < m.shape[1] and m[pixelPos[0], pixelPos[1]+nSteps] == until:
                 s.position = (s.position[0], s.position[1]+nSteps-1)
                 return insertShape(m, s)
+            if diagonals:
+                if nSteps <= pixelPos[0] and nSteps <= pixelPos[1] and \
+                m[pixelPos[0]-nSteps, pixelPos[1]-nSteps] == until:
+                    s.position = (s.position[0]-nSteps+1, s.position[1]-nSteps+1)
+                    return insertShape(m, s)
+                if nSteps <= pixelPos[0] and pixelPos[1]+nSteps < m.shape[1] and \
+                m[pixelPos[0]-nSteps, pixelPos[1]+nSteps] == until:
+                    s.position = (s.position[0]-nSteps+1, s.position[1]+nSteps-1)
+                    return insertShape(m, s)
+                if pixelPos[0]+nSteps < m.shape[0] and nSteps <= pixelPos[1] and \
+                m[pixelPos[0]+nSteps, pixelPos[1]-nSteps] == until:
+                    s.position = (s.position[0]+nSteps-1, s.position[1]-nSteps+1)
+                    return insertShape(m, s)
+                if pixelPos[0]+nSteps < m.shape[0] and pixelPos[1]+nSteps < m.shape[1] and \
+                m[pixelPos[0]+nSteps, pixelPos[1]+nSteps] == until:
+                    s.position = (s.position[0]+nSteps-1, s.position[1]+nSteps-1)
+                    return insertShape(m, s)
         nSteps += 1
         if nSteps > m.shape[0] and nSteps > m.shape[1]:
             return matrix
         
-def moveAllShapesToClosest(matrix, colorToMove, background, until):
+def moveAllShapesToClosest(matrix, colorToMove, background, until, diagonals=False):
     """
     This function moves all the shapes with color "colorToMove" until the
     closest shape with color "until".
@@ -1267,8 +1291,72 @@ def moveAllShapesToClosest(matrix, colorToMove, background, until):
     m = matrix.m.copy()
     for s in matrix.shapes:
         if s.color == colorToMove:
-            m = moveShapeToClosest(m, s, background, until)
+            m = moveShapeToClosest(m, s, background, until, diagonals)
     return m
+
+def getBestMoveShapes(t):
+    directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
+    bestScore = 1000
+    
+    for d in directions:
+        score = 0
+        for s in t.trainSamples:
+            score += incorrectPixels(s.outMatrix.m, \
+                                     moveAllShapes(s.inMatrix, background=t.backgroundColor,\
+                                                   until=-2, direction=d))
+        if score < bestScore:
+            bestScore = score
+            x = partial(moveAllShapes, background=t.backgroundColor, until=-2, direction=d)
+        
+    colorsToChange = list(t.colors - t.unchangedColors -\
+                          set({t.backgroundColor}))
+    ctc = [[c] for c in colorsToChange] + [colorsToChange] # Also all colors
+    for c in ctc:
+        for d in directions:
+            moveUntil = colorsToChange + [-1] + [-2] #Border, any
+            #for u in t.colors - set(c) | set({-1}):
+            for u in moveUntil:
+                score = 0
+                for s in t.trainSamples:
+                    score += incorrectPixels(s.outMatrix.m, \
+                                             moveAllShapes(s.inMatrix, color=c, \
+                                                           background=t.backgroundColor,\
+                                                           direction=d, until=u))
+                if score < bestScore:
+                    bestScore = score
+                    x = partial(moveAllShapes, color=c, background=t.backgroundColor,\
+                                direction=d, until=u)
+            
+    if t.backgroundColor != -1 and hasattr(t, 'unchangedColors'):
+        colorsToMove = set(range(10)) - set([t.backgroundColor]) -\
+        t.unchangedColors
+        for ctm in colorsToMove:
+            for uc in t.unchangedColors:
+                score = 0
+                for s in t.trainSamples:
+                    score += incorrectPixels(s.outMatrix.m, \
+                                             moveAllShapesToClosest(s.inMatrix, colorToMove=ctm,\
+                                                                    background=t.backgroundColor,\
+                                                                    until=uc))
+                if score < bestScore:
+                    bestScore = score
+                    x = partial(moveAllShapesToClosest, colorToMove=ctm,\
+                                 background=t.backgroundColor, until=uc)
+                
+                score = 0
+                for s in t.trainSamples:
+                    score += incorrectPixels(s.outMatrix.m, \
+                                             moveAllShapesToClosest(s.inMatrix, colorToMove=ctm,\
+                                                                    background=t.backgroundColor,\
+                                                                    until=uc, diagonals=True))
+                if score < bestScore:
+                    bestScore = score
+                    x = partial(moveAllShapesToClosest, colorToMove=ctm,\
+                                 background=t.backgroundColor, until=uc, diagonals=True)
+                        
+    return x
+
+# %% Connect Pixels
 
 def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set(),\
                   allowedChanges={}, lineExclusive=False):
@@ -1359,14 +1447,20 @@ def rotate(matrix, angle):
     Angle can be 90, 180, 270
     """
     assert angle in [90, 180, 270], "Invalid rotation angle"
-    m = matrix.m.copy()
+    if isinstance(matrix, np.ndarray):
+        m = matrix.copy()
+    else:
+        m = matrix.m.copy()
     return np.rot90(m, int(angle/90))    
     
 def mirror(matrix, axis):
     """
     Axis can be lr, up, d1, d2
     """
-    m = matrix.m.copy()
+    if isinstance(matrix, np.ndarray):
+        m = matrix.copy()
+    else:
+        m = matrix.m.copy()
     assert axis in ["lr", "ud", "d1", "d2"], "Invalid mirror axis"
     if axis == "lr":
         return np.fliplr(m)
@@ -1704,6 +1798,19 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
     return m
 
 # %% Operations to extend matrices
+    
+def getFactor(matrix, factor):
+    if factor == "squared":
+        factor = (matrix.shape[0]**2, matrix.shape[1]**2)
+    elif factor == "xSquared":
+        factor = (matrix.shape[0]**2, matrix.shape[1])
+    elif factor == "ySquared":
+        factor = (matrix.shape[0], matrix.shape[1]**2)
+    elif factor == "nColors":
+        factor = (matrix.shape[0]*matrix.nColors, matrix.shape[1]*matrix.nColors)
+    elif factor == "nColors-1":
+        factor = (matrix.shape[0]*matrix.nColors, matrix.shape[1]*matrix.nColors)
+    return factor
 
 def multiplyPixels(matrix, factor):
     """
@@ -1711,6 +1818,7 @@ def multiplyPixels(matrix, factor):
     The output matrix has shape matrix.shape*factor. Each pixel of the input
     matrix is expanded by factor.
     """
+    factor = getFactor(matrix, factor)
     m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
     for i,j in np.ndindex(matrix.m.shape):
         for k,l in np.ndindex(factor):
@@ -1722,6 +1830,7 @@ def multiplyMatrix(matrix, factor):
     Copy the matrix "matrix" into every submatrix of the output, which has
     shape matrix.shape * factor.
     """
+    factor = getFactor(matrix, factor)
     m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
     for i,j in np.ndindex(factor):
         m[i*matrix.shape[0]:(i+1)*matrix.shape[0], j*matrix.shape[1]:(j+1)*matrix.shape[1]] = matrix.m.copy()
@@ -1731,6 +1840,7 @@ def matrixTopLeft(matrix, factor, background=0):
     """
     Copy the matrix into the top left corner of the multiplied matrix
     """
+    factor = getFactor(matrix, factor)
     m = np.full(tuple(s * f for s, f in zip(matrix.shape, factor)), background, dtype=np.uint8)
     m[0:matrix.shape[0], 0:matrix.shape[1]] = matrix.m.copy()
     return m
@@ -1739,10 +1849,34 @@ def matrixBotRight(matrix, factor, background=0):
     """
     Copy the matrix into the bottom right corner of the multiplied matrix
     """
+    factor = getFactor(matrix, factor)
     m = np.full(tuple(s * f for s, f in zip(matrix.shape, factor)), background, dtype=np.uint8)
     m[(factor[0]-1)*matrix.shape[0]:factor[0]*matrix.shape[0], \
       (factor[1]-1)*matrix.shape[1]:factor[1]*matrix.shape[1]]
     return m
+
+"""
+def getBestMosaic(t, factor):
+    background = t.backgroundColor
+    bMatrix = np.full(matrix.shape, background, dtype=np.uint8)
+    ops = []
+    ops.append(partial(identityM))
+    ops.append(partial(bMatrix))
+    for axis in ["lr", "ud", "d1", "d2"]:
+        ops.append(partial(mirror, axis=axis))
+    for angle in [90,180,270]:
+        ops.append(partial(rotate, angle=angle))
+
+def generateMosaic(matrix, factor, background=0):
+    def backgroundMatrix(m):
+        return bMatrix
+    factor = getFactor(matrix, factor)
+    m = np.full(tuple(s * f for s, f in zip(matrix.shape, factor)), background, dtype=np.uint8)
+    bMatrix = np.full(matrix.shape, background, dtype=np.uint8)
+    #for i,j in np.ndindex(factor):
+    
+    return m
+"""
 
 def multiplyPixelsAndAnd(matrix, factor, falseColor):
     """
@@ -2033,33 +2167,7 @@ def getPossibleOperations(t, c):
                     x.append(partial(rotate, angle = angle))
                 
             # Move shapes
-            for d in directions:
-                x.append(partial(moveAllShapes, background=candTask.backgroundColor, \
-                                 until=-2, direction=d))
-            colorsToChange = list(candTask.colors - candTask.unchangedColors -\
-                                  set({candTask.backgroundColor}))
-            ctc = [[c] for c in colorsToChange] + [colorsToChange] # Also all colors
-            for c in ctc:
-                for d in directions:
-                    moveUntil = colorsToChange + [-1] + [-2] #Border, any
-                    #for u in t.colors - set(c) | set({-1}):
-                    for u in moveUntil:
-                        x.append(partial(moveAllShapes, color=c,\
-                                         background=candTask.backgroundColor,\
-                                         direction=d, until=u, nSteps=100))
-                    #for ns in [1, 2, 3, 4]:
-                    #    x.append(partial(moveAllShapes, color=c,\
-                                         #background=t.backgroundColor,\
-                                         #direction=d, until=-1, nSteps=ns))
-            
-            if candTask.backgroundColor != -1 and hasattr(candTask, 'unchangedColors'):
-                colorsToMove = set(range(10)) - set([candTask.backgroundColor]) -\
-                candTask.unchangedColors
-                for ctm in colorsToMove:
-                    for uc in candTask.unchangedColors:
-                        x.append(partial(moveAllShapesToClosest, colorToMove=ctm,\
-                                                        background=candTask.backgroundColor,\
-                                                        until=uc))
+            x.append(getBestMoveShapes(candTask))
                                                          
             # Mirror shapes
             """
@@ -2146,7 +2254,7 @@ def getPossibleOperations(t, c):
         refIsFixed = candTask.trainSamples[0].inMatrix.nColors == len(fc)+1
         
         cfn = evolve(candTask)
-        if t.allEqual(candTask.sampleColors):
+        if candTask.allEqual(candTask.sampleColors):
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
                 changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
@@ -2158,7 +2266,7 @@ def getPossibleOperations(t, c):
                 commonColors=candTask.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
             
         cfn = evolve(candTask, includeRotations=True)
-        if t.allEqual(candTask.sampleColors):
+        if candTask.allEqual(candTask.sampleColors):
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
                 changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
