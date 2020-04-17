@@ -1884,6 +1884,7 @@ def multiplyPixelsAndAnd(matrix, factor, falseColor):
     multiplyPixels, multiplyMatrix, and executing pixelwiseAnd with these two
     matrices as inputs
     """
+    factor = getFactor(matrix, factor)
     m = matrix.m.copy()
     multipliedM = multiplyPixels(matrix, factor)
     for i,j in np.ndindex(factor):
@@ -1897,6 +1898,7 @@ def multiplyPixelsAndOr(matrix, factor, falseColor):
     multiplyPixels, multiplyMatrix, and executing pixelwiseOr with these two
     matrices as inputs
     """
+    factor = getFactor(matrix, factor)
     m = matrix.m.copy()
     multipliedM = multiplyPixels(matrix, factor)
     for i,j in np.ndindex(factor):
@@ -1910,6 +1912,7 @@ def multiplyPixelsAndXor(matrix, factor, falseColor):
     multiplyPixels, multiplyMatrix, and executing pixelwiseXor with these two
     matrices as inputs
     """
+    factor = getFactor(matrix, factor)
     m = matrix.m.copy()
     multipliedM = multiplyPixels(matrix, factor)
     for i,j in np.ndindex(factor):
@@ -2288,6 +2291,10 @@ def getPossibleOperations(t, c):
         
         for c in candTask.commonSampleColors:
             x.append(partial(multiplyPixelsAndAnd, factor=candTask.inShapeFactor,\
+                             falseColor=c))
+            x.append(partial(multiplyPixelsAndOr, factor=candTask.inShapeFactor,\
+                             falseColor=c))
+            x.append(partial(multiplyPixelsAndXor, factor=candTask.inShapeFactor,\
                              falseColor=c))
             
     if hasattr(candTask, 'outShapeFactor'):
