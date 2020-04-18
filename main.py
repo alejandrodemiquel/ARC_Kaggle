@@ -351,14 +351,10 @@ targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
                  750,790,791,796,797]
 
 count = 0
-<<<<<<< HEAD
 for idx in tqdm(range(800), position=0, leave=True):
-=======
-for idx in tqdm(range(100), position=0, leave=True):
->>>>>>> cropFrame
     taskId = index[idx]
     task = allTasks[taskId]
-    t = Task.Task(task, taskId)
+    t = Task.Task(task, taskId)    
 
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
