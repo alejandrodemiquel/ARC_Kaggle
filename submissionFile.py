@@ -3481,7 +3481,7 @@ def getPossibleOperations(t, c):
         if all([s.inMatrix.shape[0]**2 == s.outMatrix.shape[0] and \
                 s.inMatrix.shape[1]**2 == s.outMatrix.shape[1] for s in t.trainSamples]):
             opCond = getBestMultiplyMatrix(t)
-            x.append(doBestMultiplyMatrix, opCond=opCond)
+            x.append(partial(doBestMultiplyMatrix, opCond=opCond))
             
     if hasattr(candTask, 'outShapeFactor'):
         # TODO Select a submatrix following certain criteria
