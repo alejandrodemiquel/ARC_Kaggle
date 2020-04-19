@@ -1978,7 +1978,6 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
     return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor)
 
 # %% Stuff added by Roderic
-
 def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     """
     This function returns the result of overlapping all submatrices of a given
@@ -1999,10 +1998,12 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     return m
 
 #Cropshape
-def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True):
+def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True, referenceShape=None):
     """
     This function crops the shape out of a matrix with the maximum score according to attributes
     """
+    #if reference != None:
+    #    for 
     
     if singleColor: 
         if diagonals:   
@@ -2029,6 +2030,7 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
     bestShape[bestShape==255]=backgroundColor
     return bestShape
 
+#def cropReferece(matrix, reference):
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
