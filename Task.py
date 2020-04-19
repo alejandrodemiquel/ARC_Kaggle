@@ -210,8 +210,11 @@ class Shape:
                 return True
         return np.array_equal(m1,m2)
     
-    def __eq__ (self, other):
-        return np.all(self.m == other.m)
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return np.array_equal(self.m, other.m)
+        else:
+            return False
 
     """
     def __hash__(self):
