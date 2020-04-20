@@ -349,9 +349,8 @@ targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
                  330,335,344,347,348,377,386,428,449,457,482,496,507,517,525,\
                  526,531,552,573,579,585,607,629,631,648,678,703,706,731,731,\
                  750,790,791,796,797]
-
 count = 0
-for idx in tqdm([30, 35, 78, 110, 173, 206, 262, 299, 578, 727], position=0, leave=True):
+for idx in tqdm(range(100), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -401,7 +400,7 @@ for idx in tqdm([30, 35, 78, 110, 173, 206, 262, 299, 578, 727], position=0, lea
             #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
-                print(str(c.ops))
+                print(idx, str(c.ops))
                 #plot_task(task)
                 count += 1
                 #break

@@ -2015,7 +2015,7 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
 
     bestShapes = []
     score = 0
-    attrList = matrix.getShapeAttributes(backgroundColor=backgroundColor, singleColor=singleColor, diagonals=diagonals)
+    attrList = matrix.getShapeAttributes(backgroundColor, singleColor, diagonals)
     for i in range(len(shapeList)):
         shscore = len(attributes.intersection(attrList[i]))
         if shscore > score:
@@ -2023,10 +2023,20 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
             bestShapes = [i]
         elif shscore == score:
             bestShapes += [i]
-    bestShape = shapeList[bestShapes[randint(0,len(bestShapes)-1)]].m
+    bestShape = shapeList[bestShapes[0]].m
     bestShape[bestShape==255]=backgroundColor
     return bestShape
 
+#def cropMulticolorShape(matrix, colors, backgroundColor=0, diagonals=True)
+    
+"""
+def cropAllShapes(matrix, diagonal=True, shuffle=1):
+    if diagonal:
+        shList = matrix.dShapes
+    else:
+        shList = matrix.shapes
+"""    
+    
 #Crop a shape using a reference shape or set of shapes
 def cropShapeReference(matrix, referenceShape, diagonal=True):
     """
@@ -2411,7 +2421,7 @@ def getPossibleOperations(t, c):
         if candTask.nCommonInOutShapes > 0:
             attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
                     singleColor=True, diagonals=False)[s.inMatrix.shapes.index(s.commonShapes[0][0])] for s in candTask.trainSamples])
-            x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=False))
+            x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=False))              
             if len(candTask.commonInShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
             
@@ -2421,5 +2431,12 @@ def getPossibleOperations(t, c):
             x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True))
             if len(candTask.commonInDShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInDShapes, diagonal=True))
-
+                
+        if candTask.outIsInMulticolorShapeSize:
+            for attrs in [set(['UnSh']),set(['MoCo']),set(['MoCl']),set(['OneSh'])]:
+                x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=False, diagonals=False))
+                
+       # if hasattr(candTask.outIsInMulticolorDShapeSize):
+        #    for attrs in:
+         #       x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=False, diagonals=True))
     return x
