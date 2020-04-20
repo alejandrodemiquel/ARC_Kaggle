@@ -3,7 +3,14 @@ Task.Sample:
 	- backgound color problem
 Task.Task:
 	- attribute outIsInShape.
+
+Detect subshapes;
 CropShape:
+	- update multicolor shapes
+	- frames
+	- cridar cropShape amb outisshape. 
+	- multicolor
+	- quan comptar pixels!?
 
 Matrix.shapeAttributeList:
 	- maybe then call shape and embed attribute there?
@@ -23,18 +30,16 @@ CropShape:
 reference: 87, 110, 111, 116, 120, 142, 181, 205, 244q
 other ref: 153, 158, 208, 223, 229, 389
 
-solves: 30, 35, 78, 173, 206, 262, 299, 578, 727
-solved chiripa: 13, 110, 442, 690
+solves: 30, 35, 78, 110, 173, 206, 262, 299, 578, 727
+solved chiripa: 13, 442, 690
 
 Missing: general background, shape changes color, reference attributes
 
-Should solve: [13,78,87,110,215,217,270]
+Should solve: [13,87,215,217,270]
 
 output is input shape missing attribute: 
-	- more copies 78:
-	- reference 110, 345
+	- reference 345
 	- holes 488	
-
 
 output is input shape with different color:
 	- 133

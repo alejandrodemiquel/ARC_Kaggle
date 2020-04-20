@@ -351,11 +351,7 @@ targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
                  750,790,791,796,797]
 
 count = 0
-for idx in tqdm([6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
-                 170,189,198,224,229,242,254,255,257,267,279,282,285,287,298,322,\
-                 330,335,344,347,348,377,386,428,449,457,482,496,507,517,525,\
-                 526,531,552,573,579,585,607,629,631,648,678,703,706,731,731,\
-                 750,790,791,796,797], position=0, leave=True):
+for idx in tqdm([30, 35, 78, 110, 173, 206, 262, 299, 578, 727], position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -392,7 +388,7 @@ for idx in tqdm([6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -402,11 +398,12 @@ for idx in tqdm([6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            plot_sample(t.testSamples[s], x)
+            #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(str(c.ops))
-                plot_task(task)
+                #plot_task(task)
+                count += 1
                 #break
                 solved.append(Solution(idx, taskId, c.ops))
                 solvedIds.append(idx)
