@@ -1045,50 +1045,6 @@ class Task():
             if addShape:
                 self.commonInDShapes.append(sh1)
             
-            
-            
-        """     
-            for sh2 in self.trainSamples[1].inMatrix.shapes:
-                if sh2.color == self.trainSamples[1].inMatrix.backgroundColor:
-                    continue
-                if sh1.m.shape == sh2.m.shape and np.all(sh1.m == sh2.m):
-                    self.commonInShapes += [sh1.m]
-        if len(self.trainSamples) > 1:
-            for s in self.trainSamples[2:]:
-                i = 0
-                while i < len(self.commonInShapes):
-                    found = False
-                    for sh3 in s.inMatrix.shapes:
-                        if sh2.m.shape == self.commonInShapes[i].shape and np.all(sh3.m == self.commonInShapes[i]):
-                            found = True
-                            break
-                    if not found:
-                        self.commonInShapes = self.commonInShapes[:i]+self.commonInShapes[i+1:]
-                    else:
-                        i += 1
-        self.commonInDShapes = []
-        for sh1 in self.trainSamples[0].inMatrix.dShapes:
-            if sh1.color == self.trainSamples[0].inMatrix.backgroundColor:
-                continue
-            for sh2 in self.trainSamples[1].inMatrix.dShapes:
-                if sh2.color == self.trainSamples[1].inMatrix.backgroundColor:
-                    continue
-                if sh1.m.shape == sh2.m.shape and np.all(sh1.m == sh2.m):
-                    self.commonInDShapes += [sh1.m]
-        if len(self.trainSamples) > 1:
-            for s in self.trainSamples[2:]:
-                i = 0
-                while i < len(self.commonInDShapes):
-                    found = False
-                    for sh3 in s.inMatrix.dShapes:
-                        if sh3.m.shape == self.commonInDShapes[i].shape and np.all(sh3.m == self.commonInDShapes[i]):
-                            found = True
-                            break
-                    if not found:
-                        self.commonInDShapes = self.commonInDShapes[:i]+self.commonInDShapes[i+1:]
-                    else:
-                        i += 1
-        """
         
         # Is the task about filling a blank?
         self.fillTheBlank =  all([hasattr(s, 'blankToFill') for s in self.trainSamples])
