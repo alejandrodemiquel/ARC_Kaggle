@@ -362,15 +362,18 @@ targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,97,98,104,118,135,140,
                  526,531,552,573,579,585,605,607,629,631,633,646,648,661,678,703,706,731,731,\
                  750,790,791,796,797]
 
-count = 0
+sameColorCountTasks = [3,7,29,31,43,52,77,86,121,127,139,149,153,154,178,227,240,\
+                       244,249,269,300,352,372,379,389,434,447,456,501,502,512,\
+                       516,545,555,556,560,567,601,613,615,638,641,660,719,733,\
+                       737,741,743,746,756,781,782,784]
+
+scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
+
+
 for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId) 
-    
-    if t.sameIOShapes and t.sameColorCount:
-        print(idx)
-        plot_task(idx)
 
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
@@ -424,4 +427,4 @@ for idx in tqdm(range(800), position=0, leave=True):
                 #break
                 solved.append(Solution(idx, taskId, c.ops))
                 solvedIds.append(idx)
-                break
+                #break

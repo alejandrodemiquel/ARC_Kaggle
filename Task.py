@@ -212,7 +212,7 @@ class Shape:
     
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return np.array_equal(self.m, other.m)
+            return np.all(self.pixels == other.pixels)
         else:
             return False
 
@@ -590,30 +590,49 @@ class Matrix():
         '''
         if singleColor: 
             if diagonals:   
-                shapeList = [sh for sh in self.dShapes]# if sh.color != backgroundColor] 
+                shapeList = [sh for sh in self.dShapes]
             else:   
-                shapeList = [sh for sh in self.shapes]# if sh.color != backgroundColor]
+                shapeList = [sh for sh in self.shapes]
         else:
             if diagonals: 
-                shapeList = [sh for sh in self.multicolorDShapes]# if sh.color != backgroundColor]
+                shapeList = [sh for sh in self.multicolorDShapes]
             else:
-                shapeList = [sh for sh in self.multicolorShapes]# if sh.color != backgroundColor]
+                shapeList = [sh for sh in self.multicolorShapes]
         attrList =[[] for i in range(len(shapeList))]
         if singleColor:
-            cc = Counter([s.color for s in shapeList])
+            cc = Counter([sh.color for sh in shapeList])
+        if singleColor:
+            sc = Counter([sh.nPixels for sh in shapeList if sh.color != backgroundColor])
+        else:
+            sc = Counter([sh.nPixels for sh in shapeList])
         #is it the only shape?
-        if len(shapeList) == 1:
-            return [['OneSh']]
-        largest, smallest, mcopies = -1, 1000, 0
+        #if len([sh for sh in shapeList if (sh.color != backgroundColor)]) == 1:
+        #    for i in range(len(shapeList)):
+        #        if shapeList[i].color != backgroundColor:        
+        #            attrList[i].append('OneSh')
+        #            break
+        #    return [set(l[1:]) for l in attrList]
+
+        largest, smallest, mcopies, mcolors = -1, 1000, 0, 0
         ila, ism = [], []
         for i in range(len(shapeList)):
+            # color count
             if singleColor:
                 if shapeList[i].color == backgroundColor:
+                    attrList[i].append(-1)
                     continue
+            else:
+                attrList[i].append(shapeList[i].nColors)
+                if shapeList[i].nColors > mcolors:
+                    mcolors = shapeList[i].nColors
             #copies 
-            attrList[i] += [np.count_nonzero([np.all(shapeList[i].m==osh.m) for osh in shapeList])]
+            attrList[i] = [np.count_nonzero([np.all(shapeList[i].m==osh.m) for osh in shapeList])] + attrList[i]
             if attrList[i][0] > mcopies:
                 mcopies = attrList[i][0]
+            #unique color?
+            if singleColor:
+                if cc[shapeList[i].color] == 1:
+                    attrList[i].append('UnCo')
             #largest?
             if len(shapeList[i].pixels) >= largest:
                 ila += [i]
@@ -626,37 +645,42 @@ class Matrix():
                 if len(shapeList[i].pixels) < smallest:
                     smallest = len(shapeList[i].pixels)
                     ism = [i]
-            #unique color?
-            if singleColor:
-                if cc[shapeList[i].color] == 1:
-                    attrList[i] += ['UnCo']
-            else:
-                attrList[i] += [shapeList[i].nColors]
             #symmetric?
             if shapeList[i].lrSymmetric:
-                attrList[i] += ['LrSy']
+                attrList[i].append('LrSy')
             else:
-                attrList[i] += ['NlrSy']
+                attrList[i].append('NlrSy')
             if shapeList[i].udSymmetric:
-                attrList[i] += ['UdSy']
+                attrList[i].append('UdSy')
             else:
-                attrList[i] += ['NudSy']
+                attrList[i].append('NudSy')
             if shapeList[i].d1Symmetric: 
-                attrList[i] += ['D1Sy']
+                attrList[i].append('D1Sy')
             else:
-                attrList[i] += ['ND1Sy']
+                attrList[i].append('ND1Sy')
             if shapeList[i].d2Symmetric:
-                attrList[i] += ['D2Sy']
+                attrList[i].append('D2Sy')
             else:
-                attrList[i] += ['ND2Sy']
+                attrList[i].append('ND2Sy')
     
         if len(ism) == 1:
-            attrList[ism[0]] += ['SmSh']
+            attrList[ism[0]].append('SmSh')
         if len(ila) == 1:
-            attrList[ila[0]] += ['LaSh']
+            attrList[ila[0]].append('LaSh')
         for i in range(len(shapeList)):
             if len(attrList[i]) > 0 and attrList[i][0] == mcopies:
-                attrList[i] += ['MoCo','MoCoW']
+                attrList[i].append('MoCo')
+                attrList[i].append('MoCoW')
+        if not singleColor:
+            for i in range(len(shapeList)):
+                if len(attrList[i]) > 0 and attrList[i][1] == mcolors:
+                    attrList[i].append('MoCl')
+                    attrList[i].append('MoClW')
+        if [l[0] for l in attrList].count(1) == 1:
+            for i in range(len(shapeList)):
+                if len(attrList[i]) > 0 and attrList[i][0] == 1:
+                    attrList[i].append('UnSh')
+                    break
         return [set(l[1:]) for l in attrList]
 
 # %% Class Sample
@@ -691,41 +715,16 @@ class Sample():
         # Is one a subset of the other? for now always includes diagonals
         self.inSmallerThanOut = all(self.inMatrix.shape[i] <= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
         self.outSmallerThanIn = all(self.inMatrix.shape[i] >= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
-        # Is the output a shape (faster than checking if is a subset?
+        # R: Is the output a shape (faster than checking if is a subset?
         if self.outSmallerThanIn:
-            #this could be better
-            self.outIsDShape = [sh for sh in self.outMatrix.dShapes if (sh.shape == self.outMatrix.shape)]# and sh.color != s.inMatrix.backgroundColor)]
-            self.outIsShape = [sh for sh in self.outMatrix.shapes if (sh.shape == self.outMatrix.shape)]# and sh.color != s.inMatrix.backgroundColor)]
-            self.outIsMulticolorDShape = [sh for sh in self.outMatrix.multicolorDShapes if (sh.shape == self.outMatrix.shape)]
-            self.outIsMulticolorShape = [sh for sh in self.outMatrix.multicolorShapes if (sh.shape == self.outMatrix.shape)]
-            #self.outIsNonBMulticolorDShape = [sh for sh in self.outMatrix.nonBMulticolorDShapes if (sh.shape == self.outMatrix.shape)]
-            #self.outIsNonBMulticolorShape = [sh for sh in self.outMatrix.nonBMulticolorShapes if (sh.shape == self.outMatrix.shape)]
-            
-            if len(self.outIsDShape) > 0:
-                self.outIsInDShape = []
-                for sout in self.outIsDShape:
-                    for sin in self.inMatrix.dShapes:
-                        if np.all(sout.m == sin.m):
-                            self.outIsInDShape += [sin]
-                            break
+            #check if output is the size of a multicolored shape
+            self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
+            self.outIsInMulticolorDShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorDShapes)
 
-            #if len(self.outIsNonBMulticolorShape) > 0:
-            #    self.outIsInNonBMulticolorShape = []
-            #    for sout in self.outIsNonBMulticolorShape:
-            #        for sin in self.inMatrix.multicolorShapes:
-            #            if np.all(sout.m == sin.m):
-            #                self.outIsInNonBMulticolorShape += [sin]
-            #                break
-        
-        
-        
-        """ 
-        if any(sh.shape == self.outMatrix.shape for sh in self.outMatrix.dShapes):
-                self.outIsShapeD = True
-                if any(sh.shape == self.outMatrix.shape for sh in self.outMatrix.shapes):
-                    self.outIsShape = True
-        if self.outIsShapeD:
-            """
+        self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True)
+        self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True)
+        self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=False)
+        self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=False)
         """
         # Is the output a subset of the input?
         self.inSubsetOfOutIndices = set()
@@ -778,6 +777,22 @@ class Sample():
             # Colors that stay unchanged
             self.fixedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
         
+        if self.sameShape and self.sameColorCount:
+            self.sameRowCount = True
+            for r in range(self.inMatrix.shape[0]):
+                _,inCounts = np.unique(self.inMatrix.m[r,:], return_counts=True)
+                _,outCounts = np.unique(self.outMatrix.m[r,:], return_counts=True)
+                if not np.array_equal(inCounts, outCounts):
+                    self.sameRowCount = False
+                    break
+            self.sameColCount = True
+            for c in range(self.inMatrix.shape[1]):
+                _,inCounts = np.unique(self.inMatrix.m[:,c], return_counts=True)
+                _,outCounts = np.unique(self.outMatrix.m[:,c], return_counts=True)
+                if not np.array_equal(inCounts, outCounts):
+                    self.sameColCount = False
+                    break
+        
         # Grids
         # Is the grid the same in the input and in the output?
         self.gridIsUnchanged = self.inMatrix.isGrid and self.outMatrix.isGrid \
@@ -793,7 +808,7 @@ class Sample():
             self.gridCellsHaveOneColor = self.inMatrix.grid.allCellsHaveOneColor and\
                                          self.outMatrix.grid.allCellsHaveOneColor
         
-        # Which shapes do they have in common? (normal diagonal, with pixels>1)
+        # Is there a blank to fill?
         self.inputHasBlank = len(self.inMatrix.blanks)>0
         if self.inputHasBlank:
             for s in self.inMatrix.blanks:
@@ -804,6 +819,33 @@ class Sample():
         # Does the output matrix follow a pattern?
         self.followsRowPattern = self.outMatrix.followsRowPattern()
         self.followsColPattern = self.outMatrix.followsColPattern()
+        
+    def getCommonShapes(self, diagonal=True, sameColor=False):
+        comSh = []
+        if diagonal:
+            if sameColor:
+                ishs = self.inMatrix.dShapes
+                oshs = self.outMatrix.dShapes
+            else:
+                ishs = self.inMatrix.multicolorDShapes
+                oshs = self.outMatrix.multicolorDShapes
+        else:
+            if sameColor:
+                ishs = self.inMatrix.shapes
+                oshs = self.outMatrix.shapes
+            else:
+                ishs = self.inMatrix.multicolorShapes
+                oshs = self.outMatrix.multicolorShapes
+        for ish in ishs:
+            if len(ish.pixels) == 1:
+                continue
+            for osh in oshs:
+                if len(ish.pixels) == 1:
+                    continue
+                if ish == osh:
+                    comSh.append([ish, osh])
+                    break
+        return comSh
         
 # %% Class Task
 class Task():
@@ -867,6 +909,10 @@ class Task():
         if all([hasattr(s, 'outShapeFactor') for s in self.trainSamples]):
             if self.allEqual([s.outShapeFactor for s in self.trainSamples]):
                 self.outShapeFactor = self.trainSamples[0].outShapeFactor
+                
+        # Is the output always smaller?
+        self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
+        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)
         
         # Check for I/O subsets
         """
@@ -919,6 +965,9 @@ class Task():
         if self.sameIOShapes:
             # Do the matrices have the same color count?
             self.sameColorCount = all([s.sameColorCount for s in self.trainSamples])
+            if self.sameColorCount:
+                self.sameRowCount = all([s.sameRowCount for s in self.trainSamples])
+                self.sameColCount = all([s.sameColCount for s in self.trainSamples])
             # Which color changes happen? Union and intersection.
             cc = [set(s.changedPixels.keys()) for s in self.trainSamples]
             self.colorChanges = set.union(*cc)
@@ -950,7 +999,16 @@ class Task():
         else:
             self.backgroundColor = -1
             
-         #is output a shape in the input
+        #R: is output a shape in the input
+        self.outIsInMulticolorShapeSize = False
+        self.outIsInMulticolorDShapeSize = False
+
+        if all([(hasattr(s, "outIsInMulticolorShapeSize") and s.outIsInMulticolorShapeSize) for s in self.trainSamples]):
+             self.outIsInMulticolorShapeSize = True
+        if all([(hasattr(s, "outIsInMulticolorDShapeSize") and s.outIsInMulticolorDShapeSize) for s in self.trainSamples]):
+             self.outIsInMulticolorDShapeSize = True
+
+        """
         if all([hasattr(s, 'outIsInDShape') for s in self.trainSamples]) and all(len(s.outIsInDShape)==1 for s in self.trainSamples):
             self.outIsInDShape = True
         if all([hasattr(s, 'outIsInShape') for s in self.trainSamples]) and all(len(s.outIsInShape)>0 for s in self.trainSamples):
@@ -959,10 +1017,13 @@ class Task():
             self.outIsInMulticolorDShape = True
         if all([hasattr(s, 'outIsInNonBMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInNonBMulticolorShape)>0 for s in self.trainSamples) and self.backgroundColor == 0:
             self.outIsInMulticolorShape = True
-        #if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
-        #    self.outIsInMulticolorShape = True
-        #if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
-        #    self.outIsInMulticolorShape = True
+        if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
+            self.outIsInMulticolorShape = True
+        if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
+            self.outIsInMulticolorShape = True
+        """
+        self.nCommonInOutShapes = min(len(s.commonShapes) for s in self.trainSamples)
+        self.nCommonInOutDShapes = min(len(s.commonDShapes) for s in self.trainSamples) 
         
         """
         if len(self.commonInColors) == 1 and len(self.commonOutColors) == 1 and \
@@ -1006,6 +1067,31 @@ class Task():
                     for shape in s.inMatrix.shapes:
                         nPixels.add(shape.nPixels)
                 self.shapePixelNumbers =  list(nPixels)
+                
+        #R: Are there any common input shapes accross samples?
+        self.commonInShapes = []
+        for sh1 in self.trainSamples[0].inMatrix.shapes:
+            if sh1.color == self.trainSamples[0].inMatrix.backgroundColor:
+                continue
+            addShape = True
+            for s in range(1,self.nTrain):
+                if not any([sh1==sh2 for sh2 in self.trainSamples[s].inMatrix.shapes]):
+                    addShape = False
+                    break
+            if addShape:
+                self.commonInShapes.append(sh1)
+
+        self.commonInDShapes = []
+        for sh1 in self.trainSamples[0].inMatrix.dShapes:
+            if sh1.color == self.trainSamples[0].inMatrix.backgroundColor:
+                continue
+            addShape = True
+            for s in range(1,self.nTrain):
+                if not any([sh1==sh2 for sh2 in self.trainSamples[s].inMatrix.dShapes]):
+                    addShape = False
+                    break
+            if addShape:
+                self.commonInDShapes.append(sh1)
                 
         # Is the task about filling a blank?
         self.fillTheBlank =  all([hasattr(s, 'blankToFill') for s in self.trainSamples])
