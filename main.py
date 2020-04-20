@@ -341,9 +341,9 @@ def tryOperations(t, c, firstIt=False):
         if firstIt and str(op)[28:60].startswith(startOps):
             newCandidate.generateTask()
             tryOperations(t, newCandidate)
-        elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
-            newCandidate.generateTask()
-            tryOperations(t, newCandidate)
+        #elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
+        #    newCandidate.generateTask()
+        #    tryOperations(t, newCandidate)
         else:
             b3c.addCandidate(newCandidate)
 
@@ -366,7 +366,11 @@ count = 0
 for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
-    t = Task.Task(task, taskId)    
+    t = Task.Task(task, taskId) 
+    
+    if t.sameIOShapes and t.sameColorCount:
+        print(idx)
+        plot_task(idx)
 
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
@@ -415,8 +419,8 @@ for idx in tqdm(range(800), position=0, leave=True):
             #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
-                print(str(c.ops))
-                plot_task(task)
+                #print(str(c.ops))
+                #plot_task(task)
                 #break
                 solved.append(Solution(idx, taskId, c.ops))
                 solvedIds.append(idx)
