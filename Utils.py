@@ -2102,6 +2102,19 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
     bestShape[bestShape==255]=backgroundColor
     return bestShape
 
+def cropOnlyMulticolorShape(matrix, diagonals=False):
+    """
+    This function is supposed to be called if there is one and only one 
+    multicolor shape in all the input samples. This function just returns it.
+    """
+    if diagonals:
+        m = matrix.multicolorDShapes[0].m.copy()
+        m[m==255] = matrix.multicolorDShapes[0].background
+    else:
+        m = matrix.multicolorShapes[0].m.copy()
+        m[m==255] = matrix.multicolorShapes[0].background
+    return m
+
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
@@ -2441,6 +2454,11 @@ def getPossibleOperations(t, c):
         attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
                 singleColor=True, diagonals=True)[s.inMatrix.dShapes.index(s.outIsInDShape[0])] for s in candTask.trainSamples])
         x.append(partial(cropShape,attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True))
+    
+    if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
+        x.append(partial(cropOnlyMulticolorShape, diagonals=False))
+    if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
+        x.append(partial(cropOnlyMulticolorShape, diagonals=True))
         
     #if hasattr(candTask, 'outIsInMulticolorShape') and candTask.outIsInMulticolorShape and candTask.backgroundColor == 0:
     #    attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\

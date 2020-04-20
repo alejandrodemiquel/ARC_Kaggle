@@ -268,6 +268,9 @@ class Best3Candidates():
                 c.generateTask()
                 self.candidates[iMaxCand] = c
                 break
+            
+    def allPerfect(self):
+        return all([c.score==0 for c in self.candidates])
 
 def ignoreGrid(t, task):
     for s in range(t.nTrain):
@@ -309,9 +312,12 @@ def tryOperations(t, c, firstIt=False):
     improves the score of any of the 3 best candidates, it will be saved in the
     variable b3c, which is an object of the class Best3Candidates.
     """
+    if c.score==0 or b3c.allPerfect():
+        return
+    startOps = ("cropShape", "switchColors", "cropOnlyMulticolorShape")
+    repeatIfPerfect = ("changeShapes")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
-        cScore = 0
         for s in range(t.nTrain):
             cTask["train"][s]["input"] = op(c.t.trainSamples[s].inMatrix).tolist()
             if t.sameIOShapes and len(t.unchangedColors) != 0:
@@ -326,10 +332,16 @@ def tryOperations(t, c, firstIt=False):
                      c.t.testSamples[s].inMatrix.m,\
                      np.array(cTask["test"][s]["input"]),\
                      t.unchangedColors).tolist()
-        cScore += sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
-                                          t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
+        cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
+                                            t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
+        changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
+                                                   np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
+        #print(c.score - changedPixels, cScore, str(op)[29:45])
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
-        if firstIt and (str(op)[29:60].startswith("cropShape") or str(op)[29:60].startswith("switchColors")):
+        if firstIt and str(op)[28:60].startswith(startOps):
+            newCandidate.generateTask()
+            tryOperations(t, newCandidate)
+        elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
             newCandidate.generateTask()
             tryOperations(t, newCandidate)
         else:
@@ -344,10 +356,10 @@ class Solution():
 # %% Solution Loop
 solved = []
 solvedIds = []
-targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
-                 170,189,198,224,229,242,254,255,257,267,279,282,285,287,298,322,\
-                 330,335,344,347,348,377,386,428,449,457,482,496,507,517,525,\
-                 526,531,552,573,579,585,607,629,631,648,678,703,706,731,731,\
+targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,97,98,104,118,135,140,167,\
+                 170,189,198,224,229,242,247,254,255,257,267,279,282,285,287,298,322,\
+                 327,330,335,344,347,348,357,377,386,428,429,449,457,469,482,496,507,517,525,\
+                 526,531,552,573,579,585,605,607,629,631,633,646,648,661,678,703,706,731,731,\
                  750,790,791,796,797]
 
 count = 0
@@ -363,7 +375,9 @@ for idx in tqdm(range(800), position=0, leave=True):
     else:
         t2 = t
 
-    c = Candidate([], [task])
+    cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
+                                         t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
+    c = Candidate([], [task], score=cScore)
     c.t = t2
     b3c = Best3Candidates(c, c, c)
 
@@ -388,7 +402,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -398,7 +412,7 @@ for idx in tqdm(range(800), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            plot_sample(t.testSamples[s], x)
+            #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(str(c.ops))
