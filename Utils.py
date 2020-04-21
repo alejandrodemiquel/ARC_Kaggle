@@ -2051,7 +2051,6 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
     return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor)
 
 # %% Stuff added by Roderic
-
 def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     """
     This function returns the result of overlapping all submatrices of a given
@@ -2076,7 +2075,6 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
     """
     This function crops the shape out of a matrix with the maximum score according to attributes
     """
-    
     if singleColor: 
         if diagonals:   
             shapeList = [sh for sh in matrix.dShapes]
@@ -2111,7 +2109,6 @@ def cropAllShapes(matrix, diagonal=True, shuffle=1):
     else:
         shList = matrix.shapes
 """    
-
 #Crop a shape using a reference shape or set of shapes
 def cropShapeReference(matrix, referenceShape, diagonal=True):
     """
@@ -2121,7 +2118,7 @@ def cropShapeReference(matrix, referenceShape, diagonal=True):
         shList = matrix.dShapes
     else:
         shList = matrix.shapes
-
+ 
     if len(referenceShape) != 1:
         return matrix.m
 
@@ -2160,10 +2157,6 @@ def cropShapeReference(matrix, referenceShape, diagonal=True):
         bestShape=bestShape.m
         bestShape[bestShape==255]=matrix.backgroundColor
         return bestShape         
-
-
-
-    # %% Main function: getPossibleOperations
 
 def cropOnlyMulticolorShape(matrix, diagonals=False):
     """
@@ -2511,7 +2504,7 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
-                        
+                      
     # Cropshape
     if candTask.outSmallerThanIn:
         if candTask.nCommonInOutShapes > 0:

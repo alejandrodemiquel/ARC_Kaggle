@@ -210,6 +210,7 @@ class Shape:
                 return True
         return np.array_equal(m1,m2)
     
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return np.all(self.pixels == other.pixels)
@@ -457,7 +458,7 @@ class Matrix():
         self.nDShapes = len(self.dShapes)
         self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
-        #Since black is the most common background color. 
+        #R: Since black is the most common background color. 
         #self.nonBMulticolorShapes = detectShapes(self.m, 0)
         #self.nonBMulticolorDShapes = detectShapes(self.m, 0, diagonals=True)
         # Non-background shapes
@@ -612,11 +613,10 @@ class Matrix():
         #            attrList[i].append('OneSh')
         #            break
         #    return [set(l[1:]) for l in attrList]
-
         largest, smallest, mcopies, mcolors = -1, 1000, 0, 0
         ila, ism = [], []
         for i in range(len(shapeList)):
-            # color count
+            #color count
             if singleColor:
                 if shapeList[i].color == backgroundColor:
                     attrList[i].append(-1)
@@ -645,6 +645,9 @@ class Matrix():
                 if len(shapeList[i].pixels) < smallest:
                     smallest = len(shapeList[i].pixels)
                     ism = [i]
+            #unique size
+            if sc[shapeList[i].nPixels] == 1 and len(sc) == 2:
+                attrList[i].append('UnSi')
             #symmetric?
             if shapeList[i].lrSymmetric:
                 attrList[i].append('LrSy')
@@ -715,7 +718,9 @@ class Sample():
         # Is one a subset of the other? for now always includes diagonals
         self.inSmallerThanOut = all(self.inMatrix.shape[i] <= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
         self.outSmallerThanIn = all(self.inMatrix.shape[i] >= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
-        # R: Is the output a shape (faster than checking if is a subset?
+
+        #R: Is the output a shape (faster than checking if is a subset?
+
         if self.outSmallerThanIn:
             #check if output is the size of a multicolored shape
             self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
@@ -725,6 +730,7 @@ class Sample():
         self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True)
         self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=False)
         self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=False)
+
         """
         # Is the output a subset of the input?
         self.inSubsetOfOutIndices = set()
@@ -846,7 +852,7 @@ class Sample():
                     comSh.append([ish, osh])
                     break
         return comSh
-        
+
 # %% Class Task
 class Task():
     def __init__(self, t, i):
@@ -914,6 +920,11 @@ class Task():
         self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
         self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)
         
+        # Is the output always smaller?
+        self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
+        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)
+            
+                
         # Check for I/O subsets
         """
         self.inSubsetOfOut = self.trainSamples[0].inSubsetOfOutIndices
@@ -1007,7 +1018,7 @@ class Task():
              self.outIsInMulticolorShapeSize = True
         if all([(hasattr(s, "outIsInMulticolorDShapeSize") and s.outIsInMulticolorDShapeSize) for s in self.trainSamples]):
              self.outIsInMulticolorDShapeSize = True
-
+             
         """
         if all([hasattr(s, 'outIsInDShape') for s in self.trainSamples]) and all(len(s.outIsInDShape)==1 for s in self.trainSamples):
             self.outIsInDShape = True
@@ -1092,7 +1103,7 @@ class Task():
                     break
             if addShape:
                 self.commonInDShapes.append(sh1)
-                
+
         # Is the task about filling a blank?
         self.fillTheBlank =  all([hasattr(s, 'blankToFill') for s in self.trainSamples])
                 

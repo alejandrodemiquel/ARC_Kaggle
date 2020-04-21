@@ -3,7 +3,14 @@ Task.Sample:
 	- backgound color problem
 Task.Task:
 	- attribute outIsInShape.
+
+Detect subshapes;
 CropShape:
+	- update multicolor shapes
+	- frames
+	- cridar cropShape amb outisshape. 
+	- multicolor
+	- quan comptar pixels!?
 
 Matrix.shapeAttributeList:
 	- maybe then call shape and embed attribute there?
@@ -23,31 +30,21 @@ CropShape:
 reference: 87, 110, 111, 116, 120, 142, 181, 205, 244q
 other ref: 153, 158, 208, 223, 229, 389
 
-solves: 30, 35, 78, 173, 206, 262, 299, 578, 727
-solved chiripa: 13, 110, 442, 690
+solves: 30, 35, 48, 78, 110, 173, 176, 206, 262, 289, 299, 345 (sort), 488, 578, 635, 712, 727, 785, 690(sort)
 
-Missing: general background, shape changes color, reference attributes
+not a shape: 13, 87
 
-Should solve: [13,78,87,110,215,217,270]
+color count in multicolor shapes: 215,217,270,473,586	
 
-output is input shape missing attribute: 
-	- more copies 78:
-	- reference 110, 345
-	- holes 488	
+color changes: 120, 774
 
+reference: 318, 475
 
-output is input shape with different color:
-	- 133
-	- referece 87, 120
-	 - 774 rightmost
+shape scales: 133, 383
+
 output is replicated input shape:
 	- 56, 194, 212, 216, 464
 	- reference 509
-
-output is input frame:
-	- 176, 215, 217*, 270, 318, 473, 488, 586, 635, 
-	- more copies: 785
-	- unique 712
 
 output is input frame with different color:
 	- 289
@@ -55,7 +52,7 @@ output is input frame with different color:
 	- reference: 768
 
 outshape is factor: 383,133
-megashape: 13, 87, 270, 289
+megashape: 13, 87, 270
 
 OTHER: 440 move shapes to grid, 445 
 
