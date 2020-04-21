@@ -350,7 +350,7 @@ targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,104,118,135,140,167,\
                  526,531,552,573,579,585,607,629,631,648,678,703,706,731,731,\
                  750,790,791,796,797]
 count = 0
-for idx in tqdm(range(100), position=0, leave=True):
+for idx in tqdm([768], position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)

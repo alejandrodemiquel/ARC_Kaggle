@@ -30,28 +30,21 @@ CropShape:
 reference: 87, 110, 111, 116, 120, 142, 181, 205, 244q
 other ref: 153, 158, 208, 223, 229, 389
 
-solves: 30, 35, 48, 78, 110, 173, 206, 262, 299, 488, 578, 635, 712, 727, 785
+solves: 30, 35, 48, 78, 110, 173, 176, 206, 262, 289, 299, 345 (sort), 488, 578, 635, 712, 727, 785, 690(sort)
 
-solved chiripa: 13, 442, 690
+not a shape: 13, 87
 
-Missing: general background, shape changes color, reference attributes
+color count in multicolor shapes: 215,217,270,473,586	
 
-Should solve: [13,87,215,217,270]
+color changes: 120, 774
 
-output is input shape missing attribute: 
-	- reference 345	
+reference: 318, 475
 
-output is input shape with different color:
-	- 133
-	- referece 87, 120
-	 - 774 rightmost
+shape scales: 133, 383
+
 output is replicated input shape:
 	- 56, 194, 212, 216, 464
 	- reference 509
-
-output is input frame:
-	- 475, 176, 215, 217*, 270, 318, 473, 586
-	- unique 712
 
 output is input frame with different color:
 	- 289
@@ -59,7 +52,7 @@ output is input frame with different color:
 	- reference: 768
 
 outshape is factor: 383,133
-megashape: 13, 87, 270, 289
+megashape: 13, 87, 270
 
 OTHER: 440 move shapes to grid, 445 
 
