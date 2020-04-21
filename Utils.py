@@ -2433,8 +2433,8 @@ def getPossibleOperations(t, c):
             x.append(partial(generateMosaic, ops=ops, factor=candTask.inShapeFactor))
             
         if all([s.inMatrix.shape[0]**2 == s.outMatrix.shape[0] and \
-                s.inMatrix.shape[1]**2 == s.outMatrix.shape[1] for s in t.trainSamples]):
-            opCond = getBestMultiplyMatrix(t)
+                s.inMatrix.shape[1]**2 == s.outMatrix.shape[1] for s in candTask.trainSamples]):
+            opCond = getBestMultiplyMatrix(candTask)
             x.append(partial(doBestMultiplyMatrix, opCond=opCond))
             
             
