@@ -210,8 +210,12 @@ class Shape:
                 return True
         return np.array_equal(m1,m2)
     
-    def __eq__ (self, other):
-        return np.all(self.pixels == other.pixels)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return np.all(self.pixels == other.pixels)
+        else:
+            return False
 
     """
     def __hash__(self):
@@ -609,7 +613,6 @@ class Matrix():
         #            attrList[i].append('OneSh')
         #            break
         #    return [set(l[1:]) for l in attrList]
-        
         largest, smallest, mcopies, mcolors = -1, 1000, 0, 0
         ila, ism = [], []
         for i in range(len(shapeList)):
@@ -715,17 +718,19 @@ class Sample():
         # Is one a subset of the other? for now always includes diagonals
         self.inSmallerThanOut = all(self.inMatrix.shape[i] <= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
         self.outSmallerThanIn = all(self.inMatrix.shape[i] >= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
+
         #R: Is the output a shape (faster than checking if is a subset?
+
         if self.outSmallerThanIn:
             #check if output is the size of a multicolored shape
             self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
             self.outIsInMulticolorDShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorDShapes)
-      
+
         self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True)
         self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True)
         self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=False)
         self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=False)
-           
+
         """
         # Is the output a subset of the input?
         self.inSubsetOfOutIndices = set()
@@ -778,6 +783,22 @@ class Sample():
             # Colors that stay unchanged
             self.fixedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
         
+        if self.sameShape and self.sameColorCount:
+            self.sameRowCount = True
+            for r in range(self.inMatrix.shape[0]):
+                _,inCounts = np.unique(self.inMatrix.m[r,:], return_counts=True)
+                _,outCounts = np.unique(self.outMatrix.m[r,:], return_counts=True)
+                if not np.array_equal(inCounts, outCounts):
+                    self.sameRowCount = False
+                    break
+            self.sameColCount = True
+            for c in range(self.inMatrix.shape[1]):
+                _,inCounts = np.unique(self.inMatrix.m[:,c], return_counts=True)
+                _,outCounts = np.unique(self.outMatrix.m[:,c], return_counts=True)
+                if not np.array_equal(inCounts, outCounts):
+                    self.sameColCount = False
+                    break
+        
         # Grids
         # Is the grid the same in the input and in the output?
         self.gridIsUnchanged = self.inMatrix.isGrid and self.outMatrix.isGrid \
@@ -793,7 +814,7 @@ class Sample():
             self.gridCellsHaveOneColor = self.inMatrix.grid.allCellsHaveOneColor and\
                                          self.outMatrix.grid.allCellsHaveOneColor
         
-        # Which shapes do they have in common? (normal diagonal, with pixels>1)
+        # Is there a blank to fill?
         self.inputHasBlank = len(self.inMatrix.blanks)>0
         if self.inputHasBlank:
             for s in self.inMatrix.blanks:
@@ -804,7 +825,6 @@ class Sample():
         # Does the output matrix follow a pattern?
         self.followsRowPattern = self.outMatrix.followsRowPattern()
         self.followsColPattern = self.outMatrix.followsColPattern()
-        
         
     def getCommonShapes(self, diagonal=True, sameColor=False):
         comSh = []
@@ -832,6 +852,7 @@ class Sample():
                     comSh.append([ish, osh])
                     break
         return comSh
+
 # %% Class Task
 class Task():
     def __init__(self, t, i):
@@ -894,6 +915,10 @@ class Task():
         if all([hasattr(s, 'outShapeFactor') for s in self.trainSamples]):
             if self.allEqual([s.outShapeFactor for s in self.trainSamples]):
                 self.outShapeFactor = self.trainSamples[0].outShapeFactor
+                
+        # Is the output always smaller?
+        self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
+        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)
         
         # Is the output always smaller?
         self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
@@ -951,6 +976,9 @@ class Task():
         if self.sameIOShapes:
             # Do the matrices have the same color count?
             self.sameColorCount = all([s.sameColorCount for s in self.trainSamples])
+            if self.sameColorCount:
+                self.sameRowCount = all([s.sameRowCount for s in self.trainSamples])
+                self.sameColCount = all([s.sameColCount for s in self.trainSamples])
             # Which color changes happen? Union and intersection.
             cc = [set(s.changedPixels.keys()) for s in self.trainSamples]
             self.colorChanges = set.union(*cc)
@@ -985,12 +1013,12 @@ class Task():
         #R: is output a shape in the input
         self.outIsInMulticolorShapeSize = False
         self.outIsInMulticolorDShapeSize = False
-        
+
         if all([(hasattr(s, "outIsInMulticolorShapeSize") and s.outIsInMulticolorShapeSize) for s in self.trainSamples]):
              self.outIsInMulticolorShapeSize = True
         if all([(hasattr(s, "outIsInMulticolorDShapeSize") and s.outIsInMulticolorDShapeSize) for s in self.trainSamples]):
              self.outIsInMulticolorDShapeSize = True
-    
+             
         """
         if all([hasattr(s, 'outIsInDShape') for s in self.trainSamples]) and all(len(s.outIsInDShape)==1 for s in self.trainSamples):
             self.outIsInDShape = True
@@ -1063,7 +1091,7 @@ class Task():
                     break
             if addShape:
                 self.commonInShapes.append(sh1)
-        
+
         self.commonInDShapes = []
         for sh1 in self.trainSamples[0].inMatrix.dShapes:
             if sh1.color == self.trainSamples[0].inMatrix.backgroundColor:
@@ -1075,8 +1103,7 @@ class Task():
                     break
             if addShape:
                 self.commonInDShapes.append(sh1)
-            
-        
+
         # Is the task about filling a blank?
         self.fillTheBlank =  all([hasattr(s, 'blankToFill') for s in self.trainSamples])
                 

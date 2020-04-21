@@ -1516,7 +1516,10 @@ def switchColors(matrix, color1=None, color2=None):
     If color1 and color2 are not specified, then the matrix is expected to only
     have 2 colors, and they will be switched.
     """
-    m = matrix.m.copy()
+    if type(matrix) == np.ndarray:
+        m = matrix.copy()
+    else:
+        m = matrix.m.copy()
     if color1==None or color2==None:
         color1 = m[0,0]
         for i,j in np.ndindex(m.shape):
@@ -1898,6 +1901,76 @@ def generateMosaic(matrix, ops, factor):
             ops[i][j](matrix)
     return m
 
+# Only if the factor is squared
+def getBestMultiplyMatrix(t):  
+    def getFullMatrix(matrix, color):
+        return np.full(matrix.shape, color, dtype=np.uint8)
+    # Possible operations on the matrix
+    ops = []
+    ops.append(partial(identityM))
+    ops.append(partial(mirror, axis="lr"))
+    ops.append(partial(mirror, axis="ud"))
+    ops.append(partial(rotate, angle=180))
+    if t.inMatricesSquared:
+        ops.append(partial(mirror, axis="d1"))
+        ops.append(partial(mirror, axis="d2"))
+        ops.append(partial(rotate, angle=90))
+        ops.append(partial(rotate, angle=270))
+    if all([n==2 for n in t.nInColors]):
+        ops.append(partial(switchColors))
+    # TODO You can to better than that, come on
+    falseColor = 0
+    
+    # Conditions
+    def trueCondition(matrix, pixel):
+        return True
+    def maxColor(matrix, pixel):
+        return pixel==max(matrix.colorCount, key=matrix.colorCount.get)
+    def minColor(matrix,pixel):
+        return pixel==min(matrix.colorCount, key=matrix.colorCount.get)
+    def isColor(matrix, pixel, color):
+        return pixel==color
+    def nonZero(matrix, pixel):
+        return pixel!=0
+    def zero(matrix, pixel):
+        return pixel==0
+    conditions = []
+    conditions.append(partial(trueCondition))
+    conditions.append(partial(maxColor))
+    conditions.append(partial(minColor))
+    conditions.append(partial(nonZero))
+    conditions.append(partial(zero))
+    for c in t.colors:
+        conditions.append(partial(isColor, color=c))
+
+    bestScore = 1000
+    for op, cond in product(ops, conditions):
+        score = 0
+        for s in t.trainSamples:
+            factor = getFactor(s.inMatrix, t.inShapeFactor)
+            for i,j in np.ndindex(factor):
+                inM = s.inMatrix.m.copy()
+                outM = s.outMatrix.m[i*inM.shape[0]:(i+1)*inM.shape[0], j*inM.shape[1]:(j+1)*inM.shape[1]]
+                if cond(s.inMatrix, inM[i,j]):
+                    score += incorrectPixels(op(inM),outM)
+                else:
+                    score += incorrectPixels(getFullMatrix(inM, falseColor), outM)
+        if score < bestScore:
+            bestScore = score
+            opCond = (op, cond)
+    return opCond
+
+def doBestMultiplyMatrix(matrix, opCond):
+    factor = matrix.shape
+    m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
+    for i,j in np.ndindex(factor):
+        if opCond[1](matrix, matrix.m[i,j]):
+            m[i*matrix.shape[0]:(i+1)*matrix.shape[0], j*matrix.shape[1]:(j+1)*matrix.shape[1]] = \
+            opCond[0](matrix)
+    return m
+
+# %% Multiply pixels
+
 def multiplyPixelsAndAnd(matrix, factor, falseColor):
     """
     This function basically is the same as executing the functions
@@ -2028,7 +2101,7 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
     return bestShape
 
 #def cropMulticolorShape(matrix, colors, backgroundColor=0, diagonals=True)
-    
+
 """
 def cropAllShapes(matrix, diagonal=True, shuffle=1):
     if diagonal:
@@ -2036,7 +2109,6 @@ def cropAllShapes(matrix, diagonal=True, shuffle=1):
     else:
         shList = matrix.shapes
 """    
-    
 #Crop a shape using a reference shape or set of shapes
 def cropShapeReference(matrix, referenceShape, diagonal=True):
     """
@@ -2046,10 +2118,10 @@ def cropShapeReference(matrix, referenceShape, diagonal=True):
         shList = matrix.dShapes
     else:
         shList = matrix.shapes
-    
+ 
     if len(referenceShape) != 1:
         return matrix.m
-    
+
     else:
         foundRef = False
         for sh in shList:
@@ -2059,7 +2131,7 @@ def cropShapeReference(matrix, referenceShape, diagonal=True):
                 break
         if not foundRef:
             return matrix.m
-        
+
         #shape enclosed by references
         for sh in shList:
             if sh == refShape:
@@ -2068,7 +2140,7 @@ def cropShapeReference(matrix, referenceShape, diagonal=True):
                         sh=sh.m
                         sh[sh==255]=matrix.backgroundColor
                         return sh
-                    
+
         #otherwise return closest to reference
         bestShape = referenceShape[0]
         dist = 1000
@@ -2085,10 +2157,21 @@ def cropShapeReference(matrix, referenceShape, diagonal=True):
         bestShape=bestShape.m
         bestShape[bestShape==255]=matrix.backgroundColor
         return bestShape         
-            
-    
 
-    # %% Main function: getPossibleOperations
+def cropOnlyMulticolorShape(matrix, diagonals=False):
+    """
+    This function is supposed to be called if there is one and only one 
+    multicolor shape in all the input samples. This function just returns it.
+    """
+    if diagonals:
+        m = matrix.multicolorDShapes[0].m.copy()
+        m[m==255] = matrix.multicolorDShapes[0].background
+    else:
+        m = matrix.multicolorShapes[0].m.copy()
+        m[m==255] = matrix.multicolorShapes[0].background
+    return m
+
+# %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
     Given a Task.Task t and a Candidate c, this function returns a list of all
@@ -2107,7 +2190,7 @@ def getPossibleOperations(t, c):
         x.append(partial(fillTheBlank, params=params))
         
     if all([n==2 for n in candTask.nInColors]):
-            x.append(partial(switchColors))
+        x.append(partial(switchColors))
     
     ###########################################################################
     # sameIOShapes
@@ -2349,6 +2432,12 @@ def getPossibleOperations(t, c):
             ops = getBestMosaic(candTask)
             x.append(partial(generateMosaic, ops=ops, factor=candTask.inShapeFactor))
             
+        if all([s.inMatrix.shape[0]**2 == s.outMatrix.shape[0] and \
+                s.inMatrix.shape[1]**2 == s.outMatrix.shape[1] for s in t.trainSamples]):
+            opCond = getBestMultiplyMatrix(t)
+            x.append(partial(doBestMultiplyMatrix, opCond=opCond))
+            
+            
     if hasattr(candTask, 'outShapeFactor'):
         # TODO Select a submatrix following certain criteria
         
@@ -2424,19 +2513,25 @@ def getPossibleOperations(t, c):
             x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=False))              
             if len(candTask.commonInShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
-            
+
         if candTask.nCommonInOutDShapes > 0:
             attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
                     singleColor=True, diagonals=True)[s.inMatrix.dShapes.index(s.commonDShapes[0][0])] for s in candTask.trainSamples])
             x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True))
             if len(candTask.commonInDShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInDShapes, diagonal=True))
-                
+
         if candTask.outIsInMulticolorShapeSize:
             for attrs in [set(['UnSh']),set(['MoCo']),set(['MoCl']),set(['OneSh'])]:
                 x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=False, diagonals=False))
-                
+
        # if hasattr(candTask.outIsInMulticolorDShapeSize):
         #    for attrs in:
          #       x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=False, diagonals=True))
+    
+    if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
+        x.append(partial(cropOnlyMulticolorShape, diagonals=False))
+    if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
+        x.append(partial(cropOnlyMulticolorShape, diagonals=True))
+        
     return x

@@ -2604,7 +2604,10 @@ def switchColors(matrix, color1=None, color2=None):
     If color1 and color2 are not specified, then the matrix is expected to only
     have 2 colors, and they will be switched.
     """
-    m = matrix.m.copy()
+    if type(matrix) == np.ndarray:
+        m = matrix.copy()
+    else:
+        m = matrix.m.copy()
     if color1==None or color2==None:
         color1 = m[0,0]
         for i,j in np.ndindex(m.shape):
@@ -2986,6 +2989,74 @@ def generateMosaic(matrix, ops, factor):
             ops[i][j](matrix)
     return m
 
+# Only if the factor is squared
+def getBestMultiplyMatrix(t):  
+    def getFullMatrix(matrix, color):
+        return np.full(matrix.shape, color, dtype=np.uint8)
+    # Possible operations on the matrix
+    ops = []
+    ops.append(partial(identityM))
+    ops.append(partial(mirror, axis="lr"))
+    ops.append(partial(mirror, axis="ud"))
+    ops.append(partial(rotate, angle=180))
+    if t.inMatricesSquared:
+        ops.append(partial(mirror, axis="d1"))
+        ops.append(partial(mirror, axis="d2"))
+        ops.append(partial(rotate, angle=90))
+        ops.append(partial(rotate, angle=270))
+    if all([n==2 for n in t.nInColors]):
+        ops.append(partial(switchColors))
+    # TODO You can to better than that, come on
+    falseColor = 0
+    
+    # Conditions
+    def trueCondition(matrix, pixel):
+        return True
+    def maxColor(matrix, pixel):
+        return pixel==max(matrix.colorCount, key=matrix.colorCount.get)
+    def minColor(matrix,pixel):
+        return pixel==min(matrix.colorCount, key=matrix.colorCount.get)
+    def isColor(matrix, pixel, color):
+        return pixel==color
+    def nonZero(matrix, pixel):
+        return pixel!=0
+    def zero(matrix, pixel):
+        return pixel==0
+    conditions = []
+    conditions.append(partial(trueCondition))
+    conditions.append(partial(maxColor))
+    conditions.append(partial(minColor))
+    conditions.append(partial(nonZero))
+    conditions.append(partial(zero))
+    for c in t.colors:
+        conditions.append(partial(isColor, color=c))
+
+    bestScore = 1000
+    for op, cond in product(ops, conditions):
+        score = 0
+        for s in t.trainSamples:
+            factor = getFactor(s.inMatrix, t.inShapeFactor)
+            for i,j in np.ndindex(factor):
+                inM = s.inMatrix.m.copy()
+                outM = s.outMatrix.m[i*inM.shape[0]:(i+1)*inM.shape[0], j*inM.shape[1]:(j+1)*inM.shape[1]]
+                if cond(s.inMatrix, inM[i,j]):
+                    score += incorrectPixels(op(inM),outM)
+                else:
+                    score += incorrectPixels(getFullMatrix(inM, falseColor), outM)
+        if score < bestScore:
+            bestScore = score
+            opCond = (op, cond)
+    return opCond
+
+def doBestMultiplyMatrix(matrix, opCond):
+    factor = matrix.shape
+    m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
+    for i,j in np.ndindex(factor):
+        if opCond[1](matrix, matrix.m[i,j]):
+            m[i*matrix.shape[0]:(i+1)*matrix.shape[0], j*matrix.shape[1]:(j+1)*matrix.shape[1]] = \
+            opCond[0](matrix)
+    return m
+
 def multiplyPixelsAndAnd(matrix, factor, falseColor):
     """
     This function basically is the same as executing the functions
@@ -3165,7 +3236,7 @@ def getPossibleOperations(t, c):
         x.append(partial(fillTheBlank, params=params))
         
     if all([n==2 for n in candTask.nInColors]):
-            x.append(partial(switchColors))
+        x.append(partial(switchColors))
     
     ###########################################################################
     # sameIOShapes
@@ -3406,6 +3477,11 @@ def getPossibleOperations(t, c):
         if type(candTask.inShapeFactor)==tuple:
             ops = getBestMosaic(candTask)
             x.append(partial(generateMosaic, ops=ops, factor=candTask.inShapeFactor))
+            
+        if all([s.inMatrix.shape[0]**2 == s.outMatrix.shape[0] and \
+                s.inMatrix.shape[1]**2 == s.outMatrix.shape[1] for s in t.trainSamples]):
+            opCond = getBestMultiplyMatrix(t)
+            x.append(partial(doBestMultiplyMatrix, opCond=opCond))
             
     if hasattr(candTask, 'outShapeFactor'):
         # TODO Select a submatrix following certain criteria
