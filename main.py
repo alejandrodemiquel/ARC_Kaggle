@@ -320,18 +320,18 @@ def tryOperations(t, c, firstIt=False):
     for op in possibleOps:
         for s in range(t.nTrain):
             cTask["train"][s]["input"] = op(c.t.trainSamples[s].inMatrix).tolist()
-            if t.sameIOShapes and len(t.unchangedColors) != 0:
+            if c.t.sameIOShapes and len(c.t.fixedColors) != 0:
                 cTask["train"][s]["input"] = Utils.correctFixedColors(\
                      c.t.trainSamples[s].inMatrix.m,\
                      np.array(cTask["train"][s]["input"]),\
-                     t.unchangedColors).tolist()
+                     c.t.fixedColors).tolist()
         for s in range(t.nTest):
             cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
-            if t.sameIOShapes and len(t.unchangedColors) != 0:
+            if c.t.sameIOShapes and len(c.t.fixedColors) != 0:
                 cTask["test"][s]["input"] = Utils.correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
                      np.array(cTask["test"][s]["input"]),\
-                     t.unchangedColors).tolist()
+                     c.t.fixedColors).tolist()
         cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
@@ -370,7 +370,7 @@ sameColorCountTasks = [3,7,29,31,43,52,77,86,121,127,139,149,153,154,178,227,240
 scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 
 
-for idx in tqdm(range(800), position=0, leave=True):
+for idx in tqdm(range(199,800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId) 
