@@ -891,9 +891,14 @@ class Sample():
             for osh in oshs:
                 if len(ish.pixels) == 1:
                     continue
-                if ish == osh:
-                    comSh.append([ish, osh])
-                    break
+                if sameColor:
+                     if ish == osh:
+                        comSh.append([ish, osh])
+                        break
+                else:
+                   if np.all(ish.m == osh.m) and ish.shape == osh.shape:
+                        comSh.append([ish, osh])
+    
         return comSh
 
 # %% Class Task
@@ -1078,6 +1083,8 @@ class Task():
         """
         self.nCommonInOutShapes = min(len(s.commonShapes) for s in self.trainSamples)
         self.nCommonInOutDShapes = min(len(s.commonDShapes) for s in self.trainSamples) 
+        self.nCommonInOutMulticolorShapes = min(len(s.commonMulticolorShapes) for s in self.trainSamples)
+        self.nCommonInOutMulticolorDShapes = min(len(s.commonMulticolorDShapes) for s in self.trainSamples) 
         
         """
         if len(self.commonInColors) == 1 and len(self.commonOutColors) == 1 and \
