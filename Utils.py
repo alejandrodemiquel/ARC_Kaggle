@@ -1009,16 +1009,10 @@ def insertShape(matrix, shape):
     same matrix but with the shape inserted.
     """
     m = matrix.copy()
-    if hasattr(shape, 'color'):
-        for c in shape.pixels:
-            if c[0]+shape.position[0] < matrix.shape[0] and \
-            c[1]+shape.position[1] < matrix.shape[1]:
-                m[tuple(map(operator.add, c, shape.position))] = shape.color
-    else:
-        shapeM = shape.m.copy()
-        for i,j in np.ndindex(shape.shape):
-            if shapeM[i,j] != 255:
-                m[tuple(map(operator.add, (i,j), shape.position))] = shapeM[i,j]
+    shapeM = shape.m.copy()
+    for i,j in np.ndindex(shape.shape):
+        if shapeM[i,j] != 255:
+            m[tuple(map(operator.add, (i,j), shape.position))] = shapeM[i,j]
     return m
 
 def deleteShape(matrix, shape, backgroundColor):
@@ -1239,7 +1233,7 @@ def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None):
             m = moveShape(m, s, background, direction, until, nSteps)
     return m
     
-def moveShapeToClosest(matrix, shape, background, until, diagonals=False):
+def moveShapeToClosest(matrix, shape, background, until, diagonals=False, restore=True):
     """
     Given a matrix (numpy.ndarray) and a Task.Shape, this function moves the
     given shape until the closest shape with the color given by "until".
@@ -1284,9 +1278,12 @@ def moveShapeToClosest(matrix, shape, background, until, diagonals=False):
                     return insertShape(m, s)
         nSteps += 1
         if nSteps > m.shape[0] and nSteps > m.shape[1]:
-            return matrix
+            if restore:
+                return matrix
+            else:
+                return m
         
-def moveAllShapesToClosest(matrix, colorToMove, background, until, diagonals=False):
+def moveAllShapesToClosest(matrix, colorToMove, background, until, diagonals=False, restore=True):
     """
     This function moves all the shapes with color "colorToMove" until the
     closest shape with color "until".
@@ -1294,13 +1291,18 @@ def moveAllShapesToClosest(matrix, colorToMove, background, until, diagonals=Fal
     m = matrix.m.copy()
     for s in matrix.shapes:
         if s.color == colorToMove:
-            m = moveShapeToClosest(m, s, background, until, diagonals)
+            m = moveShapeToClosest(m, s, background, until, diagonals, restore)
     return m
 
 def getBestMoveShapes(t):
+    """
+    This functions tries to find, for a given task t, the best way to move
+    shapes.
+    """
     directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
     bestScore = 1000
     
+    # Move all shapes in a specific direction, until a non-background thing is touched
     for d in directions:
         score = 0
         for s in t.trainSamples:
@@ -1311,7 +1313,7 @@ def getBestMoveShapes(t):
             bestScore = score
             x = partial(moveAllShapes, background=t.backgroundColor, until=-2, direction=d)
         
-    colorsToChange = list(t.colors - t.unchangedColors -\
+    colorsToChange = list(t.colors - t.fixedColors -\
                           set({t.backgroundColor}))
     ctc = [[c] for c in colorsToChange] + [colorsToChange] # Also all colors
     for c in ctc:
@@ -1332,7 +1334,7 @@ def getBestMoveShapes(t):
             
     if t.backgroundColor != -1 and hasattr(t, 'unchangedColors'):
         colorsToMove = set(range(10)) - set([t.backgroundColor]) -\
-        t.unchangedColors
+        t.fixedColors
         for ctm in colorsToMove:
             for uc in t.unchangedColors:
                 score = 0
@@ -1358,6 +1360,56 @@ def getBestMoveShapes(t):
                                  background=t.backgroundColor, until=uc, diagonals=True)
                         
     return x
+
+# %% Complete rectangles
+def completeRectangles(matrix, sourceColor, newColor):
+    """
+    It is assumed that the background is clear.
+    """
+    m = matrix.m.copy()
+    for s in matrix.multicolorDShapes:
+        if hasattr(s, 'color') and s.color==sourceColor:
+            newShape = copy.deepcopy(s)
+            newShape.m[newShape.m==255] = newColor
+            m = insertShape(m, newShape)
+    return m
+
+# %% Delete shapes
+# Like that this only solves task 96. It's clearly not general enough.
+def deletePixels(matrix, diagonals=False):
+    """
+    Given a matrix, this functions deletes all the pixels. This means that all
+    the dShapes consisting of only 1 pixel are converted to the color that
+    surrounds most of that pixel.
+    """
+    m = matrix.m.copy()
+    if diagonals:
+        shapes = matrix.dShapes
+    else:
+        shapes = matrix.shapes
+    for s in shapes:
+        if s.nPixels==1:
+            surrColors = Counter()
+            if s.position[0]>0:
+                surrColors[m[s.position[0]-1, s.position[1]]] += 1
+            if s.position[1]<m.shape[1]-1:
+                surrColors[m[s.position[0], s.position[1]+1]] += 1
+            if s.position[0]<m.shape[0]-1:
+                surrColors[m[s.position[0]+1, s.position[1]]] += 1
+            if s.position[1]>0:
+                surrColors[m[s.position[0], s.position[1]-1]] += 1
+            if len(set(surrColors.values()))==1:
+                if s.position[0]>0 and s.position[1]>0:
+                    surrColors[m[s.position[0]-1, s.position[1]-1]] += 1
+                if s.position[0]>0 and s.position[1]<m.shape[1]-1:
+                    surrColors[m[s.position[0]-1, s.position[1]+1]] += 1
+                if s.position[0]<m.shape[0]-1 and s.position[1]<m.shape[1]-1:
+                    surrColors[m[s.position[0]+1, s.position[1]+1]] += 1
+                if s.position[0]<m.shape[0]-1 and s.position[1]>0:
+                    surrColors[m[s.position[0]+1, s.position[1]-1]] += 1
+            
+            m[s.position[0],s.position[1]] = max(surrColors.items(), key=operator.itemgetter(1))[0]
+    return m
 
 # %% Connect Pixels
 
@@ -2236,6 +2288,13 @@ def getPossibleOperations(t, c):
             if candTask.d2Symmetric:
                 axis.append("d2")
             x.append(partial(symmetrize, axis=axis, color=color))
+    
+        # Complete rectangles
+        if candTask.backgroundColor!=-1 and len(candTask.fixedColors)==1 and \
+        len(candTask.colorChanges)==1:
+            sc = next(iter(candTask.fixedColors))
+            nc = next(iter(candTask.colorChanges))[1]
+            x.append(partial(completeRectangles, sourceColor=sc, newColor=nc))
             
         #######################################################################
         # For LinearShapeModel we need to have the same shapes in the input
@@ -2562,5 +2621,5 @@ def getPossibleOperations(t, c):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=True))
-        
+                
     return x

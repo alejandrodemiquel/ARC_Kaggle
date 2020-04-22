@@ -18,6 +18,7 @@ from matplotlib import colors
 import Models
 import Task
 import Utils
+from collections import Counter
 
 # Load all the data. It needs to be in the folder 'data'
 data_path = Path('data')
@@ -80,7 +81,6 @@ train_tasks['d511f180']['train'][1]['output'][2][2] = 9
 # 10fcaaa3
 train_tasks['10fcaaa3']['train'][1]['output'][4][7] = 8
 # cbded52d
-train_tasks['cbded52d']['train'][0]['input'][4][7] = 2
 train_tasks['cbded52d']['train'][0]['input'][4][6] = 1
 # 11852cab
 train_tasks['11852cab']['train'][0]['input'][1][2] = 3
@@ -110,6 +110,28 @@ for i in range(3):
 # e48d4e1a
 train_tasks['e48d4e1a']['train'][3]['input'][0][9] = 5
 train_tasks['e48d4e1a']['train'][3]['output'][0][9] = 0
+# 8fbca751
+valid_tasks['8fbca751']['train'][1]['output'][1][3] = 2
+valid_tasks['8fbca751']['train'][1]['output'][2][3] = 8
+# 4938f0c2
+for i in range(12):
+    for j in range(6,13):
+        if train_tasks['4938f0c2']['train'][2]['input'][i][j]==2:
+            train_tasks['4938f0c2']['train'][2]['input'][i][j] = 0
+for i in range(5,11):
+    for j in range(7):
+        if train_tasks['4938f0c2']['train'][2]['input'][i][j]==2:
+            train_tasks['4938f0c2']['train'][2]['input'][i][j] = 0
+# 9aec4887
+train_tasks['9aec4887']['train'][0]['output'][1][4] = 8
+# b0f4d537
+for i in range(9):
+    valid_tasks['b0f4d537']['train'][0]['output'][i][3] = 0 
+    valid_tasks['b0f4d537']['train'][0]['output'][i][4] = 1
+valid_tasks['b0f4d537']['train'][0]['output'][2][3] = 3
+valid_tasks['b0f4d537']['train'][0]['output'][2][4] = 3
+valid_tasks['b0f4d537']['train'][0]['output'][5][3] = 2
+    
 
 # allTasks stores the tasks as given originally. It is a dictionary, and its
 # keys are the ids of the tasks
@@ -355,16 +377,25 @@ class Solution():
 # %% Solution Loop
 solved = []
 solvedIds = []
-targetedTasks = [6,11,23,27,46,50,57,65,69,73,80,83,93,94,97,98,104,118,135,140,167,\
-                 170,189,198,224,229,242,247,254,255,257,267,279,282,285,287,298,322,\
-                 327,330,335,344,347,348,357,377,386,428,429,449,457,469,482,496,507,517,525,\
-                 526,531,552,573,579,585,605,607,629,631,633,646,648,661,678,703,706,731,731,\
-                 750,790,791,796,797]
+evolveTasks = [6,11,23,27,46,50,57,59,65,69,73,80,83,93,94,97,98,104,118,119,135,140,167,\
+               170,189,198,224,229,231,242,247,254,255,257,267,279,282,285,287,298,322,\
+               327,330,335,344,347,348,357,377,386,428,429,449,457,469,482,496,505,507,517,525,\
+               526,531,552,573,577,579,585,605,607,629,631,633,646,648,661,678,679,693,703,706,731,748,\
+               749,750,754,790,791,796,797]
 count = 0
 sameColorCountTasks = [3,7,29,31,43,52,77,86,121,127,139,149,153,154,178,227,240,\
                        244,249,269,300,352,372,379,389,434,447,456,501,502,512,\
                        516,545,555,556,560,567,601,613,615,638,641,660,719,733,\
                        737,741,743,746,756,781,782,784]
+
+tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 182,\
+                   188, 200, 204, 207, 208, 223, 227, 232, 237, 244, 245, 258, 272,\
+                   273, 289, 296, 307, 309, 334, 345, 370, 382, 386, 389, 395, 419,\
+                   437, 443, 445, 450, 451, 456, 458, 460, 462, 463, 466, 470, 472,\
+                   475, 494, 495, 498, 535, 536, 588, 589, 593, 597, 610, 611, 618,\
+                   621, 622, 623, 624, 625, 630, 634, 638, 640, 648, 650, 652, 669,\
+                   672, 677, 678, 690, 699, 704, 710, 722, 726, 737, 742, 745, 758,\
+                   760, 768, 779]
 
 scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 
@@ -373,8 +404,8 @@ cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,578,635,712
 for idx in tqdm(range(100), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
-    t = Task.Task(task, taskId) 
-
+    t = Task.Task(task, taskId)    
+                
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
         ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
@@ -419,7 +450,8 @@ for idx in tqdm(range(100), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            #plot_sample(t.testSamples[s], x)
+            plot_sample(t.testSamples[s], x)
+            break
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)

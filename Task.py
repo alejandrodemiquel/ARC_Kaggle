@@ -161,6 +161,31 @@ class Grid:
             return all([f in other.frontiers for f in self.frontiers])
         else:
             return False
+        
+# %% Frames
+"""
+class Frame:
+    def __init__(self, matrix):
+        self.m
+        self.color
+        self.position
+        self.shape
+        self.isFull
+        
+def detectFrames(matrix):
+    frames = []
+    m = matrix.m.copy()
+    for i,j in np.ndindex(m.shape):
+        color = m[i,j]
+        iMax = m.shape[0]
+        jMax = m.shape[1]
+        for k in range(i+1, m.shape[0]):
+            for l in range(j+1, m.shape[1]):
+                if m[k,l]==color:
+                    
+        
+    return frames
+"""
 
 # %% Shapes and subclasses
 class Shape:
@@ -490,7 +515,14 @@ class Matrix():
                 if possibleGrid.allCellsSameShape and possibleGrid.nCells > 1:
                     self.grid = copy.deepcopy(possibleGrid)
                     self.isGrid = True
-                    break            
+                    break    
+                
+        # Frames
+        self.fullFrames = []
+        for shape in self.shapes:
+            if shape.shape[0]>2 and shape.shape[1]>2:
+                if not np.any(shape.m[1:shape.shape[0]-1,1:shape.shape[1]-1]==shape.color):
+                    self.fullFrames.append(shape)
         
         # Symmetries
         self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
@@ -770,8 +802,8 @@ class Sample():
         self.inHasOutColors = self.outMatrix.colors <= self.inMatrix.colors  
         self.outHasInColors = self.inMatrix.colors <= self.outMatrix.colors
         # Which pixels have changed?
-        self.changedPixels = Counter()
         if self.sameShape:
+            self.changedPixels = Counter()
             self.sameColorCount = self.inMatrix.colorCount == self.outMatrix.colorCount
             for i, j in np.ndindex(self.inMatrix.shape):
                 if self.inMatrix.m[i,j] != self.outMatrix.m[i,j]:
@@ -798,6 +830,17 @@ class Sample():
                 if not np.array_equal(inCounts, outCounts):
                     self.sameColCount = False
                     break
+                
+        # Frames
+        self.commonFullFrames = [f for f in self.inMatrix.fullFrames if f in self.outMatrix.fullFrames]
+        if len(self.inMatrix.fullFrames)==1:
+            frameM = self.inMatrix.fullFrames[0].m.copy()
+            frameM[frameM==255] = self.inMatrix.fullFrames[0].background
+            if frameM.shape==self.outMatrix.shape:
+                self.frameIsOutShape = True
+            elif frameM.shape==(self.outMatrix.shape[0]+1, self.outMatrix.shape[1]+1):
+                self.frameInsideIsOutShape = True
+            
         
         # Grids
         # Is the grid the same in the input and in the output?
@@ -1110,6 +1153,9 @@ class Task():
                     break
             if addShape:
                 self.commonInDShapes.append(sh1)
+                
+        # Frames
+        self.hasFullFrame = all([len(s.inMatrix.fullFrames)>0 for s in self.trainSamples])
 
         # Is the task about filling a blank?
         self.fillTheBlank =  all([hasattr(s, 'blankToFill') for s in self.trainSamples])
