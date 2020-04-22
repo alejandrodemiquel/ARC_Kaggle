@@ -368,9 +368,9 @@ sameColorCountTasks = [3,7,29,31,43,52,77,86,121,127,139,149,153,154,178,227,240
 
 scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 
-cropTasks = [30,35,48,78,110,173,176,206,262,289,299,345,488,578,635,712,727,785,690]
-
-for idx in tqdm([30], position=0, leave=True):
+cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,578,635,712,727,785,690]
+#, 190, 367, 421, 431, 524
+for idx in tqdm(range(100), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId) 
@@ -409,7 +409,7 @@ for idx in tqdm([30], position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))

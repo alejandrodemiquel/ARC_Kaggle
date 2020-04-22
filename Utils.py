@@ -2051,6 +2051,36 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
     return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor)
 
 # %% Stuff added by Roderic
+#replicate shape
+def replicateShapes(matrix, refColors=set(), anchorType=None, anchorColors=set(), deleteOriginal=False):
+    m = matrix.m.copy()
+    shRep = -1
+    if anchorType == 'blank':
+        for sh in matrix.multicolorShapes:
+            if hasattr(sh, 'color') and sh.color in anchorColors:
+                continue
+            else:
+                shRep = sh
+                break
+        if shRep == -1:
+            return m
+        for sh in matrix.multicolorShapes:
+            if hasattr(sh, 'color') and sh.color in anchorColors:
+                for i in range(shRep.shape[0]):
+                    for j in range(shRep.shape[1]):
+                        if shRep.m[i][j] != 255: 
+                            m[i+sh.position[0]][j+sh.position[1]] = shRep.m[i][j]
+        if deleteOriginal:
+            for i in range(shRep.shape[0]):
+                for j in range(shRep.shape[1]):
+                    if shRep.m[i][j] != 255: 
+                           m[i+shRep.position[0]][j+shRep.position[1]] = matrix.backgroundColor
+        return m
+    
+#    elif anchorType == 'pixel':
+#    elif anchorType == 'subshape':
+    
+
 def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     """
     This function returns the result of overlapping all submatrices of a given
@@ -2099,16 +2129,7 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
     bestShape = shapeList[bestShapes[0]].m
     bestShape[bestShape==255]=backgroundColor
     return bestShape
-
-#def cropMulticolorShape(matrix, colors, backgroundColor=0, diagonals=True)
-
-"""
-def cropAllShapes(matrix, diagonal=True, shuffle=1):
-    if diagonal:
-        shList = matrix.dShapes
-    else:
-        shList = matrix.shapes
-"""    
+    
 #Crop a shape using a reference shape or set of shapes
 def cropShapeReference(matrix, referenceShape, diagonal=True):
     """
@@ -2340,7 +2361,15 @@ def getPossibleOperations(t, c):
                 for border, bs in product([True, False, None], ["big", "small", None]):
                     x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                      bigOrSmall=bs, isBorder=border))
-                
+        """
+        # Replicate:
+        if candTask.nCommonInOutMulticolorShapes > 0:
+            #maybe count shapes first?
+            x.append(partial(replicateShapes, anchorType='blank',\
+                             anchorColors=set(cc[0] for cc in t.colorChanges), deleteOriginal=True))
+            x.append(partial(replicateShapes, anchorType='blank',\
+                             anchorColors=set(cc[0] for cc in t.colorChanges), deleteOriginal=False))
+        """
     ###########################################################################
     # Cases in which the input has always the same shape, and the output too
     if candTask.sameInShape and candTask.sameOutShape and \
