@@ -377,8 +377,8 @@ class Solution():
 # %% Solution Loop
 solved = []
 solvedIds = []
-evolveTasks = [6,11,23,27,46,50,57,59,65,69,73,80,83,93,94,97,98,104,118,119,135,140,167,\
-               170,189,198,224,229,231,242,247,254,255,257,267,279,282,285,287,298,322,\
+evolveTasks = [6,11,23,27,46,50,57,59,65,69,73,80,83,93,94,97,98,104,118,119,135,140,147,167,\
+               170,189,198,201,224,229,231,236,242,247,254,255,257,267,279,282,283,285,287,298,322,\
                327,330,335,344,347,348,357,377,386,428,429,449,457,469,482,496,505,507,517,525,\
                526,531,552,573,577,579,585,605,607,629,631,633,646,648,661,678,679,693,703,706,731,748,\
                749,750,754,790,791,796,797]
@@ -387,6 +387,7 @@ sameColorCountTasks = [3,7,29,31,43,52,77,86,121,127,139,149,153,154,178,227,240
                        244,249,269,300,352,372,379,389,434,447,456,501,502,512,\
                        516,545,555,556,560,567,601,613,615,638,641,660,719,733,\
                        737,741,743,746,756,781,782,784]
+scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 
 tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 182,\
                    188, 200, 204, 207, 208, 223, 227, 232, 237, 244, 245, 258, 272,\
@@ -397,15 +398,24 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
                    672, 677, 678, 690, 699, 704, 710, 722, 726, 737, 742, 745, 758,\
                    760, 768, 779]
 
-scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
-
 cropTasks = [30,35,48,78,110,173,176,206,262,289,299,345,488,578,635,712,727,785,690]
 
 count = 0
+totalCount = 0
 for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]        
     task = allTasks[taskId]
-    t = Task.Task(task, taskId)    
+    t = Task.Task(task, taskId)
+    
+    if t.sameIOShapes and t.onlyShapeColorChanges:
+        totalCount = 0
+        ccwp = Utils.getColorChangesWithFeatures(t)
+        pred = Utils.changeShapesWithFeatures(t.testSamples[0].inMatrix, ccwp, t.fixedColors)
+        #plot_sample(t.testSamples[0], pred)
+        if Utils.incorrectPixels(t.testSamples[0].outMatrix.m, pred)==0:
+            count += 1
+            plot_task(idx)
+
                 
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
