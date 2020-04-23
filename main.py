@@ -126,12 +126,12 @@ for i in range(5,11):
 train_tasks['9aec4887']['train'][0]['output'][1][4] = 8
 # b0f4d537
 for i in range(9):
-    valid_tasks['b0f4d537']['train'][0]['output'][i][3] = 0 
+    valid_tasks['b0f4d537']['train'][0]['output'][i][3] = 0
     valid_tasks['b0f4d537']['train'][0]['output'][i][4] = 1
 valid_tasks['b0f4d537']['train'][0]['output'][2][3] = 3
 valid_tasks['b0f4d537']['train'][0]['output'][2][4] = 3
 valid_tasks['b0f4d537']['train'][0]['output'][5][3] = 2
-    
+
 
 # allTasks stores the tasks as given originally. It is a dictionary, and its
 # keys are the ids of the tasks
@@ -290,7 +290,7 @@ class Best3Candidates():
                 c.generateTask()
                 self.candidates[iMaxCand] = c
                 break
-            
+
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
 
@@ -398,15 +398,15 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
                    672, 677, 678, 690, 699, 704, 710, 722, 726, 737, 742, 745, 758,\
                    760, 768, 779]
 
-cropTasks = [30,35,48,78,110,173,176,206,262,289,299,345,488,578,635,712,727,785,690]
+scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 
-count = 0
-totalCount = 0
-for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[idx]        
+cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,578,635,712,727,785,690]
+#, 190, 367, 421, 431, 524
+for idx in tqdm(range(100), position=0, leave=True):
+    taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
-    
+
     if t.sameIOShapes and t.onlyShapeColorChanges:
         totalCount = 0
         ccwp = Utils.getColorChangesWithFeatures(t)
@@ -416,7 +416,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             count += 1
             plot_task(idx)
 
-                
+
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
         ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
@@ -451,7 +451,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
