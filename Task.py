@@ -264,21 +264,39 @@ class Shape:
     """
     def __hash__(self):
         return self.m
-    def isSubshape(self, other, sameColor=False, rotation=False):
-        if sameColor:
-            if self.color != other.color:
-                return False
-        for yTr in range(other.yLen - self.yLen + 1):
-            for xTr in range(other.xLen - self.xLen + 1):
-                if set([tuple(np.add(ps,[xTr,yTr])) for ps in self.pixels]) <= other.pixels:
-                    return True
+    """    
+    def isSubshape(self, other, sameColor=False, rotation=False, mirror=False):
+        """
+        The method checks if a shape fits inside another. Can take into account rotations and mirrors. 
+        Maybe it should be updated to return the positions of subshapes instead of a boolean?
+        """
         if rotation:
-            m1 = self.shapeDummyMatrix()
+            m1 = self.m
             for x in range(1,4):
-                if Shape(np.array(np.rot90(m1,x).nonzero()).transpose(),self.color,self.isBorder).isSubshape(other):
+                if Shape(np.rot90(m1,x), 0, 0, 0, self.isBorder).isSubshape(other, sameColor, False, mirror):
                     return True
+        if mirror == 'lr':
+            if Shape(self.m[::,::-1], 0, 0, 0, self.isBorder).isSubshape(other, sameColor, rotation, False):
+                return True
+        if mirror == 'ud':
+            if Shape(self.m[::-1,::], 0, 0, 0, self.isBorder).isSubshape(other, sameColor, rotation, False):
+                return True
+        if sameColor:
+            if hasattr(self,'color') and hasattr(other,'color') and self.color != other.color:
+                return False
+        if any(other.shape[i] < self.shape[i] for i in [0,1]):
+            return False
+        
+        for yIn in range(other.shape[1] - self.shape[1] + 1):
+            for xIn in range(other.shape[0] - self.shape[0] + 1):
+                if sameColor:
+                    if np.all(np.logical_or((self.m == other.m[xIn: xIn + self.shape[0], yIn: yIn + self.shape[1]]),\
+                                            self.m==255)):
+                        return True
+                else:
+                    if set([tuple(np.add(ps,[xIn,yIn])) for ps in self.pixels]) <= other.pixels:
+                        return True
         return False
-    """
     
     def shapeDummyMatrix(self):
         """

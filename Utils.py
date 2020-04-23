@@ -2206,33 +2206,43 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
 
 # %% Stuff added by Roderic
 #replicate shape
-def replicateShapes(matrix, refColors=set(), anchorType=None, anchorColors=set(), deleteOriginal=False):
+#def getBestReplicateShapes(t):
+#    for anchor in ['pixel', 'blank', 'all', 'subshape']:
+#        for mirror L
+    
+def replicateShapes(matrix, anchorType=None, anchorColors=set(),\
+                    mirror=None, rotate=None, scale=False, deleteOriginal=False):
     m = matrix.m.copy()
-    shRep = -1
+    shRep = None
+    
+    for sh in matrix.multicolorShapes:
+        if hasattr(sh, 'color') and sh.color in anchorColors:
+            continue
+        else:
+            shRep = sh
+            break
+    if shRep == None:
+        return m
+    
     if anchorType == 'blank':
         for sh in matrix.multicolorShapes:
             if hasattr(sh, 'color') and sh.color in anchorColors:
-                continue
-            else:
-                shRep = sh
-                break
-        if shRep == -1:
-            return m
-        for sh in matrix.multicolorShapes:
-            if hasattr(sh, 'color') and sh.color in anchorColors:
-                for i in range(shRep.shape[0]):
-                    for j in range(shRep.shape[1]):
-                        if shRep.m[i][j] != 255: 
-                            m[i+sh.position[0]][j+sh.position[1]] = shRep.m[i][j]
+                newInsert = copy.deepcopy(shRep)
+                newInsert.position = sh.position
+                if mirror == 'lr':
+                    newInsert.m = newInsert.m[::,::-1]
+                elif mirror == 'ud':
+                    newInsert.m = newInsert.m[::-1,::]
+                m = insertShape(m, newInsert)
         if deleteOriginal:
-            for i in range(shRep.shape[0]):
-                for j in range(shRep.shape[1]):
-                    if shRep.m[i][j] != 255: 
-                           m[i+shRep.position[0]][j+shRep.position[1]] = matrix.backgroundColor
+            m = deleteShape(m, shRep, matrix.backgroundColor)
         return m
-    
-#    elif anchorType == 'pixel':
-#    elif anchorType == 'subshape':
+    return m
+    #elif anchorType == 'pixel':
+    #elif anchorType == 'subshape':
+    #    continue
+    #elif anchorType == 'all':
+    #    continue
     
 
 def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
@@ -2536,7 +2546,9 @@ def getPossibleOperations(t, c):
                              anchorColors=set(cc[0] for cc in t.colorChanges), deleteOriginal=True))
             x.append(partial(replicateShapes, anchorType='blank',\
                              anchorColors=set(cc[0] for cc in t.colorChanges), deleteOriginal=False))
-        """
+            x.append(partial(replicateShapes, anchorType='blank',\
+                             anchorColors=set(cc[0] for cc in t.colorChanges), deleteOriginal=False, mirror='lr'))
+       """
     ###########################################################################
     # Cases in which the input has always the same shape, and the output too
     if candTask.sameInShape and candTask.sameOutShape and \
@@ -2574,7 +2586,7 @@ def getPossibleOperations(t, c):
         pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:
             x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
-                      
+    """                
     ###########################################################################
     # Evolve
     if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
@@ -2608,7 +2620,7 @@ def getPossibleOperations(t, c):
                 commonColors=candTask.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=None, border=0))
             x.append(partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc, fixedColors=fc,\
                 commonColors=candTask.orderedColors, changedInColors=cic, referenceIsFixed=refIsFixed, kernel=5, border=0))
-    
+    """
     ###########################################################################
     # Other cases
     

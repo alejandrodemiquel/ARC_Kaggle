@@ -20,7 +20,7 @@ Matrix.shapeAttributeList:
 
 same:
 - at pixels: 53, 74, 88, 509, 205, 424, 474
-- slots: 68, 367, 421
+- slots: 68, 645, 367, 421
 - at subshapes: 75, 79, 100, 132, 157, 172, 190, 208, 500, 524
 - everywhere: 207, 362
 - symmetrize: 108, 111, 116, 284
