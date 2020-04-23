@@ -219,6 +219,25 @@ class Shape:
             
         self.isRectangle = 255 not in np.unique(m)
         self.isSquare = self.isRectangle and self.shape[0]==self.shape[1]
+        
+        self.nHoles = self.getNHoles()
+        
+        if self.nColors==1:
+            self.boolFeatures = []
+            for c in range(10):
+                self.boolFeatures.append(self.color==c)
+            self.boolFeatures.append(self.isBorder)
+            self.boolFeatures.append(not self.isBorder)
+            self.boolFeatures.append(self.lrSymmetric)
+            self.boolFeatures.append(self.udSymmetric)
+            self.boolFeatures.append(self.d1Symmetric)
+            self.boolFeatures.append(self.d2Symmetric)
+            self.boolFeatures.append(self.isSquare)
+            self.boolFeatures.append(self.isRectangle)
+            for nPix in range(1,11):
+                self.boolFeatures.append(self.nPixels==nPix)
+            self.boolFeatures.append((self.nPixels%2)==0)
+            self.boolFeatures.append((self.nPixels%2)==1)
     
     def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
         if samePosition:
@@ -267,8 +286,36 @@ class Shape:
         of the matrix are ones and zeros, depending on whether the pixel is a
         shape pixel or not.
         """
-        return (self.m!=255).astype(np.uint8)    
+        return (self.m!=255).astype(np.uint8) 
     
+    def hasFeatures(self, features):
+        """
+        This method returns True if all the properties set to True in the
+        boolean 'features' list are alse set to True in self.boolFeatures.
+        Otherwise, it returns False.
+        """
+        for i in range(len(features)):
+            if features[i] and not self.boolFeatures[i]:
+                return False
+        return True   
+
+    def getNHoles(self):
+        nHoles = 0
+        m = self.m
+        seen = np.zeros((self.shape[0], self.shape[1]), dtype=np.bool)
+        def isInHole(i,j):
+            if i<0 or j<0 or i>self.shape[0]-1 or j>self.shape[1]-1:
+                return False
+            if seen[i,j] or m[i,j] != 255:
+                return True
+            seen[i,j] = True
+            ret = isInHole(i+1,j)*isInHole(i-1,j)*isInHole(i,j+1)*isInHole(i,j-1)
+            return ret
+        for i,j in np.ndindex(m.shape):
+            if m[i,j] == 255 and not seen[i,j]:
+                if isInHole(i,j):
+                    nHoles += 1
+        return nHoles             
 
 def detectShapes(x, background, singleColor=False, diagonals=False):
     """
@@ -435,23 +482,6 @@ class GeneralShape(Shape):
         # Number of holes
         self.nHoles = self.getNHoles()
         
-    def getNHoles(self):
-        nHoles = 0
-        m = self.shapeMatrix()
-        seen = np.zeros((self.xLen+1, self.yLen+1), dtype=np.bool)
-        def isInHole(i,j):
-            if i<0 or j<0 or i>self.xLen or j>self.yLen:
-                return False
-            if seen[i,j] or m[i,j] == self.color:
-                return True
-            seen[i,j] = True
-            ret = isInHole(i+1,j)*isInHole(i-1,j)*isInHole(i,j+1)*isInHole(i,j-1)
-            return ret
-        for i,j in np.ndindex(m.shape):
-            if m[i,j] != self.color and not seen[i,j]:
-                if isInHole(i,j):
-                    nHoles += 1
-        return nHoles
     """
         
 # %% Class Matrix
@@ -492,7 +522,6 @@ class Matrix():
         #self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
         #self.nNBDShapes = len(self.notBackgroundDShapes)
         
-        
         self.shapeColorCounter = Counter([s.color for s in self.shapes])
         self.blanks = []
         for s in self.shapes:
@@ -515,7 +544,40 @@ class Matrix():
                 if possibleGrid.allCellsSameShape and possibleGrid.nCells > 1:
                     self.grid = copy.deepcopy(possibleGrid)
                     self.isGrid = True
-                    break    
+                    break 
+                
+        # Shape features
+        shapeFeatures = []
+        for sh in self.shapes:
+            shFeatures = []
+            for c in range(10):
+                shFeatures.append(sh.color==c)
+            shFeatures.append(sh.isBorder)
+            shFeatures.append(not sh.isBorder)
+            shFeatures.append(sh.lrSymmetric)
+            shFeatures.append(sh.udSymmetric)
+            shFeatures.append(sh.d1Symmetric)
+            shFeatures.append(sh.d2Symmetric)
+            shFeatures.append(sh.isSquare)
+            shFeatures.append(sh.isRectangle)
+            for nPix in range(1,30):
+                shFeatures.append(sh.nPixels==nPix)
+            for nPix in range(1,6):
+                shFeatures.append(sh.nPixels>nPix)
+            for nPix in range(2,7):
+                shFeatures.append(sh.nPixels<nPix)
+            shFeatures.append((sh.nPixels%2)==0)
+            shFeatures.append((sh.nPixels%2)==1)
+            for h in range(5):
+                shFeatures.append(sh.nHoles==h)
+            #shFeatures.append(self.isBiggestShape(sh))
+            #shFeatures.append(self.isSmallestShape(sh))
+            #shFeatures.append(self.isUniqueShape(sh))
+            #shFeatures.append(self.isUniqueShape(sh))
+            
+            shapeFeatures.append(shFeatures)
+            
+        self.shapeFeatures = shapeFeatures
                 
         # Frames
         self.fullFrames = []
@@ -610,6 +672,39 @@ class Matrix():
                         break
                 if isPattern:
                     return i
+        return False
+    
+    def shapeHasFeatures(self, index, features):
+        """
+        This method returns True if all the properties set to True in the
+        boolean 'features' list are alse set to True in self.boolFeatures.
+        Otherwise, it returns False.
+        'index' corresponds to the index of the shape in the self.shapes list.
+        """
+        for i in range(len(features)):
+            if features[i] and not self.shapeFeatures[index][i]:
+                return False
+        return True
+    
+    def isSmallestShape(self, shape):
+        for sh in self.shapes:
+            if sh.nPixels < shape.nPixels:
+                return False
+        return True
+    
+    def isBiggestShape(self, shape):
+        for sh in self.shapes:
+            if sh.color!=self.backgroundColor and sh.nPixels>shape.nPixels:
+                return False
+        return True
+    
+    def isUniqueShape(self, shape):
+        count = 0
+        for sh in self.shapes:
+            if sh.hasSameShape(shape):
+                count += 1
+        if count==1:
+            return True
         return False
     
     def getShapeAttributes(self, backgroundColor=0, singleColor=True, diagonals=True):
@@ -763,6 +858,19 @@ class Sample():
         self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=False)
         self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=False)
 
+        # Shapes in the input that are fixed
+        if self.sameShape:
+            self.fixedShapes = []
+            for sh in self.inMatrix.shapes:
+                shapeIsFixed = True
+                for i,j in np.ndindex(sh.shape):
+                    if sh.m[i,j] != 255:
+                        if self.outMatrix.m[sh.position[0]+i,sh.position[1]+j]!=sh.m[i,j]:
+                            shapeIsFixed=False
+                            break
+                if shapeIsFixed:
+                    self.fixedShapes.append(sh)
+        
         """
         # Is the output a subset of the input?
         self.inSubsetOfOutIndices = set()
@@ -801,13 +909,17 @@ class Sample():
         # Does output contain all input colors or viceversa?
         self.inHasOutColors = self.outMatrix.colors <= self.inMatrix.colors  
         self.outHasInColors = self.inMatrix.colors <= self.outMatrix.colors
-        # Which pixels have changed?
         if self.sameShape:
+            # Which pixels changes happened? How many times?
             self.changedPixels = Counter()
             self.sameColorCount = self.inMatrix.colorCount == self.outMatrix.colorCount
             for i, j in np.ndindex(self.inMatrix.shape):
                 if self.inMatrix.m[i,j] != self.outMatrix.m[i,j]:
                     self.changedPixels[(self.inMatrix.m[i,j], self.outMatrix.m[i,j])] += 1
+            # Are any of these changes complete? (i.e. all pixels of one color are changed to another one)
+            self.completeColorChanges = set(change for change in self.changedPixels.keys() if\
+                                         self.changedPixels[change]==self.inMatrix.colorCount[change[0]])
+            self.allColorChangesAreComplete = len(self.changedPixels) == len(self.completeColorChanges)
             # Does any color never change?
             self.changedInColors = set(change[0] for change in self.changedPixels.keys())
             self.changedOutColors = set(change[1] for change in self.changedPixels.keys())
@@ -840,7 +952,6 @@ class Sample():
                 self.frameIsOutShape = True
             elif frameM.shape==(self.outMatrix.shape[0]+1, self.outMatrix.shape[1]+1):
                 self.frameInsideIsOutShape = True
-            
         
         # Grids
         # Is the grid the same in the input and in the output?
@@ -1036,6 +1147,10 @@ class Task():
             self.commonChangedInColors = set.intersection(*self.changedInColors)
             self.changedOutColors = [s.changedOutColors for s in self.trainSamples]
             self.commonChangedOutColors = set.intersection(*self.changedOutColors)
+            # Complete color changes
+            self.completeColorChanges = [s.completeColorChanges for s in self.trainSamples]
+            self.commonCompleteColorChanges = set.intersection(*self.completeColorChanges)
+            self.allColorChangesAreComplete = all([s.allColorChangesAreComplete for s in self.trainSamples])
             # Are there any fixed colors?
             self.fixedColors = set.intersection(*[s.fixedColors for s in self.trainSamples])
             # Does any color never change?
@@ -1093,6 +1208,27 @@ class Task():
         else:
             self.backgroundColor = -1
         """
+        
+        """
+        # Shape features
+        self.shapeFeatures = []
+        for s in self.trainSamples:
+            self.shapeFeatures += s.shapeFeatures
+        """
+        
+        if self.sameIOShapes:
+            self.fixedShapes = []
+            for s in self.trainSamples:
+                for sh in s.fixedShapes:
+                    self.fixedShapes.append(sh)
+            self.fixedShapeFeatures = []
+            nFeatures = len(self.trainSamples[0].inMatrix.shapes[0].boolFeatures)
+            for i in range(nFeatures):
+                self.fixedShapeFeatures.append(True)
+            for sh in self.fixedShapes:
+                self.fixedShapeFeatures = [sh.boolFeatures[i] and self.fixedShapeFeatures[i] \
+                                             for i in range(nFeatures)]
+        
         
         self.orderedColors = self.orderColors()
         

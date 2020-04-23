@@ -5,7 +5,7 @@ import Models
 import Task
 import torch
 import torch.nn as nn
-from itertools import product, permutations
+from itertools import product, permutations, combinations
 from functools import partial
 from collections import Counter
 from random import randint
@@ -1061,6 +1061,100 @@ def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
     """
     return changeColorShapes(m.m.copy(), m.getShapes(inColor, bigOrSmall, isBorder), outColor)
 
+def getColorChangesWithFeatures(t):
+    colorChangesWithFeatures = {}
+    nFeatures = len(t.trainSamples[0].inMatrix.shapeFeatures[0])
+    trueList = []
+    falseList = []
+    for i in range(nFeatures):
+        trueList.append(True)
+        falseList.append(False)
+    for c in t.totalOutColors:
+        colorChangesWithFeatures[c] = trueList
+    changeCounter = Counter() # How many shapes change to color c?
+    # First, initialise the colorChangesWithFeatures. For every outColor, we
+    # detect which features are True for all the shapes that change to that color.
+    for s in range(t.nTrain):
+        sample = t.trainSamples[s]
+        for sh in range(len(sample.inMatrix.shapes)):
+            shape = sample.inMatrix.shapes[sh]
+            shapeChanges = False
+            for i,j in np.ndindex(shape.shape):
+                if shape.m[i,j]!=255:
+                    if sample.outMatrix.m[shape.position[0]+i,shape.position[1]+j]!=shape.m[i,j]:
+                        color = sample.outMatrix.m[shape.position[0]+i,shape.position[1]+j]
+                        shapeChanges=True
+                        break
+            if shapeChanges:
+                changeCounter[color] += 1
+                colorChangesWithFeatures[color] = \
+                [colorChangesWithFeatures[color][x] and sample.inMatrix.shapeFeatures[sh][x]\
+                 for x in range(nFeatures)]
+    # Now, there might be more True values than necessary in a certain entry
+    # of colorChangesWithFeatures. Therefore, we try to determine the minimum
+    # number of necessary True features.
+    for c in t.totalOutColors:
+        if colorChangesWithFeatures[c] == trueList:
+            continue
+        trueIndices = [i for i, x in enumerate(colorChangesWithFeatures[c]) if x]
+        # First, check if only one feature is enough
+        done = False
+        for index in trueIndices:
+            trueCount = 0
+            featureList = falseList.copy()
+            featureList[index] = True
+            for s in range(t.nTrain):
+                sample = t.trainSamples[s]
+                for sh in range(len(sample.inMatrix.shapes)):
+                    shape = sample.inMatrix.shapes[sh]
+                    if sample.inMatrix.shapeHasFeatures(sh, featureList):
+                        trueCount += 1
+            # If the true count matches the number of changed shapes, we're done!
+            if trueCount == changeCounter[c]:
+                done = True
+                colorChangesWithFeatures[c] = featureList
+                break
+        # If we're not done, then check with combinations of 2 features
+        if not done:
+            for i,j in combinations(trueIndices, 2):
+                trueCount = 0
+                featureList = falseList.copy()
+                featureList[i] = True
+                featureList[j] = True
+                for s in range(t.nTrain):
+                    sample = t.trainSamples[s]
+                    for sh in range(len(sample.inMatrix.shapes)):
+                        shape = sample.inMatrix.shapes[sh]
+                        if sample.inMatrix.shapeHasFeatures(sh, featureList):
+                            trueCount += 1
+                # If the true count matches the number of changed shapes, we're done!
+                if trueCount == changeCounter[c]:
+                    done = True
+                    colorChangesWithFeatures[c] = featureList
+                    break   
+                    
+    return colorChangesWithFeatures
+
+def changeShapesWithFeatures(matrix, ccwp, fixedColors):
+    """
+    ccwp stands for 'color change with properties'. It's a dictionary. Its keys
+    are integers encoding the color of the output shape, and its values are the
+    properties that the input shape has to satisfy in order to execute the
+    color change.
+    """
+    m = matrix.m.copy()
+    for c in ccwp.keys():
+        for sh in range(len(matrix.shapes)):
+            shape = matrix.shapes[sh]
+            if shape.color in fixedColors:
+                continue
+            if matrix.shapeHasFeatures(sh, ccwp[c]):
+                m = changeColorShapes(m, [shape], c)
+    return m
+    
+
+# %% Surround Shape
+
 # TODO
 def surroundShape(matrix, shape, color, nSteps = False, untilColor = False):
     def addPixel(i,j):
@@ -1233,7 +1327,7 @@ def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None):
             m = moveShape(m, s, background, direction, until, nSteps)
     return m
     
-def moveShapeToClosest(matrix, shape, background, until, diagonals=False, restore=True):
+def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False, restore=True):
     """
     Given a matrix (numpy.ndarray) and a Task.Shape, this function moves the
     given shape until the closest shape with the color given by "until".
@@ -1241,6 +1335,11 @@ def moveShapeToClosest(matrix, shape, background, until, diagonals=False, restor
     m = matrix.copy()
     s = copy.deepcopy(shape)
     m = deleteShape(m, shape, background)
+    if until==None:
+        if hasattr(shape, "color"):
+            until=shape.color
+        else:
+            return matrix
     if until not in m:
         return matrix
     nSteps = 0
@@ -1283,15 +1382,16 @@ def moveShapeToClosest(matrix, shape, background, until, diagonals=False, restor
             else:
                 return m
         
-def moveAllShapesToClosest(matrix, colorToMove, background, until, diagonals=False, restore=True):
+def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, diagonals=False, restore=True):
     """
     This function moves all the shapes with color "colorToMove" until the
     closest shape with color "until".
     """
     m = matrix.m.copy()
-    for s in matrix.shapes:
-        if s.color == colorToMove:
-            m = moveShapeToClosest(m, s, background, until, diagonals, restore)
+    for ctm in colorsToMove:
+        for s in matrix.shapes:
+            if s.color == ctm:
+                m = moveShapeToClosest(m, s, background, until, diagonals, restore)
     return m
 
 def getBestMoveShapes(t):
@@ -1332,7 +1432,7 @@ def getBestMoveShapes(t):
                     x = partial(moveAllShapes, color=c, background=t.backgroundColor,\
                                 direction=d, until=u)
             
-    if t.backgroundColor != -1 and hasattr(t, 'unchangedColors'):
+    if t.backgroundColor != -1 and hasattr(t, 'fixedColors'):
         colorsToMove = set(range(10)) - set([t.backgroundColor]) -\
         t.fixedColors
         for ctm in colorsToMove:
@@ -1340,8 +1440,9 @@ def getBestMoveShapes(t):
                 score = 0
                 for s in t.trainSamples:
                     score += incorrectPixels(s.outMatrix.m, \
-                                             moveAllShapesToClosest(s.inMatrix, colorToMove=ctm,\
+                                             moveAllShapesToClosest(s.inMatrix,\
                                                                     background=t.backgroundColor,\
+                                                                    colorToMove=ctm,\
                                                                     until=uc))
                 if score < bestScore:
                     bestScore = score
@@ -1351,8 +1452,9 @@ def getBestMoveShapes(t):
                 score = 0
                 for s in t.trainSamples:
                     score += incorrectPixels(s.outMatrix.m, \
-                                             moveAllShapesToClosest(s.inMatrix, colorToMove=ctm,\
+                                             moveAllShapesToClosest(s.inMatrix, \
                                                                     background=t.backgroundColor,\
+                                                                    colorToMove=ctm,\
                                                                     until=uc, diagonals=True))
                 if score < bestScore:
                     bestScore = score
@@ -2262,6 +2364,7 @@ def getPossibleOperations(t, c):
         params = fillTheBlankParameters(t)
         x.append(partial(fillTheBlank, params=params))
         
+    # switchColors
     if all([n==2 for n in candTask.nInColors]):
         x.append(partial(switchColors))
     
@@ -2270,6 +2373,7 @@ def getPossibleOperations(t, c):
     if candTask.sameIOShapes:
         
         #######################################################################
+        
         # ColorMap
         ncc = len(candTask.colorChanges)
         if len(set([cc[0] for cc in candTask.colorChanges])) == ncc and ncc != 0:
@@ -2302,6 +2406,10 @@ def getPossibleOperations(t, c):
         # This model predicts the color of the shape in the output.
         
         if candTask.onlyShapeColorChanges:
+            ccwp = getColorChangesWithFeatures(candTask)
+            x.append(partial(changeShapesWithFeatures, ccwp=ccwp, fixedColors=candTask.fixedColors))
+            
+            
             """
             if all(["predictLinearModelShapeColor" not in str(op.func) for op in c.ops]):
                 model = trainLinearModelShapeColor(candTask)
