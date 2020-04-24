@@ -402,7 +402,8 @@ scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 
 cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,578,635,712,727,785,690]
 #, 190, 367, 421, 431, 524
-for idx in tqdm(range(100), position=0, leave=True):
+count=0
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -414,6 +415,8 @@ for idx in tqdm(range(100), position=0, leave=True):
         #plot_sample(t.testSamples[0], pred)
         if Utils.incorrectPixels(t.testSamples[0].outMatrix.m, pred)==0:
             count += 1
+            #plot_task(idx)
+        else:
             plot_task(idx)
 
 

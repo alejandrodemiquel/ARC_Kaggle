@@ -257,7 +257,9 @@ class Shape:
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return np.all(self.pixels == other.pixels)
+            if self.shape != other.shape:
+                return False
+            return np.array_equal(self.m == other.m)
         else:
             return False
 
@@ -545,6 +547,17 @@ class Matrix():
         for s in self.shapes:
             if s.isRectangle and self.shapeColorCounter[s.color]==1:
                 self.blanks.append(s)
+                
+        # Smallest and biggest shapes:
+        biggestShape = 0
+        smallestShape = 1000
+        for sh in self.shapes:
+            if not sh.color==self.backgroundColor:
+                if sh.nPixels>biggestShape:
+                    biggestShape=sh.nPixels
+                if sh.nPixels<smallestShape:
+                    smallestShape=sh.nPixels
+            
         
         # Frontiers
         self.frontiers = detectFrontiers(self.m)
@@ -588,10 +601,10 @@ class Matrix():
             shFeatures.append((sh.nPixels%2)==1)
             for h in range(5):
                 shFeatures.append(sh.nHoles==h)
-            #shFeatures.append(self.isBiggestShape(sh))
-            #shFeatures.append(self.isSmallestShape(sh))
+            shFeatures.append(sh.nPixels==biggestShape)
+            shFeatures.append(sh.nPixels==smallestShape)
             #shFeatures.append(self.isUniqueShape(sh))
-            #shFeatures.append(self.isUniqueShape(sh))
+            #shFeatures.append(not self.isUniqueShape(sh))
             
             shapeFeatures.append(shFeatures)
             
@@ -701,18 +714,6 @@ class Matrix():
         """
         for i in range(len(features)):
             if features[i] and not self.shapeFeatures[index][i]:
-                return False
-        return True
-    
-    def isSmallestShape(self, shape):
-        for sh in self.shapes:
-            if sh.nPixels < shape.nPixels:
-                return False
-        return True
-    
-    def isBiggestShape(self, shape):
-        for sh in self.shapes:
-            if sh.color!=self.backgroundColor and sh.nPixels>shape.nPixels:
                 return False
         return True
     
