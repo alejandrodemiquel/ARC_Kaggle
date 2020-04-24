@@ -259,7 +259,7 @@ class Shape:
         if isinstance(other, self.__class__):
             if self.shape != other.shape:
                 return False
-            return np.array_equal(self.m == other.m)
+            return np.array_equal(self.m, other.m)
         else:
             return False
 
