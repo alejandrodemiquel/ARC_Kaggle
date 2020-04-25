@@ -723,7 +723,7 @@ class Matrix():
                 if shapeList[i].nColors > mcolors:
                     mcolors = shapeList[i].nColors
             #copies 
-            attrList[i] = [np.count_nonzero([np.all(shapeList[i].m==osh.m) for osh in shapeList])] + attrList[i]
+            attrList[i] = [np.count_nonzero([np.all(shapeList[i].pixels == osh.pixels) for osh in shapeList])] + attrList[i]
             if attrList[i][0] > mcopies:
                 mcopies = attrList[i][0]
             #unique color?
@@ -770,12 +770,10 @@ class Matrix():
         for i in range(len(shapeList)):
             if len(attrList[i]) > 0 and attrList[i][0] == mcopies:
                 attrList[i].append('MoCo')
-                attrList[i].append('MoCoW')
         if not singleColor:
             for i in range(len(shapeList)):
                 if len(attrList[i]) > 0 and attrList[i][1] == mcolors:
                     attrList[i].append('MoCl')
-                    attrList[i].append('MoClW')
         if [l[0] for l in attrList].count(1) == 1:
             for i in range(len(shapeList)):
                 if len(attrList[i]) > 0 and attrList[i][0] == 1:
@@ -966,20 +964,23 @@ class Sample():
             else:
                 ishs = self.inMatrix.multicolorShapes
                 oshs = self.outMatrix.multicolorShapes
+        #Arbitrary: shapes have size < 30.         
         for ish in ishs:
-            if len(ish.pixels) == 1:
+            outCount = 0
+            if len(ish.pixels) == 1 or len(ish.pixels) > 30:
                 continue
             for osh in oshs:
-                if len(ish.pixels) == 1:
+                if len(osh.pixels) == 1 or len(osh.pixels) > 30:
                     continue
                 if sameColor:
                      if ish == osh:
-                        comSh.append([ish, osh])
+                        outCount += 1
                         break
                 else:
-                   if np.all(ish.m == osh.m) and ish.shape == osh.shape:
-                        comSh.append([ish, osh])
-    
+                   if ish.pixels == osh.pixels:
+                       outCount += 1
+            if outCount > 0:
+                comSh.append((ish, outCount))
         return comSh
 
 # %% Class Task
