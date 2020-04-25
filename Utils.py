@@ -2206,15 +2206,54 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
 
 # %% Stuff added by Roderic
 #replicate shape
-#def getBestReplicateShapes(t):
-#    for anchor in ['pixel', 'blank', 'all', 'subshape']:
-#        for mirror L
+'''    
+def getBestReplicateShapes(t, multicolor=True, diagonal=False):
+   if diagonal:
+        if multicolor:
+            repShs = [[p[0] for p in s.commonMulticolorDShapes if p[1] > 1] for s in t.trainSamples]
+    shList =
+    attr = []
     
-def replicateShapes(matrix, anchorType=None, anchorColors=set(),\
+    for anchor in ['pixel', 'blank', 'all', 'subshape']:
+        for mirror L
+ 
+
+def replicateShapes(matrix, attributes, diagonal=False, multicolor=True, anchorType=None, anchorColor=0,\
                     mirror=None, rotate=None, scale=False, deleteOriginal=False):
     m = matrix.m.copy()
-    shRep = None
+    score = -1
+    repShape = 0
+    if diagonal:
+        if multicolor:
+            shList = matrix.multicolorDShapes
+        else:
+            shList = matrix.dShapes
+    else:
+        if multicolor:
+            shList = matrix.multicolorShapes
+        else:
+            shList = matrix.shapes
+            
+    attrList = matrix.getShapeAttributes(matrix.backgroundColor, not multicolor, diagonal)
+    for shi in range(len(shList)):
+        if len(attrList[shi].intersection(attributes)) > score:
+            repShape = shList[shi]
+            score = len(attrList[shi].intersection(attributes))
+
+    if repShape == 0:
+        return m
+    for i in range(matrix.shape[0] - repShape.shape[0]+1):
+        for j in range(matrix.shape[1] - repShape.shape[1]+1):
+            print(m[i:i+repShape.shape[0],j:j+repShape.shape[1]])
+            print(np.logical_or(m[i:i+repShape.shape[0],j:j+repShape.shape[1]]==anchorColor,repShape==255))
+            if np.all(np.logical_or(m[i:i+repShape.shape[0],j:j+repShape.shape[1]]==anchorColor,repShape==255)):
+                newInsert = copy.deepcopy(repShape)
+                newInsert.position = (i, j)
+                m = insertShape(m, newInsert)
+    return(m)
+    #shRep = None
     
+    """
     for sh in matrix.multicolorShapes:
         if hasattr(sh, 'color') and sh.color in anchorColors:
             continue
@@ -2224,7 +2263,7 @@ def replicateShapes(matrix, anchorType=None, anchorColors=set(),\
     if shRep == None:
         return m
     
-    if anchorType == 'blank':
+    if anchorType == 'all':
         for sh in matrix.multicolorShapes:
             if hasattr(sh, 'color') and sh.color in anchorColors:
                 newInsert = copy.deepcopy(shRep)
@@ -2238,13 +2277,13 @@ def replicateShapes(matrix, anchorType=None, anchorColors=set(),\
             m = deleteShape(m, shRep, matrix.backgroundColor)
         return m
     return m
+    """
     #elif anchorType == 'pixel':
     #elif anchorType == 'subshape':
     #    continue
     #elif anchorType == 'all':
     #    continue
-    
-
+'''
 def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     """
     This function returns the result of overlapping all submatrices of a given
@@ -2265,6 +2304,37 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     return m
 
 #Cropshape
+def getCropAttributes(t):        
+    if t.nCommonInOutShapes > 0:
+        attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
+                    singleColor=True, diagonals=False)[s.inMatrix.shapes.index(s.commonShapes[0][0])] for s in t.trainSamples])
+        
+        nonAttrs = set()
+        for s in t.trainSamples:
+            shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=0, singleColor=True, diagonals=False)
+            for shi in range(len(s.inMatrix.shapes)):
+                if s.inMatrix.shapes[shi] == s.commonShapes[0][0]:
+                    continue
+                else:
+                    nonAttrs = nonAttrs.union(shAttrs[shi])
+    #check if these are the correct. 
+    
+    if t.nCommonInOutDShapes > 0:
+        attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
+                    singleColor=True, diagonals=True)[s.inMatrix.dShapes.index(s.commonDShapes[0][0])] for s in t.trainSamples])
+        
+        nonAttrs = set()
+        for s in t.trainSamples:
+            shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=0, singleColor=True, diagonals=True)
+            for shi in range(len(s.inMatrix.dShapes)):
+                if s.inMatrix.dShapes[shi] == s.commonDShapes[0][0]:
+                    continue
+                else:
+                    nonAttrs = nonAttrs.union(shAttrs[shi])
+                    
+    return(attrs - nonAttrs)
+        
+        
 def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True):
     """
     This function crops the shape out of a matrix with the maximum score according to attributes
@@ -2290,9 +2360,12 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
             bestShapes = [i]
         elif shscore == score:
             bestShapes += [i]
-    bestShape = shapeList[bestShapes[0]].m
-    bestShape[bestShape==255]=backgroundColor
-    return bestShape
+    bestShape = shapeList[bestShapes[0]]#.m
+    #bestShape[bestShape==255]=backgroundColor
+    
+#    matrix.m[]
+    
+    return matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
     
 #Crop a shape using a reference shape or set of shapes
 def cropShapeReference(matrix, referenceShape, diagonal=True):
@@ -2715,19 +2788,15 @@ def getPossibleOperations(t, c):
                       
     # Cropshape
     if candTask.outSmallerThanIn:
-        if candTask.nCommonInOutShapes > 0:
-            attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
-                    singleColor=True, diagonals=False)[s.inMatrix.shapes.index(s.commonShapes[0][0])] for s in candTask.trainSamples])
-            x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=False))              
-            if len(candTask.commonInShapes) > 0:
-                x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
-
         if candTask.nCommonInOutDShapes > 0:
-            attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
-                    singleColor=True, diagonals=True)[s.inMatrix.dShapes.index(s.commonDShapes[0][0])] for s in candTask.trainSamples])
-            x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True))
+            x.append(partial(cropShape, attributes=getCropAttributes(t), backgroundColor=0, singleColor=True, diagonals=True))
             if len(candTask.commonInDShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInDShapes, diagonal=True))
+                
+        elif candTask.nCommonInOutShapes > 0:
+            x.append(partial(cropShape, attributes=getCropAttributes(t), backgroundColor=0, singleColor=True, diagonals=False))              
+            if len(candTask.commonInShapes) > 0:
+                x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
 
         if candTask.outIsInMulticolorShapeSize:
             for attrs in [set(['UnSh']),set(['MoCo']),set(['MoCl']),set(['OneSh'])]:
