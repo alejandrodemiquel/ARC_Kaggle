@@ -1438,11 +1438,11 @@ def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False, r
         
 def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, diagonals=False, restore=True):
     """
-    This function moves all the shapes with color "colorToMove" until the
+    This function moves all the shapes with color "colorsToMove" until the
     closest shape with color "until".
     """
     m = matrix.m.copy()
-    for ctm in colorsToMove:
+    for ctm in [colorsToMove]:
         for s in matrix.shapes:
             if s.color == ctm:
                 m = moveShapeToClosest(m, s, background, until, diagonals, restore)
@@ -1496,11 +1496,11 @@ def getBestMoveShapes(t):
                     score += incorrectPixels(s.outMatrix.m, \
                                              moveAllShapesToClosest(s.inMatrix,\
                                                                     background=t.backgroundColor,\
-                                                                    colorToMove=ctm,\
+                                                                    colorsToMove=ctm,\
                                                                     until=uc))
                 if score < bestScore:
                     bestScore = score
-                    x = partial(moveAllShapesToClosest, colorToMove=ctm,\
+                    x = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                                  background=t.backgroundColor, until=uc)
                 
                 score = 0
@@ -1508,11 +1508,11 @@ def getBestMoveShapes(t):
                     score += incorrectPixels(s.outMatrix.m, \
                                              moveAllShapesToClosest(s.inMatrix, \
                                                                     background=t.backgroundColor,\
-                                                                    colorToMove=ctm,\
+                                                                    colorsToMove=ctm,\
                                                                     until=uc, diagonals=True))
                 if score < bestScore:
                     bestScore = score
-                    x = partial(moveAllShapesToClosest, colorToMove=ctm,\
+                    x = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                                  background=t.backgroundColor, until=uc, diagonals=True)
                         
     return x
@@ -2545,16 +2545,6 @@ def getPossibleOperations(t, c):
         if candTask.onlyShapeColorChanges:
             ccwp = getColorChangesWithFeatures(candTask)
             x.append(partial(changeShapesWithFeatures, ccwp=ccwp, fixedColors=candTask.fixedColors))
-            
-            
-            """
-            if all(["predictLinearModelShapeColor" not in str(op.func) for op in c.ops]):
-                model = trainLinearModelShapeColor(candTask)
-                x.append(partial(predictLinearModelShapeColor, model=model,\
-                                 colors=set.union(*candTask.changedInColors+candTask.changedOutColors), \
-                                 unchangedColors=candTask.unchangedColors, \
-                                 shapePixelNumbers=candTask.shapePixelNumbers))
-            """
                 
             if all(["getBestLSTM" not in str(op.func) for op in c.ops]):        
                 x.append(getBestLSTM(candTask))

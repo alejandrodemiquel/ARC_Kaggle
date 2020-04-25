@@ -403,7 +403,7 @@ scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,576,578,635,712,727,785,690]
 #, 190, 367, 421, 431, 524
 count=0
-for idx in tqdm(range(800), position=0, leave=True):
+for idx in tqdm(range(50), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
@@ -442,7 +442,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -452,7 +452,7 @@ for idx in tqdm(range(800), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            plot_sample(t.testSamples[s], x)
+            #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)
