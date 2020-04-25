@@ -2470,7 +2470,8 @@ def insertShape(matrix, shape):
     shapeM = shape.m.copy()
     for i,j in np.ndindex(shape.shape):
         if shapeM[i,j] != 255:
-            m[tuple(map(operator.add, (i,j), shape.position))] = shapeM[i,j]
+            if shape.position[0]+i<matrix.shape[0] and shape.position[1]+j<matrix.shape[1]:
+                m[tuple(map(operator.add, (i,j), shape.position))] = shapeM[i,j]
     return m
 
 def deleteShape(matrix, shape, backgroundColor):
