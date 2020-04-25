@@ -2765,7 +2765,7 @@ def getPossibleOperations(t, c):
     # Evolve
     if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-        x.append(getBestEvolve(t))
+        x.append(getBestEvolve(candTask))
         
         """
         nColors = candTask.trainSamples[0].nColors
