@@ -695,19 +695,76 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
         
     return m
     
-    """
-    referenceOutput = [s.inMatrix.m.copy() for s in t.trainSamples]
+def getBestEvolve(t):
+    def updateBestFunction(f, bestScore, bestFunction):
+        score = 0
+        for sample in t.trainSamples:
+            f(sample.inMatrix)
+            pred = applyEvolve(sample.inMatrix, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                               fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                               kernel=None, border=0)
+            score += incorrectPixels(sample.outMatrix.m, pred)
+        if score < bestScore:
+            bestScore = score
+            bestFunction = f
+        return bestFunction
     
-    allReferences = []
-    allReferences.append(referenceOutput)
-    for i in range(5):
-        evolveInputMatrices(referenceOutput, outMatrices)
-        allReferences.append(referenceOutput)
+    nColors = t.trainSamples[0].nColors
+    fc = t.fixedColors
+    cic = t.commonChangedInColors
+    coc = t.commonChangedOutColors
+    refIsFixed = t.trainSamples[0].inMatrix.nColors == len(fc)+1
+    
+    bestScore = 1000
+    bestFunction = None
+    
+    cfn = evolve(t)
+    if t.allEqual(t.sampleColors):
+        f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                    fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                    kernel=None, border=0)
+        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+            
+        f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                     kernel=5, border=0)
+        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+
+    else:
+        f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                    fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                    kernel=None, border=0, commonColors=t.orderedColors)
+        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+            
+        f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                     kernel=5, border=0, commonColors=t.orderedColors)
+        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
         
-    m = t.testSamples[0].inMatrix.m.copy()
-    for step in range(5):
-        for i,j in np.ndindex(m.shape):
-    """
+    cfn = evolve(t, includeRotations=True)
+    if t.allEqual(t.sampleColors):
+        f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                    fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                    kernel=None, border=0)
+        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+            
+        f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                     kernel=5, border=0)
+        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+
+    else:
+        f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                    fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                    kernel=None, border=0, commonColors=t.orderedColors)
+        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+            
+        f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
+                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
+                     kernel=5, border=0, commonColors=t.orderedColors)
+        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        
+    return bestFunction
 
 # %% Linear Models
 
@@ -2704,11 +2761,13 @@ def getPossibleOperations(t, c):
         pixelMap = Models.pixelCorrespondence(candTask)
         if len(pixelMap) != 0:
             x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
-    """                
     ###########################################################################
     # Evolve
     if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
+        x.append(getBestEvolve(t))
+        
+        """
         nColors = candTask.trainSamples[0].nColors
         fc = candTask.fixedColors
         cic = candTask.commonChangedInColors
