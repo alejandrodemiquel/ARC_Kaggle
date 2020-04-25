@@ -1061,9 +1061,66 @@ def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
     """
     return changeColorShapes(m.m.copy(), m.getShapes(inColor, bigOrSmall, isBorder), outColor)
 
+def hasFeatures(candidate, reference):
+    for i in range(len(reference)):
+        if reference[i] and not candidate[i]:
+            return False
+    return True
+
+def getShapeFeaturesForColorChange(t, fixedColors=None, predict=False):  
+    shapeFeatures = []
+    
+    if predict:
+        matrices = [t]
+    else:
+        matrices = [s.inMatrix for s in t.trainSamples]
+          
+    for m in range(len(matrices)):
+        # Smallest and biggest shapes:
+        biggestShape = 0
+        smallestShape = 1000
+        for shape in matrices[m].shapes:
+            if shape.color not in fixedColors:
+                if shape.nPixels>biggestShape:
+                    biggestShape=shape.nPixels
+                if shape.nPixels<smallestShape:
+                    smallestShape=shape.nPixels
+        
+        for shape in matrices[m].shapes:
+            shFeatures = []
+            for c in range(10):
+                shFeatures.append(shape.color==c)
+            shFeatures.append(shape.isBorder)
+            shFeatures.append(not shape.isBorder)
+            shFeatures.append(shape.lrSymmetric)
+            shFeatures.append(shape.udSymmetric)
+            shFeatures.append(shape.d1Symmetric)
+            shFeatures.append(shape.d2Symmetric)
+            shFeatures.append(shape.isSquare)
+            shFeatures.append(shape.isRectangle)
+            for nPix in range(1,30):
+                shFeatures.append(shape.nPixels==nPix)
+            for nPix in range(1,6):
+                shFeatures.append(shape.nPixels>nPix)
+            for nPix in range(2,7):
+                shFeatures.append(shape.nPixels<nPix)
+            shFeatures.append((shape.nPixels%2)==0)
+            shFeatures.append((shape.nPixels%2)==1)
+            for h in range(5):
+                shFeatures.append(shape.nHoles==h)
+            shFeatures.append(shape.nPixels==biggestShape)
+            shFeatures.append(shape.nPixels==smallestShape)
+            #shFeatures.append(self.isUniqueShape(sh))
+            #shFeatures.append(not self.isUniqueShape(sh))
+            
+            shapeFeatures.append(shFeatures)
+            
+    return shapeFeatures
+
 def getColorChangesWithFeatures(t):
+    shapeFeatures = getShapeFeaturesForColorChange(t, fixedColors=t.fixedColors)
     colorChangesWithFeatures = {}
-    nFeatures = len(t.trainSamples[0].inMatrix.shapeFeatures[0])
+    nFeatures = len(shapeFeatures[0])
     trueList = []
     falseList = []
     for i in range(nFeatures):
@@ -1074,10 +1131,9 @@ def getColorChangesWithFeatures(t):
     changeCounter = Counter() # How many shapes change to color c?
     # First, initialise the colorChangesWithFeatures. For every outColor, we
     # detect which features are True for all the shapes that change to that color.
-    for s in range(t.nTrain):
-        sample = t.trainSamples[s]
-        for sh in range(len(sample.inMatrix.shapes)):
-            shape = sample.inMatrix.shapes[sh]
+    shapeCounter = 0            
+    for sample in t.trainSamples:
+        for shape in sample.inMatrix.shapes:
             shapeChanges = False
             for i,j in np.ndindex(shape.shape):
                 if shape.m[i,j]!=255:
@@ -1088,8 +1144,9 @@ def getColorChangesWithFeatures(t):
             if shapeChanges:
                 changeCounter[color] += 1
                 colorChangesWithFeatures[color] = \
-                [colorChangesWithFeatures[color][x] and sample.inMatrix.shapeFeatures[sh][x]\
+                [colorChangesWithFeatures[color][x] and shapeFeatures[shapeCounter][x]\
                  for x in range(nFeatures)]
+            shapeCounter += 1
     # Now, there might be more True values than necessary in a certain entry
     # of colorChangesWithFeatures. Therefore, we try to determine the minimum
     # number of necessary True features.
@@ -1098,35 +1155,32 @@ def getColorChangesWithFeatures(t):
             continue
         trueIndices = [i for i, x in enumerate(colorChangesWithFeatures[c]) if x]
         # First, check if only one feature is enough
-        done = False
+        goodIndices = []
         for index in trueIndices:
             trueCount = 0
             featureList = falseList.copy()
             featureList[index] = True
-            for s in range(t.nTrain):
-                sample = t.trainSamples[s]
-                for sh in range(len(sample.inMatrix.shapes)):
-                    shape = sample.inMatrix.shapes[sh]
-                    if sample.inMatrix.shapeHasFeatures(sh, featureList):
-                        trueCount += 1
+            for sf in shapeFeatures:
+                if hasFeatures(sf, featureList):
+                    trueCount += 1
             # If the true count matches the number of changed shapes, we're done!
             if trueCount == changeCounter[c]:
-                done = True
-                colorChangesWithFeatures[c] = featureList
-                break
+                goodIndices.append(index)
+        if len(goodIndices) > 0:
+            featureList = falseList.copy()
+            for index in goodIndices:
+                featureList[index] = True
+            colorChangesWithFeatures[c] = featureList
         # If we're not done, then check with combinations of 2 features
-        if not done:
+        else:
             for i,j in combinations(trueIndices, 2):
                 trueCount = 0
                 featureList = falseList.copy()
                 featureList[i] = True
                 featureList[j] = True
-                for s in range(t.nTrain):
-                    sample = t.trainSamples[s]
-                    for sh in range(len(sample.inMatrix.shapes)):
-                        shape = sample.inMatrix.shapes[sh]
-                        if sample.inMatrix.shapeHasFeatures(sh, featureList):
-                            trueCount += 1
+                for sf in shapeFeatures:
+                    if hasFeatures(sf, featureList):
+                        trueCount += 1
                 # If the true count matches the number of changed shapes, we're done!
                 if trueCount == changeCounter[c]:
                     done = True
@@ -1142,16 +1196,16 @@ def changeShapesWithFeatures(matrix, ccwp, fixedColors):
     properties that the input shape has to satisfy in order to execute the
     color change.
     """
+    featureList = getShapeFeaturesForColorChange(matrix, fixedColors=fixedColors,\
+                                                 predict=True)
     m = matrix.m.copy()
     for c in ccwp.keys():
         for sh in range(len(matrix.shapes)):
-            shape = matrix.shapes[sh]
-            if shape.color in fixedColors:
+            if matrix.shapes[sh].color in fixedColors:
                 continue
-            if matrix.shapeHasFeatures(sh, ccwp[c]):
-                m = changeColorShapes(m, [shape], c)
+            if hasFeatures(featureList[sh], ccwp[c]):
+                m = changeColorShapes(m, [matrix.shapes[sh]], c)
     return m
-    
 
 # %% Surround Shape
 

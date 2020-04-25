@@ -408,18 +408,6 @@ for idx in tqdm(range(800), position=0, leave=True):
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
 
-    if t.sameIOShapes and t.onlyShapeColorChanges:
-        totalCount = 0
-        ccwp = Utils.getColorChangesWithFeatures(t)
-        pred = Utils.changeShapesWithFeatures(t.testSamples[0].inMatrix, ccwp, t.fixedColors)
-        #plot_sample(t.testSamples[0], pred)
-        if Utils.incorrectPixels(t.testSamples[0].outMatrix.m, pred)==0:
-            count += 1
-            #plot_task(idx)
-        else:
-            plot_task(idx)
-
-
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
         ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
@@ -454,7 +442,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -465,7 +453,6 @@ for idx in tqdm(range(800), position=0, leave=True):
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
             plot_sample(t.testSamples[s], x)
-            break
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)
