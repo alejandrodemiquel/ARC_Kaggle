@@ -293,6 +293,95 @@ class Best3Candidates():
 
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
+    
+def needsRecoloring(t):
+    """
+    This method determines whether the task t needs recoloring or not.
+    It needs recoloring if every color in an output matrix appears either
+    in the input or in every output matrix.
+    Otherwise a recoloring doesn't make sense.
+    If this function returns True, then orderTaskColors should be executed
+    as the first part of the preprocessing of t.
+    """
+    for sample in t.trainSamples:
+        for color in sample.outMatrix.colors:
+            if (color not in sample.inMatrix.colors) and (color not in t.commonOutColors):
+                return False
+    return True
+
+def orderTaskColors(t):
+    """
+    Given a task t, this function generates a new task (as a dictionary) by
+    recoloring all the matrices in a specific way.
+    The goal of this function is to impose that if two different colors
+    represent the exact same thing in two different samples, then they have the
+    same color in both of the samples.
+    Right now, the criterium to order colors is:
+        1. Common colors ordered according to Task.Task.orderColors
+        2. Colors that appear both in the input and the output
+        3. Colors that only appear in the input
+        4. Colors that only appear in the output
+    In steps 2-4, if there is more that one color satisfying that condition, 
+    the ordering will happen according to the colorCount.
+    """
+    def orderColors(trainOrTest):
+        if trainOrTest=="train":
+            samples = t.trainSamples
+        else:
+            samples = t.testSamples
+        for sample in samples:
+            sampleColors = t.orderedColors.copy()
+            sortedColors = [k for k, v in sorted(sample.inMatrix.colorCount.items(), key=lambda item: item[1])]
+            for c in sortedColors:
+                if c not in sampleColors:
+                    sampleColors.append(c)
+            if trainOrTest=="train" or t.submission==False:
+                sortedColors = [k for k, v in sorted(sample.outMatrix.colorCount.items(), key=lambda item: item[1])]
+                for c in sortedColors:
+                    if c not in sampleColors:
+                        sampleColors.append(c)
+                    
+            rel, invRel = Utils.relDicts(sampleColors)
+            if trainOrTest=="train":
+                trainRels.append(rel)
+                trainInvRels.append(invRel)
+            else:
+                testRels.append(rel)
+                testInvRels.append(invRel)
+                
+            inMatrix = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+            for c in sample.inMatrix.colors:
+                inMatrix[sample.inMatrix.m==c] = invRel[c]
+            if trainOrTest=='train' or t.submission==False:
+                outMatrix = np.zeros(sample.outMatrix.shape, dtype=np.uint8)
+                for c in sample.outMatrix.colors:
+                    outMatrix[sample.outMatrix.m==c] = invRel[c]
+                task['train'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
+            else:
+                task['test'].append({'input': inMatrix.tolist()})
+        
+    task = {'train': [], 'test': []}
+    trainRels = []
+    trainInvRels = []
+    testRels = []
+    testInvRels = []
+    
+    orderColors("train")
+    orderColors("test")
+    
+    return task, trainRels, trainInvRels, testRels, testInvRels
+
+def recoverOriginalColors(matrix, rel):
+    """
+    Given a matrix, this function is intended to recover the original colors
+    before being modified in the orderTaskColors function.
+    rel is supposed to be either one of the trainRels or testRels outputs of
+    that function.
+    """
+    m = matrix.copy()
+    for i,j in np.ndindex(matrix.shape):
+        m[i,j] = rel[matrix[i,j]][0]
+    return m
 
 def ignoreGrid(t, task):
     for s in range(t.nTrain):
@@ -402,10 +491,16 @@ scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,576,578,635,712,727,785,690]
 #, 190, 367, 421, 431, 524
 count=0
-for idx in tqdm(range(30), position=0, leave=True):
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
-    t = Task.Task(task, taskId)
+    originalT = Task.Task(task, taskId)
+
+    if needsRecoloring(originalT):
+        task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
+        t = Task.Task(task, taskId)
+    else:
+        t = originalT
 
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
@@ -441,7 +536,7 @@ for idx in tqdm(range(30), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -451,7 +546,9 @@ for idx in tqdm(range(30), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            #plot_sample(t.testSamples[s], x)
+            if needsRecoloring(originalT):
+                x = recoverOriginalColors(x, testRels[s])
+            plot_sample(originalT.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)

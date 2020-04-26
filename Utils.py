@@ -1123,20 +1123,47 @@ def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
     """
     return changeColorShapes(m.m.copy(), m.getShapes(inColor, bigOrSmall, isBorder), outColor)
 
+# %% Things with features
+def isFixedShape(shape, fixedShapeFeatures):
+    return shape.hasFeatures(fixedShapeFeatures)
+
+# %% Change Colors with features
+
 def hasFeatures(candidate, reference):
     for i in range(len(reference)):
         if reference[i] and not candidate[i]:
             return False
     return True
 
-def getShapeFeaturesForColorChange(t, fixedColors=None, predict=False):  
+def getClosestFixedShapeColor(shape, fixedShapes):
+    def getDistance(x1, x2):
+        x, y = sorted((x1, x2))
+        if x[0] <= x[1] < y[0] and all( y[0] <= y[1] for y in (x1,x2)):
+            return y[0] - x[1]
+        return 0
+    
+    color = 0
+    minDistance = 1000
+    for fs in fixedShapes:
+        xDist = getDistance([fs.position[0],fs.position[0]+fs.shape[0]-1], \
+                            [shape.position[0],shape.position[0]+shape.shape[0]-1])
+        yDist = getDistance([fs.position[1],fs.position[1]+fs.shape[1]-1], \
+                            [shape.position[1],shape.position[1]+shape.shape[1]-1])
+        
+        if xDist+yDist < minDistance:
+            minDistance = xDist+yDist
+            color = fs.color
+    return color
+
+def getShapeFeaturesForColorChange(t, fixedShapeFeatures=None, fixedColors=None,\
+                                   predict=False):  
     shapeFeatures = []
     
     if predict:
         matrices = [t]
     else:
         matrices = [s.inMatrix for s in t.trainSamples]
-          
+                  
     for m in range(len(matrices)):
         # Smallest and biggest shapes:
         biggestShape = 0
@@ -1147,8 +1174,18 @@ def getShapeFeaturesForColorChange(t, fixedColors=None, predict=False):
                     biggestShape=shape.nPixels
                 if shape.nPixels<smallestShape:
                     smallestShape=shape.nPixels
+                    
+        # Closest fixed shape
+        if predict:
+            fixedShapes = []
+            for shape in matrices[0].shapes:
+                if shape.hasFeatures(fixedShapeFeatures):
+                    fixedShapes.append(shape)
+        else:
+            fixedShapes = t.trainSamples[m].fixedShapes
         
-        for shape in matrices[m].shapes:
+        
+        for shape in matrices[m].shapes:            
             shFeatures = []
             for c in range(10):
                 shFeatures.append(shape.color==c)
@@ -1174,7 +1211,10 @@ def getShapeFeaturesForColorChange(t, fixedColors=None, predict=False):
             shFeatures.append(shape.nPixels==smallestShape)
             #shFeatures.append(self.isUniqueShape(sh))
             #shFeatures.append(not self.isUniqueShape(sh))
-            
+            closestFixedShapeColor = getClosestFixedShapeColor(shape, fixedShapes)
+            for c in range(10):
+                shFeatures.append(closestFixedShapeColor==c)
+                
             shapeFeatures.append(shFeatures)
             
     return shapeFeatures
@@ -1245,13 +1285,12 @@ def getColorChangesWithFeatures(t):
                         trueCount += 1
                 # If the true count matches the number of changed shapes, we're done!
                 if trueCount == changeCounter[c]:
-                    done = True
                     colorChangesWithFeatures[c] = featureList
                     break   
                     
     return colorChangesWithFeatures
 
-def changeShapesWithFeatures(matrix, ccwp, fixedColors):
+def changeShapesWithFeatures(matrix, ccwp, fixedColors, fixedShapeFeatures):
     """
     ccwp stands for 'color change with properties'. It's a dictionary. Its keys
     are integers encoding the color of the output shape, and its values are the
@@ -1259,11 +1298,13 @@ def changeShapesWithFeatures(matrix, ccwp, fixedColors):
     color change.
     """
     featureList = getShapeFeaturesForColorChange(matrix, fixedColors=fixedColors,\
+                                                 fixedShapeFeatures=fixedShapeFeatures,\
                                                  predict=True)
     m = matrix.m.copy()
     for c in ccwp.keys():
         for sh in range(len(matrix.shapes)):
-            if matrix.shapes[sh].color in fixedColors:
+            if (matrix.shapes[sh].color in fixedColors) or \
+            (matrix.shapes[sh].hasFeatures(fixedShapeFeatures)):
                 continue
             if hasFeatures(featureList[sh], ccwp[c]):
                 m = changeColorShapes(m, [matrix.shapes[sh]], c)
@@ -2606,7 +2647,9 @@ def getPossibleOperations(t, c):
         
         if candTask.onlyShapeColorChanges:
             ccwp = getColorChangesWithFeatures(candTask)
-            x.append(partial(changeShapesWithFeatures, ccwp=ccwp, fixedColors=candTask.fixedColors))
+            fsf = candTask.fixedShapeFeatures
+            x.append(partial(changeShapesWithFeatures, ccwp=ccwp, fixedColors=candTask.fixedColors,\
+                             fixedShapeFeatures=fsf))
                 
             if all(["getBestLSTM" not in str(op.func) for op in c.ops]):        
                 x.append(getBestLSTM(candTask))

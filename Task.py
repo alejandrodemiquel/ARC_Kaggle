@@ -222,7 +222,6 @@ class Shape:
         
         self.nHoles = self.getNHoles()
         
-        """
         if self.nColors==1:
             self.boolFeatures = []
             for c in range(10):
@@ -235,11 +234,10 @@ class Shape:
             self.boolFeatures.append(self.d2Symmetric)
             self.boolFeatures.append(self.isSquare)
             self.boolFeatures.append(self.isRectangle)
-            for nPix in range(1,11):
+            for nPix in range(1,30):
                 self.boolFeatures.append(self.nPixels==nPix)
             self.boolFeatures.append((self.nPixels%2)==0)
             self.boolFeatures.append((self.nPixels%2)==1)
-        """
     
     def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
         if samePosition:
@@ -310,13 +308,11 @@ class Shape:
         """
         return (self.m!=255).astype(np.uint8) 
     
-    """
     def hasFeatures(self, features):
         for i in range(len(features)):
             if features[i] and not self.boolFeatures[i]:
                 return False
         return True
-    """
 
     def getNHoles(self):
         nHoles = 0
@@ -783,170 +779,174 @@ class Matrix():
 
 # %% Class Sample
 class Sample():
-    def __init__(self, s):
+    def __init__(self, s, trainOrTest, submission=False):
         
         self.inMatrix = Matrix(s['input'])
-        self.outMatrix = Matrix(s['output'])
-                
-        # We want to compare the input and the output
-        # Do they have the same dimensions?
-        self.sameHeight = self.inMatrix.shape[0] == self.outMatrix.shape[0]
-        self.sameWidth = self.inMatrix.shape[1] == self.outMatrix.shape[1]
-        self.sameShape = self.sameHeight and self.sameWidth
         
-        # Is the input shape a factor of the output shape?
-        # Or the other way around?
-        if not self.sameShape:
-            if (self.inMatrix.shape[0] % self.outMatrix.shape[0]) == 0 and \
-            (self.inMatrix.shape[1] % self.outMatrix.shape[1]) == 0 :
-                self.outShapeFactor = (int(self.inMatrix.shape[0]/self.outMatrix.shape[0]),\
-                                       int(self.inMatrix.shape[1]/self.outMatrix.shape[1]))
-            if (self.outMatrix.shape[0] % self.inMatrix.shape[0]) == 0 and \
-            (self.outMatrix.shape[1] % self.inMatrix.shape[1]) == 0 :
-                self.inShapeFactor = (int(self.outMatrix.shape[0]/self.inMatrix.shape[0]),\
-                                      int(self.outMatrix.shape[1]/self.inMatrix.shape[1]))
-        """
-        if self.sameShape:
-            self.diffMatrix = Matrix((self.inMatrix.m - self.outMatrix.m).tolist())
-            self.diffPixels = np.count_nonzero(self.diffMatrix.m)
-        """
-        # Is one a subset of the other? for now always includes diagonals
-        self.inSmallerThanOut = all(self.inMatrix.shape[i] <= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
-        self.outSmallerThanIn = all(self.inMatrix.shape[i] >= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
-
-        #R: Is the output a shape (faster than checking if is a subset?
-
-        if self.outSmallerThanIn:
-            #check if output is the size of a multicolored shape
-            self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
-            self.outIsInMulticolorDShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorDShapes)
-
-        self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True)
-        self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True)
-        self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=False)
-        self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=False)
-
-        # Shapes in the input that are fixed
-        if self.sameShape:
-            self.fixedShapes = []
-            for sh in self.inMatrix.shapes:
-                shapeIsFixed = True
-                for i,j in np.ndindex(sh.shape):
-                    if sh.m[i,j] != 255:
-                        if self.outMatrix.m[sh.position[0]+i,sh.position[1]+j]!=sh.m[i,j]:
-                            shapeIsFixed=False
-                            break
-                if shapeIsFixed:
-                    self.fixedShapes.append(sh)
-        
-        """
-        # Is the output a subset of the input?
-        self.inSubsetOfOutIndices = set()
-        if self.inSmallerThanOut:
-            for i, j in np.ndindex((self.outMatrix.shape[0] - self.inMatrix.shape[0] + 1, self.outMatrix.shape[1] - self.inMatrix.shape[1] + 1)):
-                if np.all(self.inMatrix.m == self.outMatrix.m[i:i+self.inMatrix.shape[0], j:j+self.inMatrix.shape[1]]):
-                    self.inSubsetOfOutIndices.add((i, j))
-        # Is the input a subset of the output?
-        self.outSubsetOfInIndices = set()
-        if self.outSmallerThanIn:
-            for i, j in np.ndindex((self.inMatrix.shape[0] - self.outMatrix.shape[0] + 1, self.inMatrix.shape[1] - self.outMatrix.shape[1] + 1)):
-                if np.all(self.outMatrix.m == self.inMatrix.m[i:i+self.outMatrix.shape[0], j:j+self.outMatrix.shape[1]]):
-                    self.outSubsetOfInIndices.add((i, j))
-            #Is output a single input shape?
-            if len(self.outSubsetOfInIndices) == 1:
-                #modify to compute background correctly
-                for sh in self.outMatrix.shapes:
-                    if sh.m.size == self.outMatrix.m.size:
-                        osh = sh
-                        self.outIsShape = True
-                        self.outIsShapeAttributes = []
-                        for ish in self.inMatrix.shapes:
-                            if ish.m == osh.m:
-                                break
-                        self.outIsShapeAttributes = attribute_list(ish, self.inMatrix)
-                        break
-        """
-        # Which colors are there in the sample?
-        self.colors = set(self.inMatrix.colors | self.outMatrix.colors)
-        self.commonColors = set(self.inMatrix.colors & self.outMatrix.colors)
-        self.nColors = len(self.colors)
-        # Do they have the same colors?
-        self.sameColors = len(self.colors) == len(self.commonColors)
-        # Do they have the same number of colors?
-        self.sameNumColors = self.inMatrix.nColors == self.outMatrix.nColors
-        # Does output contain all input colors or viceversa?
-        self.inHasOutColors = self.outMatrix.colors <= self.inMatrix.colors  
-        self.outHasInColors = self.inMatrix.colors <= self.outMatrix.colors
-        if self.sameShape:
-            # Which pixels changes happened? How many times?
-            self.changedPixels = Counter()
-            self.sameColorCount = self.inMatrix.colorCount == self.outMatrix.colorCount
-            for i, j in np.ndindex(self.inMatrix.shape):
-                if self.inMatrix.m[i,j] != self.outMatrix.m[i,j]:
-                    self.changedPixels[(self.inMatrix.m[i,j], self.outMatrix.m[i,j])] += 1
-            # Are any of these changes complete? (i.e. all pixels of one color are changed to another one)
-            self.completeColorChanges = set(change for change in self.changedPixels.keys() if\
-                                         self.changedPixels[change]==self.inMatrix.colorCount[change[0]])
-            self.allColorChangesAreComplete = len(self.changedPixels) == len(self.completeColorChanges)
-            # Does any color never change?
-            self.changedInColors = set(change[0] for change in self.changedPixels.keys())
-            self.changedOutColors = set(change[1] for change in self.changedPixels.keys())
-            self.unchangedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
-            # Colors that stay unchanged
-            self.fixedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
-        
-        if self.sameShape and self.sameColorCount:
-            self.sameRowCount = True
-            for r in range(self.inMatrix.shape[0]):
-                _,inCounts = np.unique(self.inMatrix.m[r,:], return_counts=True)
-                _,outCounts = np.unique(self.outMatrix.m[r,:], return_counts=True)
-                if not np.array_equal(inCounts, outCounts):
-                    self.sameRowCount = False
-                    break
-            self.sameColCount = True
-            for c in range(self.inMatrix.shape[1]):
-                _,inCounts = np.unique(self.inMatrix.m[:,c], return_counts=True)
-                _,outCounts = np.unique(self.outMatrix.m[:,c], return_counts=True)
-                if not np.array_equal(inCounts, outCounts):
-                    self.sameColCount = False
-                    break
-                
-        # Frames
-        self.commonFullFrames = [f for f in self.inMatrix.fullFrames if f in self.outMatrix.fullFrames]
-        if len(self.inMatrix.fullFrames)==1:
-            frameM = self.inMatrix.fullFrames[0].m.copy()
-            frameM[frameM==255] = self.inMatrix.fullFrames[0].background
-            if frameM.shape==self.outMatrix.shape:
-                self.frameIsOutShape = True
-            elif frameM.shape==(self.outMatrix.shape[0]+1, self.outMatrix.shape[1]+1):
-                self.frameInsideIsOutShape = True
-        
-        # Grids
-        # Is the grid the same in the input and in the output?
-        self.gridIsUnchanged = self.inMatrix.isGrid and self.outMatrix.isGrid \
-        and self.inMatrix.grid == self.outMatrix.grid
-        # Does the shape of the grid cells determine the output shape?
-        if hasattr(self.inMatrix, "grid") and self.inMatrix.grid.allCellsSameShape:
-            self.gridCellIsOutputShape = self.outMatrix.shape == self.inMatrix.grid.cellShape
-        # Does the shape of the input determine the shape of the grid cells of the output?
-        if hasattr(self.outMatrix, "grid") and self.outMatrix.grid.allCellsSameShape:
-            self.gridCellIsInputShape = self.inMatrix.shape == self.outMatrix.grid.cellShape
-        # Do all the grid cells have one color?
-        if self.gridIsUnchanged:
-            self.gridCellsHaveOneColor = self.inMatrix.grid.allCellsHaveOneColor and\
-                                         self.outMatrix.grid.allCellsHaveOneColor
-        
-        # Is there a blank to fill?
-        self.inputHasBlank = len(self.inMatrix.blanks)>0
-        if self.inputHasBlank:
-            for s in self.inMatrix.blanks:
-                if s.shape == self.outMatrix.shape:
-                    self.blankToFill = s
+        if trainOrTest == "train" or submission==False:
+            self.outMatrix = Matrix(s['output'])
                     
-         
-        # Does the output matrix follow a pattern?
-        self.followsRowPattern = self.outMatrix.followsRowPattern()
-        self.followsColPattern = self.outMatrix.followsColPattern()
+            # We want to compare the input and the output
+            # Do they have the same dimensions?
+            self.sameHeight = self.inMatrix.shape[0] == self.outMatrix.shape[0]
+            self.sameWidth = self.inMatrix.shape[1] == self.outMatrix.shape[1]
+            self.sameShape = self.sameHeight and self.sameWidth
+            
+            # Is the input shape a factor of the output shape?
+            # Or the other way around?
+            if not self.sameShape:
+                if (self.inMatrix.shape[0] % self.outMatrix.shape[0]) == 0 and \
+                (self.inMatrix.shape[1] % self.outMatrix.shape[1]) == 0 :
+                    self.outShapeFactor = (int(self.inMatrix.shape[0]/self.outMatrix.shape[0]),\
+                                           int(self.inMatrix.shape[1]/self.outMatrix.shape[1]))
+                if (self.outMatrix.shape[0] % self.inMatrix.shape[0]) == 0 and \
+                (self.outMatrix.shape[1] % self.inMatrix.shape[1]) == 0 :
+                    self.inShapeFactor = (int(self.outMatrix.shape[0]/self.inMatrix.shape[0]),\
+                                          int(self.outMatrix.shape[1]/self.inMatrix.shape[1]))
+            """
+            if self.sameShape:
+                self.diffMatrix = Matrix((self.inMatrix.m - self.outMatrix.m).tolist())
+                self.diffPixels = np.count_nonzero(self.diffMatrix.m)
+            """
+            # Is one a subset of the other? for now always includes diagonals
+            self.inSmallerThanOut = all(self.inMatrix.shape[i] <= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
+            self.outSmallerThanIn = all(self.inMatrix.shape[i] >= self.outMatrix.shape[i] for i in [0,1]) and not self.sameShape
+    
+            #R: Is the output a shape (faster than checking if is a subset?
+    
+            if self.outSmallerThanIn:
+                #check if output is the size of a multicolored shape
+                self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
+                self.outIsInMulticolorDShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorDShapes)
+    
+            self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True)
+            self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True)
+            self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=False)
+            self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=False)
+            
+            """
+            # Is the output a subset of the input?
+            self.inSubsetOfOutIndices = set()
+            if self.inSmallerThanOut:
+                for i, j in np.ndindex((self.outMatrix.shape[0] - self.inMatrix.shape[0] + 1, self.outMatrix.shape[1] - self.inMatrix.shape[1] + 1)):
+                    if np.all(self.inMatrix.m == self.outMatrix.m[i:i+self.inMatrix.shape[0], j:j+self.inMatrix.shape[1]]):
+                        self.inSubsetOfOutIndices.add((i, j))
+            # Is the input a subset of the output?
+            self.outSubsetOfInIndices = set()
+            if self.outSmallerThanIn:
+                for i, j in np.ndindex((self.inMatrix.shape[0] - self.outMatrix.shape[0] + 1, self.inMatrix.shape[1] - self.outMatrix.shape[1] + 1)):
+                    if np.all(self.outMatrix.m == self.inMatrix.m[i:i+self.outMatrix.shape[0], j:j+self.outMatrix.shape[1]]):
+                        self.outSubsetOfInIndices.add((i, j))
+                #Is output a single input shape?
+                if len(self.outSubsetOfInIndices) == 1:
+                    #modify to compute background correctly
+                    for sh in self.outMatrix.shapes:
+                        if sh.m.size == self.outMatrix.m.size:
+                            osh = sh
+                            self.outIsShape = True
+                            self.outIsShapeAttributes = []
+                            for ish in self.inMatrix.shapes:
+                                if ish.m == osh.m:
+                                    break
+                            self.outIsShapeAttributes = attribute_list(ish, self.inMatrix)
+                            break
+            """
+            # Which colors are there in the sample?
+            self.colors = set(self.inMatrix.colors | self.outMatrix.colors)
+            self.commonColors = set(self.inMatrix.colors & self.outMatrix.colors)
+            self.nColors = len(self.colors)
+            # Do they have the same colors?
+            self.sameColors = len(self.colors) == len(self.commonColors)
+            # Do they have the same number of colors?
+            self.sameNumColors = self.inMatrix.nColors == self.outMatrix.nColors
+            # Does output contain all input colors or viceversa?
+            self.inHasOutColors = self.outMatrix.colors <= self.inMatrix.colors  
+            self.outHasInColors = self.inMatrix.colors <= self.outMatrix.colors
+            if self.sameShape:
+                # Which pixels changes happened? How many times?
+                self.changedPixels = Counter()
+                self.sameColorCount = self.inMatrix.colorCount == self.outMatrix.colorCount
+                for i, j in np.ndindex(self.inMatrix.shape):
+                    if self.inMatrix.m[i,j] != self.outMatrix.m[i,j]:
+                        self.changedPixels[(self.inMatrix.m[i,j], self.outMatrix.m[i,j])] += 1
+                # Are any of these changes complete? (i.e. all pixels of one color are changed to another one)
+                self.completeColorChanges = set(change for change in self.changedPixels.keys() if\
+                                             self.changedPixels[change]==self.inMatrix.colorCount[change[0]])
+                self.allColorChangesAreComplete = len(self.changedPixels) == len(self.completeColorChanges)
+                # Does any color never change?
+                self.changedInColors = set(change[0] for change in self.changedPixels.keys())
+                self.changedOutColors = set(change[1] for change in self.changedPixels.keys())
+                self.unchangedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
+                # Colors that stay unchanged
+                self.fixedColors = set(x for x in self.colors if x not in set.union(self.changedInColors, self.changedOutColors))
+            
+            if self.sameShape and self.sameColorCount:
+                self.sameRowCount = True
+                for r in range(self.inMatrix.shape[0]):
+                    _,inCounts = np.unique(self.inMatrix.m[r,:], return_counts=True)
+                    _,outCounts = np.unique(self.outMatrix.m[r,:], return_counts=True)
+                    if not np.array_equal(inCounts, outCounts):
+                        self.sameRowCount = False
+                        break
+                self.sameColCount = True
+                for c in range(self.inMatrix.shape[1]):
+                    _,inCounts = np.unique(self.inMatrix.m[:,c], return_counts=True)
+                    _,outCounts = np.unique(self.outMatrix.m[:,c], return_counts=True)
+                    if not np.array_equal(inCounts, outCounts):
+                        self.sameColCount = False
+                        break
+                    
+            # Shapes in the input that are fixed
+            if self.sameShape:
+                self.fixedShapes = []
+                for sh in self.inMatrix.shapes:
+                    if sh.color in self.fixedColors:
+                        continue
+                    shapeIsFixed = True
+                    for i,j in np.ndindex(sh.shape):
+                        if sh.m[i,j] != 255:
+                            if self.outMatrix.m[sh.position[0]+i,sh.position[1]+j]!=sh.m[i,j]:
+                                shapeIsFixed=False
+                                break
+                    if shapeIsFixed:
+                        self.fixedShapes.append(sh)
+                    
+            # Frames
+            self.commonFullFrames = [f for f in self.inMatrix.fullFrames if f in self.outMatrix.fullFrames]
+            if len(self.inMatrix.fullFrames)==1:
+                frameM = self.inMatrix.fullFrames[0].m.copy()
+                frameM[frameM==255] = self.inMatrix.fullFrames[0].background
+                if frameM.shape==self.outMatrix.shape:
+                    self.frameIsOutShape = True
+                elif frameM.shape==(self.outMatrix.shape[0]+1, self.outMatrix.shape[1]+1):
+                    self.frameInsideIsOutShape = True
+            
+            # Grids
+            # Is the grid the same in the input and in the output?
+            self.gridIsUnchanged = self.inMatrix.isGrid and self.outMatrix.isGrid \
+            and self.inMatrix.grid == self.outMatrix.grid
+            # Does the shape of the grid cells determine the output shape?
+            if hasattr(self.inMatrix, "grid") and self.inMatrix.grid.allCellsSameShape:
+                self.gridCellIsOutputShape = self.outMatrix.shape == self.inMatrix.grid.cellShape
+            # Does the shape of the input determine the shape of the grid cells of the output?
+            if hasattr(self.outMatrix, "grid") and self.outMatrix.grid.allCellsSameShape:
+                self.gridCellIsInputShape = self.inMatrix.shape == self.outMatrix.grid.cellShape
+            # Do all the grid cells have one color?
+            if self.gridIsUnchanged:
+                self.gridCellsHaveOneColor = self.inMatrix.grid.allCellsHaveOneColor and\
+                                             self.outMatrix.grid.allCellsHaveOneColor
+            
+            # Is there a blank to fill?
+            self.inputHasBlank = len(self.inMatrix.blanks)>0
+            if self.inputHasBlank:
+                for s in self.inMatrix.blanks:
+                    if s.shape == self.outMatrix.shape:
+                        self.blankToFill = s
+                        
+             
+            # Does the output matrix follow a pattern?
+            self.followsRowPattern = self.outMatrix.followsRowPattern()
+            self.followsColPattern = self.outMatrix.followsColPattern()
         
     def getCommonShapes(self, diagonal=True, sameColor=False):
         comSh = []
@@ -985,12 +985,13 @@ class Sample():
 
 # %% Class Task
 class Task():
-    def __init__(self, t, i):
+    def __init__(self, t, i, submission=False):
         self.task = t
         self.index = i
+        self.submission = submission
         
-        self.trainSamples = [Sample(s) for s in t['train']]
-        self.testSamples = [Sample(s) for s in t['test']]
+        self.trainSamples = [Sample(s, "train") for s in t['train']]
+        self.testSamples = [Sample(s, "test") for s in t['test']]
         
         self.nTrain = len(self.trainSamples)
         self.nTest = len(self.testSamples)
@@ -1130,7 +1131,7 @@ class Task():
             else:
                 self.unchangedColors = [s.unchangedColors for s in self.trainSamples]
                 self.unchangedColors = set.intersection(*self.unchangedColors)
-
+                
         # Is the number of pixels changed always the same?
         """
         if self.sameIOShapes:
@@ -1187,22 +1188,20 @@ class Task():
             self.shapeFeatures += s.shapeFeatures
         """
         
-        """
         if self.sameIOShapes:
             self.fixedShapes = []
             for s in self.trainSamples:
-                for sh in s.fixedShapes:
-                    self.fixedShapes.append(sh)
+                for shape in s.fixedShapes:
+                    self.fixedShapes.append(shape)
             self.fixedShapeFeatures = []
             nFeatures = len(self.trainSamples[0].inMatrix.shapes[0].boolFeatures)
             for i in range(nFeatures):
                 self.fixedShapeFeatures.append(True)
-            for sh in self.fixedShapes:
-                self.fixedShapeFeatures = [sh.boolFeatures[i] and self.fixedShapeFeatures[i] \
+            for shape in self.fixedShapes:
+                self.fixedShapeFeatures = [shape.boolFeatures[i] and self.fixedShapeFeatures[i] \
                                              for i in range(nFeatures)]
-        """
-        
-        
+
+         
         self.orderedColors = self.orderColors()
         
         # Grids:
@@ -1327,4 +1326,5 @@ class Task():
                 
         # TODO Dealing with grids and frames
         
-        return orderedColors       
+        return orderedColors   
+        
