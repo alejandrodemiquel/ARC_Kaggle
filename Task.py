@@ -222,6 +222,7 @@ class Shape:
         
         self.nHoles = self.getNHoles()
         
+        """
         if self.nColors==1:
             self.boolFeatures = []
             for c in range(10):
@@ -238,6 +239,7 @@ class Shape:
                 self.boolFeatures.append(self.nPixels==nPix)
             self.boolFeatures.append((self.nPixels%2)==0)
             self.boolFeatures.append((self.nPixels%2)==1)
+        """
     
     def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
         if samePosition:
@@ -308,16 +310,13 @@ class Shape:
         """
         return (self.m!=255).astype(np.uint8) 
     
+    """
     def hasFeatures(self, features):
-        """
-        This method returns True if all the properties set to True in the
-        boolean 'features' list are alse set to True in self.boolFeatures.
-        Otherwise, it returns False.
-        """
         for i in range(len(features)):
             if features[i] and not self.boolFeatures[i]:
                 return False
-        return True   
+        return True
+    """
 
     def getNHoles(self):
         nHoles = 0
@@ -547,18 +546,7 @@ class Matrix():
         for s in self.shapes:
             if s.isRectangle and self.shapeColorCounter[s.color]==1:
                 self.blanks.append(s)
-                
-        # Smallest and biggest shapes:
-        biggestShape = 0
-        smallestShape = 1000
-        for sh in self.shapes:
-            if not sh.color==self.backgroundColor:
-                if sh.nPixels>biggestShape:
-                    biggestShape=sh.nPixels
-                if sh.nPixels<smallestShape:
-                    smallestShape=sh.nPixels
             
-        
         # Frontiers
         self.frontiers = detectFrontiers(self.m)
         self.frontierColors = [f.color for f in self.frontiers]
@@ -576,39 +564,6 @@ class Matrix():
                     self.grid = copy.deepcopy(possibleGrid)
                     self.isGrid = True
                     break 
-                
-        # Shape features
-        shapeFeatures = []
-        for sh in self.shapes:
-            shFeatures = []
-            for c in range(10):
-                shFeatures.append(sh.color==c)
-            shFeatures.append(sh.isBorder)
-            shFeatures.append(not sh.isBorder)
-            shFeatures.append(sh.lrSymmetric)
-            shFeatures.append(sh.udSymmetric)
-            shFeatures.append(sh.d1Symmetric)
-            shFeatures.append(sh.d2Symmetric)
-            shFeatures.append(sh.isSquare)
-            shFeatures.append(sh.isRectangle)
-            for nPix in range(1,30):
-                shFeatures.append(sh.nPixels==nPix)
-            for nPix in range(1,6):
-                shFeatures.append(sh.nPixels>nPix)
-            for nPix in range(2,7):
-                shFeatures.append(sh.nPixels<nPix)
-            shFeatures.append((sh.nPixels%2)==0)
-            shFeatures.append((sh.nPixels%2)==1)
-            for h in range(5):
-                shFeatures.append(sh.nHoles==h)
-            shFeatures.append(sh.nPixels==biggestShape)
-            shFeatures.append(sh.nPixels==smallestShape)
-            #shFeatures.append(self.isUniqueShape(sh))
-            #shFeatures.append(not self.isUniqueShape(sh))
-            
-            shapeFeatures.append(shFeatures)
-            
-        self.shapeFeatures = shapeFeatures
                 
         # Frames
         self.fullFrames = []
@@ -705,17 +660,13 @@ class Matrix():
                     return i
         return False
     
+    """
     def shapeHasFeatures(self, index, features):
-        """
-        This method returns True if all the properties set to True in the
-        boolean 'features' list are alse set to True in self.boolFeatures.
-        Otherwise, it returns False.
-        'index' corresponds to the index of the shape in the self.shapes list.
-        """
         for i in range(len(features)):
             if features[i] and not self.shapeFeatures[index][i]:
                 return False
         return True
+    """
     
     def isUniqueShape(self, shape):
         count = 0
@@ -1236,6 +1187,7 @@ class Task():
             self.shapeFeatures += s.shapeFeatures
         """
         
+        """
         if self.sameIOShapes:
             self.fixedShapes = []
             for s in self.trainSamples:
@@ -1248,6 +1200,7 @@ class Task():
             for sh in self.fixedShapes:
                 self.fixedShapeFeatures = [sh.boolFeatures[i] and self.fixedShapeFeatures[i] \
                                              for i in range(nFeatures)]
+        """
         
         
         self.orderedColors = self.orderColors()

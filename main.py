@@ -361,7 +361,6 @@ def tryOperations(t, c, firstIt=False):
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
-            b3c.addCandidate(newCandidate)
             newCandidate.generateTask()
             tryOperations(t, newCandidate)
         #elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
@@ -403,22 +402,10 @@ replicateShape = [68, 645, 367, 421, 207, 362, 431, 494, 524]
 cropShape = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,576,578,635,712,727,785,690]
 #, 190, 367, 421, 431, 524
 count=0
-for idx in tqdm(range(800), position=0, leave=True):
+for idx in tqdm(evolveTasks, position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
-
-    if t.sameIOShapes and t.onlyShapeColorChanges:
-        totalCount = 0
-        ccwp = Utils.getColorChangesWithFeatures(t)
-        pred = Utils.changeShapesWithFeatures(t.testSamples[0].inMatrix, ccwp, t.fixedColors)
-        #plot_sample(t.testSamples[0], pred)
-        if Utils.incorrectPixels(t.testSamples[0].outMatrix.m, pred)==0:
-            count += 1
-            #plot_task(idx)
-        else:
-            plot_task(idx)
-
 
     cTask = copy.deepcopy(task)
     if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
@@ -464,14 +451,13 @@ for idx in tqdm(range(800), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
                 x = recoverGrid(t, x)
-            plot_sample(t.testSamples[s], x)
-            break
+            #plot_sample(t.testSamples[s], x)
             if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)
-                #plot_task(task)
+                plot_task(task)
                 count += 1
-                #break
+                break
                 solved.append(Solution(idx, taskId, c.ops))
                 solvedIds.append(idx)
                 #break
