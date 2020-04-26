@@ -1552,6 +1552,16 @@ def dummifyColor(x, color):
     img[1] = x==color
     return img
 
+def updateBestFunction(t, f, bestScore, bestFunction):
+    score = 0
+    for sample in t.trainSamples:
+        pred = f(sample.inMatrix)
+        score += incorrectPixels(sample.outMatrix.m, pred)
+    if score < bestScore:
+        bestScore = score
+        bestFunction = f
+    return bestFunction
+
 # %% Symmetrize
 
 # 7/800 solved
@@ -2154,19 +2164,6 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
     return m
     
 def getBestEvolve(t):
-    def updateBestFunction(f, bestScore, bestFunction):
-        score = 0
-        for sample in t.trainSamples:
-            f(sample.inMatrix)
-            pred = applyEvolve(sample.inMatrix, cfn=cfn, nColors=nColors, changedOutColors=coc,\
-                               fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
-                               kernel=None, border=0)
-            score += incorrectPixels(sample.outMatrix.m, pred)
-        if score < bestScore:
-            bestScore = score
-            bestFunction = f
-        return bestFunction
-    
     nColors = t.trainSamples[0].nColors
     fc = t.fixedColors
     cic = t.commonChangedInColors
@@ -2181,46 +2178,46 @@ def getBestEvolve(t):
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0)
-        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        bestFunction = updateBestFunction(t, copy.deepcopy(f), bestScore, bestFunction)
             
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0)
-        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        bestFunction = updateBestFunction(t, copy.deepcopy(f), bestScore, bestFunction)
 
     else:
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0, commonColors=t.orderedColors)
-        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        bestFunction = updateBestFunction(t, copy.deepcopy(f), bestScore, bestFunction)
             
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0, commonColors=t.orderedColors)
-        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        bestFunction = updateBestFunction(t, copy.deepcopy(f), bestScore, bestFunction)
         
     cfn = evolve(t, includeRotations=True)
     if t.allEqual(t.sampleColors):
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0)
-        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        bestFunction = updateBestFunction(t, copy.deepcopy(f), bestScore, bestFunction)
             
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0)
-        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        bestFunction = updateBestFunction(t, copy.deepcopy(f), bestScore, bestFunction)
 
     else:
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0, commonColors=t.orderedColors)
-        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        bestFunction = updateBestFunction(t, copy.deepcopy(f), bestScore, bestFunction)
             
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0, commonColors=t.orderedColors)
-        bestFunction = updateBestFunction(copy.deepcopy(f), bestScore, bestFunction)
+        bestFunction = updateBestFunction(t, copy.deepcopy(f), bestScore, bestFunction)
         
     return bestFunction
 

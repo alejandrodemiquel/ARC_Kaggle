@@ -402,7 +402,7 @@ scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,576,578,635,712,727,785,690]
 #, 190, 367, 421, 431, 524
 count=0
-for idx in tqdm(evolveTasks, position=0, leave=True):
+for idx in tqdm(range(30), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     t = Task.Task(task, taskId)
