@@ -272,6 +272,7 @@ class Shape:
         The method checks if a shape fits inside another. Can take into account rotations and mirrors. 
         Maybe it should be updated to return the positions of subshapes instead of a boolean?
         """
+        #return positions
         if rotation:
             m1 = self.m
             for x in range(1,4):
@@ -699,13 +700,6 @@ class Matrix():
             sc = Counter([sh.nPixels for sh in shapeList if sh.color != backgroundColor])
         else:
             sc = Counter([sh.nPixels for sh in shapeList])
-        #is it the only shape?
-        #if len([sh for sh in shapeList if (sh.color != backgroundColor)]) == 1:
-        #    for i in range(len(shapeList)):
-        #        if shapeList[i].color != backgroundColor:        
-        #            attrList[i].append('OneSh')
-        #            break
-        #    return [set(l[1:]) for l in attrList]
         largest, smallest, mcopies, mcolors = -1, 1000, 0, 0
         ila, ism = [], []
         for i in range(len(shapeList)):
@@ -758,6 +752,7 @@ class Matrix():
                 attrList[i].append('D2Sy')
             else:
                 attrList[i].append('ND2Sy')
+            attrList[i].append(shapeList[i].position)
     
         if len(ism) == 1:
             attrList[ism[0]].append('SmSh')
