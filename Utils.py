@@ -98,8 +98,8 @@ def updateBestFunction(t, f, bestScore, bestFunction):
     """
     Given a task t, a partial function f, a best score and a best function, 
     this function executes f to all the matrices in t.trainSamples. If the
-    resulting score is lower than bestScore, then it returns f. Otherwise, it
-    returns bestFunction again.
+    resulting score is lower than bestScore, then it returns f and the new
+    best score. Otherwise, it returns bestFunction again.
     """
     fun = copy.deepcopy(f)
     score = 0
@@ -109,7 +109,7 @@ def updateBestFunction(t, f, bestScore, bestFunction):
     if score < bestScore:
         bestScore = score
         bestFunction = fun
-    return bestFunction
+    return bestFunction, bestScore
 
 # %% Symmetrize
 
@@ -727,46 +727,46 @@ def getBestEvolve(t):
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0)
-        bestFunction = updateBestFunction(t, f, bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0)
-        bestFunction = updateBestFunction(t, f, bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
 
     else:
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0, commonColors=t.orderedColors)
-        bestFunction = updateBestFunction(t, f, bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0, commonColors=t.orderedColors)
-        bestFunction = updateBestFunction(t, f, bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         
     cfn = evolve(t, includeRotations=True)
     if t.allEqual(t.sampleColors):
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0)
-        bestFunction = updateBestFunction(t, f, bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0)
-        bestFunction = updateBestFunction(t, f, bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
 
     else:
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0, commonColors=t.orderedColors)
-        bestFunction = updateBestFunction(t, f, bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0, commonColors=t.orderedColors)
-        bestFunction = updateBestFunction(t, f, bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         
     return bestFunction
 
@@ -1558,17 +1558,12 @@ def getBestMoveShapes(t):
     """
     directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
     bestScore = 1000
-    
+    bestFunction = partial(identityM)
+        
     # Move all shapes in a specific direction, until a non-background thing is touched
     for d in directions:
-        score = 0
-        for s in t.trainSamples:
-            score += incorrectPixels(s.outMatrix.m, \
-                                     moveAllShapes(s.inMatrix, background=t.backgroundColor,\
-                                                   until=-2, direction=d))
-        if score < bestScore:
-            bestScore = score
-            x = partial(moveAllShapes, background=t.backgroundColor, until=-2, direction=d)
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2, direction=d)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         
     colorsToChange = list(t.colors - t.fixedColors -\
                           set({t.backgroundColor}))
@@ -1578,47 +1573,24 @@ def getBestMoveShapes(t):
             moveUntil = colorsToChange + [-1] + [-2] #Border, any
             #for u in t.colors - set(c) | set({-1}):
             for u in moveUntil:
-                score = 0
-                for s in t.trainSamples:
-                    score += incorrectPixels(s.outMatrix.m, \
-                                             moveAllShapes(s.inMatrix, color=c, \
-                                                           background=t.backgroundColor,\
-                                                           direction=d, until=u))
-                if score < bestScore:
-                    bestScore = score
-                    x = partial(moveAllShapes, color=c, background=t.backgroundColor,\
+                f = partial(moveAllShapes, color=c, background=t.backgroundColor,\
                                 direction=d, until=u)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             
     if t.backgroundColor != -1 and hasattr(t, 'fixedColors'):
         colorsToMove = set(range(10)) - set([t.backgroundColor]) -\
         t.fixedColors
         for ctm in colorsToMove:
             for uc in t.unchangedColors:
-                score = 0
-                for s in t.trainSamples:
-                    score += incorrectPixels(s.outMatrix.m, \
-                                             moveAllShapesToClosest(s.inMatrix,\
-                                                                    background=t.backgroundColor,\
-                                                                    colorsToMove=ctm,\
-                                                                    until=uc))
-                if score < bestScore:
-                    bestScore = score
-                    x = partial(moveAllShapesToClosest, colorsToMove=ctm,\
+                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                                  background=t.backgroundColor, until=uc)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 
-                score = 0
-                for s in t.trainSamples:
-                    score += incorrectPixels(s.outMatrix.m, \
-                                             moveAllShapesToClosest(s.inMatrix, \
-                                                                    background=t.backgroundColor,\
-                                                                    colorsToMove=ctm,\
-                                                                    until=uc, diagonals=True))
-                if score < bestScore:
-                    bestScore = score
-                    x = partial(moveAllShapesToClosest, colorsToMove=ctm,\
-                                 background=t.backgroundColor, until=uc, diagonals=True)
+                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
+                            background=t.backgroundColor, until=uc, diagonals=True)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                         
-    return x
+    return bestFunction
 
 # %% Complete rectangles
 def completeRectangles(matrix, sourceColor, newColor):
