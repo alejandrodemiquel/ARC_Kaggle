@@ -491,8 +491,10 @@ cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,576,578,635
 replicateShapes = [68, 645, 367, 421, 207, 362, 431, 494, 524]
 #, 190, 367, 421, 431, 524
 count=0
-for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[31]
+# 24,788,92,130,567,29,34,52,77,127
+# 7,31,249,269,545,719,741,24,788
+for idx in tqdm([7,31,249,269,545,719,741,24,788], position=0, leave=True):
+    taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId)
 
