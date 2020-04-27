@@ -493,7 +493,7 @@ replicateShapes = [68, 645, 367, 421, 207, 362, 431, 494, 524]
 count=0
 # 24,788,92,130,567,29,34,52,77,127
 # 7,31,249,269,545,719,741,24,788
-for idx in tqdm([7,31,249,269,545,719,741,24,788], position=0, leave=True):
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId)

@@ -985,8 +985,8 @@ class Task():
         self.index = i
         self.submission = submission
         
-        self.trainSamples = [Sample(s, "train") for s in t['train']]
-        self.testSamples = [Sample(s, "test") for s in t['test']]
+        self.trainSamples = [Sample(s, "train", submission) for s in t['train']]
+        self.testSamples = [Sample(s, "test", submission) for s in t['test']]
         
         self.nTrain = len(self.trainSamples)
         self.nTest = len(self.testSamples)

@@ -1510,16 +1510,24 @@ def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False, r
         for c in s.pixels:
             pixelPos = tuple(map(operator.add, c, s.position))
             if nSteps <= pixelPos[0] and m[pixelPos[0]-nSteps, pixelPos[1]] == until:
-                s.position = (s.position[0]-nSteps+1, s.position[1])
+                while nSteps>=0 and m[pixelPos[0]-nSteps, pixelPos[1]]!=background:
+                    nSteps-=1
+                s.position = (s.position[0]-nSteps, s.position[1])
                 return insertShape(m, s)
             if pixelPos[0]+nSteps < m.shape[0] and m[pixelPos[0]+nSteps, pixelPos[1]] == until:
-                s.position = (s.position[0]+nSteps-1, s.position[1])
+                while nSteps>=0 and m[pixelPos[0]+nSteps, pixelPos[1]]!=background:
+                    nSteps-=1
+                s.position = (s.position[0]+nSteps, s.position[1])
                 return insertShape(m, s)
             if nSteps <= pixelPos[1] and m[pixelPos[0], pixelPos[1]-nSteps] == until:
-                s.position = (s.position[0], s.position[1]-nSteps+1)
+                while nSteps>=0 and m[pixelPos[0], pixelPos[1]-nSteps]!=background:
+                    nSteps-=1
+                s.position = (s.position[0], s.position[1]-nSteps)
                 return insertShape(m, s)
             if pixelPos[1]+nSteps < m.shape[1] and m[pixelPos[0], pixelPos[1]+nSteps] == until:
-                s.position = (s.position[0], s.position[1]+nSteps-1)
+                while nSteps>=0 and m[pixelPos[0], pixelPos[1]+nSteps]!=background:
+                    nSteps-=1
+                s.position = (s.position[0], s.position[1]+nSteps)
                 return insertShape(m, s)
             if diagonals:
                 if nSteps <= pixelPos[0] and nSteps <= pixelPos[1] and \
@@ -1559,6 +1567,8 @@ def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, \
             if hasFeatures(shape.boolFeatures, fixedShapeFeatures):
                 fixedShapes.append(shape)
                 colorsToMove.append(shape.color)
+    elif colorsToMove==None:
+        colorsToMove = matrix.colors - set([background, until])
     else:
         colorsToMove = [colorsToMove]
     for ctm in colorsToMove:
