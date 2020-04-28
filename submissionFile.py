@@ -4744,7 +4744,7 @@ class Candidate():
         Assign to the attribute t the Task.Task object corresponding to the
         current task status.
         """
-        self.t = Task.Task(self.tasks[-1], 'dummyIndex')
+        self.t = Task(self.tasks[-1], 'dummyIndex', submission=True)
 
 class Best3Candidates():
     """
