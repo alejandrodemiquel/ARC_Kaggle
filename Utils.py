@@ -2212,6 +2212,10 @@ def minimize(matrix):
 # %% Operations to extend matrices
     
 def getFactor(matrix, factor):
+    """
+    Given a Task.Task.inShapeFactor (that can be a string), this function
+    returns its corresponding tuple for the given matrix.
+    """
     if factor == "squared":
         f = (matrix.shape[0], matrix.shape[1])
     elif factor == "xSquared":
@@ -2274,6 +2278,8 @@ def getBestMosaic(t):
     Given a task t, this function tries to find the best way to generate a
     mosaic, given that the output shape is always bigger than the input shape
     with a shape factor that makes sense.
+    A mosaic is a matrix that takes an input matrix as reference, and then
+    copies it many times. The copies can include rotations or mirrorings.
     """
     factor = t.inShapeFactor
     ops = []
@@ -2305,6 +2311,10 @@ def getBestMosaic(t):
     return bestOps
 
 def generateMosaic(matrix, ops, factor):
+    """
+    Generates a mosaic from the given matrix using the operations given in the
+    list ops. The output matrix has shape matrix.shape*factor.
+    """
     m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
     for i in range(factor[0]):
         for j in range(factor[1]):
@@ -2458,6 +2468,11 @@ def outputIsSubmatrix(t, isGrid=False):
     return True
 
 def selectSubmatrixWithMaxColor(matrix, color, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix, this function returns the submatrix with most appearances
+    of the color given. If the matrix is not a grid, an outShapeFactor must be
+    specified.
+    """
     if isGrid:
         matrices = [c[0].m for c in matrix.grid.cellList]
     else:
@@ -2481,6 +2496,11 @@ def selectSubmatrixWithMaxColor(matrix, color, outShapeFactor=None, isGrid=False
         return bestMatrix
     
 def selectSubmatrixWithMinColor(matrix, color, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix, this function returns the submatrix with least appearances
+    of the color given. If the matrix is not a grid, an outShapeFactor must be
+    specified.
+    """
     if isGrid:
         matrices = [c[0].m for c in matrix.grid.cellList]
     else:
@@ -2504,6 +2524,10 @@ def selectSubmatrixWithMinColor(matrix, color, outShapeFactor=None, isGrid=False
         return bestMatrix
     
 def selectSubmatrixWithMostColors(matrix, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix, this function returns the submatrix with the most number of
+    colors. If the matrix is not a grid, an outShapeFactor must be specified.
+    """
     if isGrid:
         matrices = [c[0].m for c in matrix.grid.cellList]
     else:
@@ -2526,6 +2550,11 @@ def selectSubmatrixWithMostColors(matrix, outShapeFactor=None, isGrid=False):
         return bestMatrix
     
 def selectSubmatrixWithLeastColors(matrix, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix, this function returns the submatrix with the least number
+    of colors. If the matrix is not a grid, an outShapeFactor must be
+    specified.
+    """
     if isGrid:
         matrices = [c[0].m for c in matrix.grid.cellList]
     else:
@@ -2548,6 +2577,13 @@ def selectSubmatrixWithLeastColors(matrix, outShapeFactor=None, isGrid=False):
         return bestMatrix
         
 def getBestSubmatrixPosition(t, outShapeFactor=None, isGrid=False):
+    """
+    Given a task t, and assuming that all the input matrices have the same
+    shape and all the ouptut matrices have the same shape too, this function
+    tries to check whether the output matrix is just the submatrix in a given
+    position. If that's the case, it returns the position. Otherwise, it
+    returns 0.
+    """
     iteration = 0
     possiblePositions = []
     for sample in t.trainSamples:
@@ -2569,6 +2605,11 @@ def getBestSubmatrixPosition(t, outShapeFactor=None, isGrid=False):
         return 0
                 
 def selectSubmatrixInPosition(matrix, position, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix and a position, this function returns the submatrix that
+    appears in the given position (submatrices are either defined by
+    outShapeFactor or by the shape of the grid cells).
+    """
     if isGrid:
         matrices = [c[0].m for c in matrix.grid.cellList]
     else:
