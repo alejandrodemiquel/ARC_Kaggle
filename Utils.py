@@ -2550,7 +2550,17 @@ def selectSubmatrixInPosition(matrix, position, outShapeFactor=None, isGrid=Fals
         matrices = getSubmatrices(matrix.m, outShapeFactor)
         
     return matrices[position].copy()
-    
+
+def maxColorFromCell(matrix):
+    """
+    Only to be called if matrix.isGrid.
+    """
+    m = np.zeros(matrix.grid.shape, dtype=np.uint8)
+    for i,j  in np.ndindex(matrix.grid.shape):
+        color = max(matrix.grid.cells[i][j][0].colorCount.items(), key=operator.itemgetter(1))[0]
+        m[i,j] = color
+    return m
+        
 def pixelwiseAndInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
     matrices = getSubmatrices(matrix.m.copy(), factor)
     return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
@@ -3143,6 +3153,10 @@ def getPossibleOperations(t, c):
                         x.append(partial(pixelwiseXorInSubmatrices, \
                                          factor=candTask.outShapeFactor, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
+    
+    if candTask.inputIsGrid:
+        if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
+            x.append(partial(maxColorFromCell))
     
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         if outputIsSubmatrix(candTask, isGrid=True):

@@ -1195,6 +1195,8 @@ class Task():
         self.orderedColors = self.orderColors()
         
         # Grids:
+        self.inputIsGrid = all([s.inMatrix.isGrid for s in self.trainSamples+self.testSamples])
+        self.outputIsGrid = all([s.outMatrix.isGrid for s in self.trainSamples])
         self.hasUnchangedGrid = all([s.gridIsUnchanged for s in self.trainSamples])
         if all([hasattr(s, "gridCellIsOutputShape") for s in self.trainSamples]):
             self.gridCellIsOutputShape = all([s.gridCellIsOutputShape for s in self.trainSamples])

@@ -356,7 +356,10 @@ def orderTaskColors(t):
                 outMatrix = np.zeros(sample.outMatrix.shape, dtype=np.uint8)
                 for c in sample.outMatrix.colors:
                     outMatrix[sample.outMatrix.m==c] = invRel[c]
-                task['train'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
+                if trainOrTest=='train':
+                    task['train'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
+                else:
+                    task['test'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
             else:
                 task['test'].append({'input': inMatrix.tolist()})
         
@@ -425,7 +428,8 @@ def tryOperations(t, c, firstIt=False):
     """
     if c.score==0 or b3c.allPerfect():
         return
-    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize")
+    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize", \
+                "maxColorFromCell")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
@@ -493,7 +497,7 @@ replicateShapes = [68, 645, 367, 421, 207, 362, 431, 494, 524]
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm([534,561,747], position=0, leave=True):
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId)
