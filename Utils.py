@@ -2137,6 +2137,62 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
                 m[i,j] = falseColor
     return m
 
+# %% Downsize and Minimize
+    
+def getDownsizeFactors(matrix):
+    xDivisors = set()
+    for x in range(1, matrix.shape[0]):
+        if (matrix.shape[0]%x)==0:
+            xDivisors.add(x)
+    yDivisors = set()
+    for y in range(1, matrix.shape[1]):
+        if (matrix.shape[1]%y)==0:
+            yDivisors.add(y)
+    
+    downsizeFactors = set()
+    for x,y in product(xDivisors, yDivisors):
+        downsizeFactors.add((x,y))
+ 
+    return downsizeFactors
+
+def downsize(matrix, newShape):
+    if (matrix.shape[0]%newShape[0])!=0 or (matrix.shape[1]%newShape[1])!=0:
+        return matrix.m.copy()
+    xBlock = int(matrix.shape[0]/newShape[0])
+    yBlock = int(matrix.shape[1]/newShape[1])
+    m = np.full(newShape, matrix.backgroundColor, dtype=np.uint8)
+    for i,j in np.ndindex(newShape[0], newShape[1]):
+        color = -1
+        for x,y in np.ndindex(xBlock, yBlock):
+            if matrix.m[i*xBlock+x, j*yBlock+y] not in [matrix.backgroundColor, color]:
+                if color==-1:
+                    color = matrix.m[i*xBlock+x, j*yBlock+y]
+                else:
+                    return matrix.m.copy()
+        if color==-1:
+            m[i,j] = matrix.backgroundColor
+        else:
+            m[i,j] = color
+    return m
+
+def minimize(matrix):
+    m = matrix.m.copy()
+    x = 1
+    for i in range(1, matrix.shape[0]):
+        if np.array_equal(m[x,:],m[x-1,:]):
+            m = np.delete(m, (x), axis=0)
+        else:
+            x+=1
+    x = 1
+    for i in range(1, matrix.shape[1]):
+        if np.array_equal(m[:,x],m[:,x-1]):
+            m = np.delete(m, (x), axis=1)
+        else:
+            x+=1
+    return m
+            
+        
+
 # %% Operations to extend matrices
     
 def getFactor(matrix, factor):
@@ -2795,6 +2851,15 @@ def getPossibleOperations(t, c):
     # switchColors
     if all([n==2 for n in candTask.nInColors]):
         x.append(partial(switchColors))
+        
+    # downsize
+    if candTask.sameOutShape:
+        outShape = candTask.outShape
+        x.append(partial(downsize, newShape=outShape))
+        
+    # minimize
+    x.append(partial(minimize))
+        
     
     ###########################################################################
     # sameIOShapes

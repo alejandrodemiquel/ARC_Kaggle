@@ -1044,12 +1044,7 @@ class Task():
                 
         # Is the output always smaller?
         self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
-        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)
-        
-        # Is the output always smaller?
-        self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
-        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)
-            
+        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)            
                 
         # Check for I/O subsets
         """
