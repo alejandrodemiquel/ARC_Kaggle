@@ -2140,6 +2140,9 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
 # %% Downsize and Minimize
     
 def getDownsizeFactors(matrix):
+    """
+    Still unused
+    """
     xDivisors = set()
     for x in range(1, matrix.shape[0]):
         if (matrix.shape[0]%x)==0:
@@ -2156,6 +2159,13 @@ def getDownsizeFactors(matrix):
     return downsizeFactors
 
 def downsize(matrix, newShape):
+    """
+    Given a matrix and a shape, this function returns a new matrix with the
+    given shape. The elements of the return matrix are given by the colors of 
+    each of the submatrices. Each submatrix is only allowed to have the
+    background color and at most another one (that will define the output
+    color of the corresponding pixel).
+    """
     if (matrix.shape[0]%newShape[0])!=0 or (matrix.shape[1]%newShape[1])!=0:
         return matrix.m.copy()
     xBlock = int(matrix.shape[0]/newShape[0])
@@ -2176,6 +2186,12 @@ def downsize(matrix, newShape):
     return m
 
 def minimize(matrix):
+    """
+    Given a matrix, this function returns the matrix resulting from the
+    following operations:
+        If two consecutive rows are equal, delete one of them
+        If two consecutive columns are equal, delete one of them
+    """
     m = matrix.m.copy()
     x = 1
     for i in range(1, matrix.shape[0]):
@@ -2254,6 +2270,11 @@ def matrixBotRight(matrix, factor, background=0):
     return m
 
 def getBestMosaic(t):
+    """
+    Given a task t, this function tries to find the best way to generate a
+    mosaic, given that the output shape is always bigger than the input shape
+    with a shape factor that makes sense.
+    """
     factor = t.inShapeFactor
     ops = []
     ops.append(partial(identityM))
@@ -2406,6 +2427,10 @@ def multiplyPixelsAndXor(matrix, factor, falseColor):
 # %% Operations considering all submatrices of task with outShapeFactor
     
 def getSubmatrices(m, factor):
+    """
+    Given a matrix m and a factor, this function returns a list of all the
+    submatrices with shape determined by the factor.
+    """
     matrices = []
     nRows = int(m.shape[0] / factor[0])
     nCols = int(m.shape[1] / factor[1])
@@ -2554,6 +2579,9 @@ def selectSubmatrixInPosition(matrix, position, outShapeFactor=None, isGrid=Fals
 def maxColorFromCell(matrix):
     """
     Only to be called if matrix.isGrid.
+    Given a matrix with a grid, this function returns a matrix with the same
+    shape as the grid. Every pixel of the matrix will be colored with the 
+    color that appears the most in the corresponding cell of the grid.
     """
     m = np.zeros(matrix.grid.shape, dtype=np.uint8)
     for i,j  in np.ndindex(matrix.grid.shape):

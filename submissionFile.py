@@ -1075,12 +1075,7 @@ class Task():
                 
         # Is the output always smaller?
         self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
-        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)
-        
-        # Is the output always smaller?
-        self.outSmallerThanIn = all(s.outSmallerThanIn for s in self.trainSamples)
-        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)
-            
+        self.inSmallerThanOut = all(s.inSmallerThanOut for s in self.trainSamples)            
                 
         # Check for I/O subsets
         """
@@ -1231,6 +1226,8 @@ class Task():
         self.orderedColors = self.orderColors()
         
         # Grids:
+        self.inputIsGrid = all([s.inMatrix.isGrid for s in self.trainSamples+self.testSamples])
+        self.outputIsGrid = all([s.outMatrix.isGrid for s in self.trainSamples])
         self.hasUnchangedGrid = all([s.gridIsUnchanged for s in self.trainSamples])
         if all([hasattr(s, "gridCellIsOutputShape") for s in self.trainSamples]):
             self.gridCellIsOutputShape = all([s.gridCellIsOutputShape for s in self.trainSamples])
@@ -1353,7 +1350,7 @@ class Task():
         # TODO Dealing with grids and frames
         
         return orderedColors   
-    
+        
 #############################################################################
 # %% Models
         
@@ -1418,7 +1415,7 @@ class LSTMTagger(nn.Module):
 
         # The linear layer that maps from hidden state space to tag space
         self.hidden2tag = nn.Linear(hidden_dim, tagset_size)
-
+        
     def forward(self, sentence):
         embeds = self.word_embeddings(sentence)
         lstm_out, _ = self.lstm(embeds.view(len(sentence), 1, -1))
@@ -1440,7 +1437,6 @@ def pixelCorrespondence(t):
         for i,j in np.ndindex(t.inShape):
             pixelsColored[m[i,j]].append((i,j))
         pixelsColoredAllSamples.append(pixelsColored)
-    
     # For each pixel in output matrix, find correspondent pixel in input matrix
     pixelMap = {}
     for i,j in np.ndindex(t.outShape):
@@ -3587,6 +3583,78 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
                 m[i,j] = falseColor
     return m
 
+# %% Downsize and Minimize
+    
+def getDownsizeFactors(matrix):
+    """
+    Still unused
+    """
+    xDivisors = set()
+    for x in range(1, matrix.shape[0]):
+        if (matrix.shape[0]%x)==0:
+            xDivisors.add(x)
+    yDivisors = set()
+    for y in range(1, matrix.shape[1]):
+        if (matrix.shape[1]%y)==0:
+            yDivisors.add(y)
+    
+    downsizeFactors = set()
+    for x,y in product(xDivisors, yDivisors):
+        downsizeFactors.add((x,y))
+ 
+    return downsizeFactors
+
+def downsize(matrix, newShape):
+    """
+    Given a matrix and a shape, this function returns a new matrix with the
+    given shape. The elements of the return matrix are given by the colors of 
+    each of the submatrices. Each submatrix is only allowed to have the
+    background color and at most another one (that will define the output
+    color of the corresponding pixel).
+    """
+    if (matrix.shape[0]%newShape[0])!=0 or (matrix.shape[1]%newShape[1])!=0:
+        return matrix.m.copy()
+    xBlock = int(matrix.shape[0]/newShape[0])
+    yBlock = int(matrix.shape[1]/newShape[1])
+    m = np.full(newShape, matrix.backgroundColor, dtype=np.uint8)
+    for i,j in np.ndindex(newShape[0], newShape[1]):
+        color = -1
+        for x,y in np.ndindex(xBlock, yBlock):
+            if matrix.m[i*xBlock+x, j*yBlock+y] not in [matrix.backgroundColor, color]:
+                if color==-1:
+                    color = matrix.m[i*xBlock+x, j*yBlock+y]
+                else:
+                    return matrix.m.copy()
+        if color==-1:
+            m[i,j] = matrix.backgroundColor
+        else:
+            m[i,j] = color
+    return m
+
+def minimize(matrix):
+    """
+    Given a matrix, this function returns the matrix resulting from the
+    following operations:
+        If two consecutive rows are equal, delete one of them
+        If two consecutive columns are equal, delete one of them
+    """
+    m = matrix.m.copy()
+    x = 1
+    for i in range(1, matrix.shape[0]):
+        if np.array_equal(m[x,:],m[x-1,:]):
+            m = np.delete(m, (x), axis=0)
+        else:
+            x+=1
+    x = 1
+    for i in range(1, matrix.shape[1]):
+        if np.array_equal(m[:,x],m[:,x-1]):
+            m = np.delete(m, (x), axis=1)
+        else:
+            x+=1
+    return m
+            
+        
+
 # %% Operations to extend matrices
     
 def getFactor(matrix, factor):
@@ -3648,6 +3716,11 @@ def matrixBotRight(matrix, factor, background=0):
     return m
 
 def getBestMosaic(t):
+    """
+    Given a task t, this function tries to find the best way to generate a
+    mosaic, given that the output shape is always bigger than the input shape
+    with a shape factor that makes sense.
+    """
     factor = t.inShapeFactor
     ops = []
     ops.append(partial(identityM))
@@ -3800,6 +3873,10 @@ def multiplyPixelsAndXor(matrix, factor, falseColor):
 # %% Operations considering all submatrices of task with outShapeFactor
     
 def getSubmatrices(m, factor):
+    """
+    Given a matrix m and a factor, this function returns a list of all the
+    submatrices with shape determined by the factor.
+    """
     matrices = []
     nRows = int(m.shape[0] / factor[0])
     nCols = int(m.shape[1] / factor[1])
@@ -3836,7 +3913,7 @@ def selectSubmatrixWithMaxColor(matrix, color, outShapeFactor=None, isGrid=False
     matricesWithProperty = 0
     bestMatrix = None
     for mat in matrices:
-        m = Task.Matrix(mat)
+        m = Matrix(mat)
         if color in m.colors:
             if m.colorCount[color]>maxCount:
                 bestMatrix = mat.copy()
@@ -3859,7 +3936,7 @@ def selectSubmatrixWithMinColor(matrix, color, outShapeFactor=None, isGrid=False
     matricesWithProperty = 0
     bestMatrix = None
     for mat in matrices:
-        m = Task.Matrix(mat)
+        m = Matrix(mat)
         if color in m.colors:
             if m.colorCount[color]<minCount:
                 bestMatrix = mat.copy()
@@ -3882,7 +3959,7 @@ def selectSubmatrixWithMostColors(matrix, outShapeFactor=None, isGrid=False):
     matricesWithProperty = 0
     bestMatrix = None
     for mat in matrices:
-        m = Task.Matrix(mat)
+        m = Matrix(mat)
         if len(m.colorCount)>maxNColors:
             bestMatrix = mat.copy()
             maxNColors = len(m.colorCount)
@@ -3904,7 +3981,7 @@ def selectSubmatrixWithLeastColors(matrix, outShapeFactor=None, isGrid=False):
     matricesWithProperty = 0
     bestMatrix = None
     for mat in matrices:
-        m = Task.Matrix(mat)
+        m = Matrix(mat)
         if len(m.colorCount)<minNColors:
             bestMatrix = mat.copy()
             minNColors = len(m.colorCount)
@@ -3944,7 +4021,20 @@ def selectSubmatrixInPosition(matrix, position, outShapeFactor=None, isGrid=Fals
         matrices = getSubmatrices(matrix.m, outShapeFactor)
         
     return matrices[position].copy()
-    
+
+def maxColorFromCell(matrix):
+    """
+    Only to be called if matrix.isGrid.
+    Given a matrix with a grid, this function returns a matrix with the same
+    shape as the grid. Every pixel of the matrix will be colored with the 
+    color that appears the most in the corresponding cell of the grid.
+    """
+    m = np.zeros(matrix.grid.shape, dtype=np.uint8)
+    for i,j  in np.ndindex(matrix.grid.shape):
+        color = max(matrix.grid.cells[i][j][0].colorCount.items(), key=operator.itemgetter(1))[0]
+        m[i,j] = color
+    return m
+        
 def pixelwiseAndInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
     matrices = getSubmatrices(matrix.m.copy(), factor)
     return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
@@ -4245,6 +4335,15 @@ def getPossibleOperations(t, c):
     # switchColors
     if all([n==2 for n in candTask.nInColors]):
         x.append(partial(switchColors))
+        
+    # downsize
+    if candTask.sameOutShape:
+        outShape = candTask.outShape
+        x.append(partial(downsize, newShape=outShape))
+        
+    # minimize
+    x.append(partial(minimize))
+        
     
     ###########################################################################
     # sameIOShapes
@@ -4359,6 +4458,8 @@ def getPossibleOperations(t, c):
                     x.append(partial(mirror, axis = axis))
                 for angle in [90, 180, 270]:
                     x.append(partial(rotate, angle = angle))
+                    
+            x.append(getBestMoveShapes(candTask))
                 
                                                          
             # Mirror shapes
@@ -4372,7 +4473,7 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
-        x.append(getBestMoveShapes(candTask))
+        #x.append(getBestMoveShapes(candTask))
         # Connect Pixels
         x.append(partial(connectAnyPixels))
         if all([len(x)==1 for x in candTask.changedInColors]):
@@ -4529,6 +4630,10 @@ def getPossibleOperations(t, c):
                                          factor=candTask.outShapeFactor, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
     
+    if candTask.inputIsGrid:
+        if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
+            x.append(partial(maxColorFromCell))
+    
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         if outputIsSubmatrix(candTask, isGrid=True):
             for color in range(10):
@@ -4602,6 +4707,7 @@ class Candidate():
     """
     Objects of the class Candidate store the information about a possible
     candidate for the solution.
+
     ...
     Attributes
     ----------
@@ -4638,11 +4744,12 @@ class Candidate():
         Assign to the attribute t the Task.Task object corresponding to the
         current task status.
         """
-        self.t = Task(self.tasks[-1], 'dummyIndex', submission=True)
+        self.t = Task.Task(self.tasks[-1], 'dummyIndex')
 
 class Best3Candidates():
     """
     An object of this class stores the three best candidates of a task.
+
     ...
     Attributes
     ----------
@@ -4676,7 +4783,7 @@ class Best3Candidates():
                 c.generateTask()
                 self.candidates[iMaxCand] = c
                 break
-            
+
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
     
@@ -4742,7 +4849,10 @@ def orderTaskColors(t):
                 outMatrix = np.zeros(sample.outMatrix.shape, dtype=np.uint8)
                 for c in sample.outMatrix.colors:
                     outMatrix[sample.outMatrix.m==c] = invRel[c]
-                task['train'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
+                if trainOrTest=='train':
+                    task['train'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
+                else:
+                    task['test'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
             else:
                 task['test'].append({'input': inMatrix.tolist()})
         
@@ -4811,7 +4921,8 @@ def tryOperations(t, c, firstIt=False):
     """
     if c.score==0 or b3c.allPerfect():
         return
-    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape")
+    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize", \
+                "maxColorFromCell")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = getPossibleOperations(t, c)
     for op in possibleOps:
@@ -4841,7 +4952,7 @@ def tryOperations(t, c, firstIt=False):
         #elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
         #    newCandidate.generateTask()
         #    tryOperations(t, newCandidate)
-            
+        
 ###############################################################################
 # %% Main Loop and submission
             
@@ -4870,7 +4981,7 @@ for output_id in submission.index:
         t2 = Task(cTask, task_id, submission=True)
     else:
         t2 = t
-
+        
     c = Candidate([], [task])
     c.t = t2
     b3c = Best3Candidates(c, c, c)
