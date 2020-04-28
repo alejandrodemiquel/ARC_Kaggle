@@ -207,6 +207,10 @@ class Shape:
         if self.nColors==1:
             self.color = next(iter(self.colors))
         
+        self.colorCount = Counter(self.m.flatten()) + Counter({0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0})
+        del self.colorCount[255]
+        
+        
         # Symmetries
         self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
         self.udSymmetric = np.array_equal(self.m, np.flipud(self.m))
@@ -720,6 +724,11 @@ class Matrix():
             if singleColor:
                 if cc[shapeList[i].color] == 1:
                     attrList[i].append('UnCo')
+            #more of x color?
+            if not singleColor:
+                for c in range(10):
+                    if shapeList[i].colorCount[c] > 0 and  shapeList[i].colorCount[c] == max([sh.colorCount[c] for sh in shapeList]):
+                        attrList[i].append(str(c))    
             #largest?
             if len(shapeList[i].pixels) >= largest:
                 ila += [i]

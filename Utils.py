@@ -2501,24 +2501,12 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     return m
 
 #Cropshape
-def getCropAttributes(t):        
-    if t.nCommonInOutShapes > 0:
-        attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
-                    singleColor=True, diagonals=False)[s.inMatrix.shapes.index(s.commonShapes[0][0])] for s in t.trainSamples])
-        
-        nonAttrs = set()
-        for s in t.trainSamples:
-            shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=0, singleColor=True, diagonals=False)
-            for shi in range(len(s.inMatrix.shapes)):
-                if s.inMatrix.shapes[shi] == s.commonShapes[0][0]:
-                    continue
-                else:
-                    nonAttrs = nonAttrs.union(shAttrs[shi])
-    
-    if t.nCommonInOutDShapes > 0:
+def getCropAttributes(t, diagonal, multicolor):    
+    if diagonal and not multicolor:
+        if t.nCommonInOutDShapes == 0:
+            return set()
         attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
                     singleColor=True, diagonals=True)[s.inMatrix.dShapes.index(s.commonDShapes[0][0])] for s in t.trainSamples])
-        
         nonAttrs = set()
         for s in t.trainSamples:
             shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=0, singleColor=True, diagonals=True)
@@ -2526,21 +2514,45 @@ def getCropAttributes(t):
                 if s.inMatrix.dShapes[shi] == s.commonDShapes[0][0]:
                     continue
                 else:
-                    nonAttrs = nonAttrs.union(shAttrs[shi])   
+                    nonAttrs = nonAttrs.union(shAttrs[shi])
                     
-    """             
-    elif t.outIsInMulticolorShapeSize:        
-        for s in t.trainSamples:
-            shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=0, singleColor=True, diagonals=True)
-            for shi in range(len(s.inMatrix.dShapes)):
-                if s.inMatrix.dShapes[shi].hasSameshape() :
-                    continue
-                else:
-                    nonAttrs = nonAttrs.union(shAttrs[shi])        
-    """
-    
+    if not diagonal and not multicolor:
+        if t.nCommonInOutShapes == 0:
+            return set()
+        elif t.nCommonInOutShapes > 0:
+            attrs = set.intersection(*[s.inMatrix.getShapeAttributes(backgroundColor=0,\
+                        singleColor=True, diagonals=False)[s.inMatrix.shapes.index(s.commonShapes[0][0])] for s in t.trainSamples])
+            nonAttrs = set()
+            for s in t.trainSamples:
+                shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=0, singleColor=True, diagonals=False)
+                for shi in range(len(s.inMatrix.shapes)):
+                    if s.inMatrix.shapes[shi] == s.commonShapes[0][0]:
+                        continue
+                    else:
+                        nonAttrs = nonAttrs.union(shAttrs[shi]) 
+                        
+    if not diagonal and multicolor:
+        if not t.outIsInMulticolorShapeSize:
+            return set()                               
+        elif t.outIsInMulticolorShapeSize: 
+            attrs = set()
+            nonAttrs = set()
+            for s in t.trainSamples:
+                shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=0, singleColor=False, diagonals=False)
+                crop = False
+                for shi in range(len(s.inMatrix.multicolorShapes)):
+                    if np.all(np.logical_or(s.inMatrix.multicolorShapes[shi].m == s.outMatrix.m, s.inMatrix.multicolorShapes[shi].m==255)):
+                        crop = True
+                        if len(attrs) == 0:
+                            attrs = shAttrs[shi]
+                        attrs = attrs.intersection(shAttrs[shi])
+                    else:
+                        nonAttrs = nonAttrs.union(shAttrs[shi])    
+            if not crop:
+                    return set()
     return(attrs - nonAttrs)
         
+
         
 def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True):
     """
@@ -2967,12 +2979,12 @@ def getPossibleOperations(t, c):
     # Cropshape
     if candTask.outSmallerThanIn:
         if candTask.nCommonInOutDShapes > 0:
-            x.append(partial(cropShape, attributes=getCropAttributes(t), backgroundColor=0, singleColor=True, diagonals=True))
+            x.append(partial(cropShape, attributes=getCropAttributes(t,True, False), backgroundColor=0, singleColor=True, diagonals=True))
             if len(candTask.commonInDShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInDShapes, diagonal=True))
                 
         if candTask.nCommonInOutShapes > 0:
-            x.append(partial(cropShape, attributes=getCropAttributes(t), backgroundColor=0, singleColor=True, diagonals=False))              
+            x.append(partial(cropShape, attributes=getCropAttributes(t, False, False), backgroundColor=0, singleColor=True, diagonals=False))              
             if len(candTask.commonInShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
 
