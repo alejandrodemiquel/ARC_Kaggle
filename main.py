@@ -356,7 +356,10 @@ def orderTaskColors(t):
                 outMatrix = np.zeros(sample.outMatrix.shape, dtype=np.uint8)
                 for c in sample.outMatrix.colors:
                     outMatrix[sample.outMatrix.m==c] = invRel[c]
-                task['train'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
+                if trainOrTest=='train':
+                    task['train'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
+                else:
+                    task['test'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
             else:
                 task['test'].append({'input': inMatrix.tolist()})
         
@@ -425,7 +428,8 @@ def tryOperations(t, c, firstIt=False):
     """
     if c.score==0 or b3c.allPerfect():
         return
-    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape")
+    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize", \
+                "maxColorFromCell")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
@@ -469,7 +473,7 @@ evolveTasks = [6,11,23,27,46,50,57,59,65,69,73,80,83,93,94,97,98,104,118,119,135
                170,189,198,201,224,229,231,236,242,247,254,255,257,267,279,282,283,285,287,298,322,\
                327,330,335,344,347,348,357,377,386,428,429,449,457,469,482,496,505,507,517,525,\
                526,531,552,573,577,579,585,605,607,629,631,633,646,648,661,678,679,693,703,706,731,748,\
-               749,750,754,790,791,796,797]
+               749,750,754,790,791,793,796,797]
 count = 0
 sameColorCountTasks = [3,7,29,31,43,52,77,86,121,127,139,149,153,154,178,227,240,\
                        244,249,269,300,352,372,379,389,434,447,456,501,502,512,\
@@ -491,8 +495,8 @@ cropTasks = [30,35,48,78,110,120,173,176,206,262,289,299,345,383,488,576,578,635
 replicateShapes = [68, 645, 367, 421, 207, 362, 431, 494, 524]
 #, 190, 367, 421, 431, 524
 count=0
-# 24,788,92,130,567,29,34,52,77,127
-# 7,31,249,269,545,719,741,24,788
+# 92,130,567,29,34,52,77,127
+# 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]

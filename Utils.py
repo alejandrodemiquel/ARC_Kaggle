@@ -2137,9 +2137,85 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
                 m[i,j] = falseColor
     return m
 
+# %% Downsize and Minimize
+    
+def getDownsizeFactors(matrix):
+    """
+    Still unused
+    """
+    xDivisors = set()
+    for x in range(1, matrix.shape[0]):
+        if (matrix.shape[0]%x)==0:
+            xDivisors.add(x)
+    yDivisors = set()
+    for y in range(1, matrix.shape[1]):
+        if (matrix.shape[1]%y)==0:
+            yDivisors.add(y)
+    
+    downsizeFactors = set()
+    for x,y in product(xDivisors, yDivisors):
+        downsizeFactors.add((x,y))
+ 
+    return downsizeFactors
+
+def downsize(matrix, newShape):
+    """
+    Given a matrix and a shape, this function returns a new matrix with the
+    given shape. The elements of the return matrix are given by the colors of 
+    each of the submatrices. Each submatrix is only allowed to have the
+    background color and at most another one (that will define the output
+    color of the corresponding pixel).
+    """
+    if (matrix.shape[0]%newShape[0])!=0 or (matrix.shape[1]%newShape[1])!=0:
+        return matrix.m.copy()
+    xBlock = int(matrix.shape[0]/newShape[0])
+    yBlock = int(matrix.shape[1]/newShape[1])
+    m = np.full(newShape, matrix.backgroundColor, dtype=np.uint8)
+    for i,j in np.ndindex(newShape[0], newShape[1]):
+        color = -1
+        for x,y in np.ndindex(xBlock, yBlock):
+            if matrix.m[i*xBlock+x, j*yBlock+y] not in [matrix.backgroundColor, color]:
+                if color==-1:
+                    color = matrix.m[i*xBlock+x, j*yBlock+y]
+                else:
+                    return matrix.m.copy()
+        if color==-1:
+            m[i,j] = matrix.backgroundColor
+        else:
+            m[i,j] = color
+    return m
+
+def minimize(matrix):
+    """
+    Given a matrix, this function returns the matrix resulting from the
+    following operations:
+        If two consecutive rows are equal, delete one of them
+        If two consecutive columns are equal, delete one of them
+    """
+    m = matrix.m.copy()
+    x = 1
+    for i in range(1, matrix.shape[0]):
+        if np.array_equal(m[x,:],m[x-1,:]):
+            m = np.delete(m, (x), axis=0)
+        else:
+            x+=1
+    x = 1
+    for i in range(1, matrix.shape[1]):
+        if np.array_equal(m[:,x],m[:,x-1]):
+            m = np.delete(m, (x), axis=1)
+        else:
+            x+=1
+    return m
+            
+        
+
 # %% Operations to extend matrices
     
 def getFactor(matrix, factor):
+    """
+    Given a Task.Task.inShapeFactor (that can be a string), this function
+    returns its corresponding tuple for the given matrix.
+    """
     if factor == "squared":
         f = (matrix.shape[0], matrix.shape[1])
     elif factor == "xSquared":
@@ -2198,6 +2274,13 @@ def matrixBotRight(matrix, factor, background=0):
     return m
 
 def getBestMosaic(t):
+    """
+    Given a task t, this function tries to find the best way to generate a
+    mosaic, given that the output shape is always bigger than the input shape
+    with a shape factor that makes sense.
+    A mosaic is a matrix that takes an input matrix as reference, and then
+    copies it many times. The copies can include rotations or mirrorings.
+    """
     factor = t.inShapeFactor
     ops = []
     ops.append(partial(identityM))
@@ -2228,6 +2311,10 @@ def getBestMosaic(t):
     return bestOps
 
 def generateMosaic(matrix, ops, factor):
+    """
+    Generates a mosaic from the given matrix using the operations given in the
+    list ops. The output matrix has shape matrix.shape*factor.
+    """
     m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
     for i in range(factor[0]):
         for j in range(factor[1]):
@@ -2350,13 +2437,199 @@ def multiplyPixelsAndXor(matrix, factor, falseColor):
 # %% Operations considering all submatrices of task with outShapeFactor
     
 def getSubmatrices(m, factor):
+    """
+    Given a matrix m and a factor, this function returns a list of all the
+    submatrices with shape determined by the factor.
+    """
     matrices = []
     nRows = int(m.shape[0] / factor[0])
     nCols = int(m.shape[1] / factor[1])
     for i,j in np.ndindex(factor):
         matrices.append(m[i*nRows:(i+1)*nRows, j*nCols:(j+1)*nCols])
     return matrices
+
+def outputIsSubmatrix(t, isGrid=False):
+    """
+    Given a task t that has outShapeFactor, this function returns true if any
+    of the submatrices is equal to the output matrix for every sample.
+    """
+    for sample in t.trainSamples:
+        if isGrid:
+            matrices = [c[0].m for c in sample.inMatrix.grid.cellList]
+        else:
+            matrices = getSubmatrices(sample.inMatrix.m, sample.outShapeFactor)
+        anyIsSubmatrix = False
+        for m in matrices:
+            if np.array_equal(m, sample.outMatrix.m):
+                anyIsSubmatrix = True
+                break
+        if not anyIsSubmatrix:
+            return False
+    return True
+
+def selectSubmatrixWithMaxColor(matrix, color, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix, this function returns the submatrix with most appearances
+    of the color given. If the matrix is not a grid, an outShapeFactor must be
+    specified.
+    """
+    if isGrid:
+        matrices = [c[0].m for c in matrix.grid.cellList]
+    else:
+        matrices = getSubmatrices(matrix.m, outShapeFactor)
+        
+    maxCount = 0
+    matricesWithProperty = 0
+    bestMatrix = None
+    for mat in matrices:
+        m = Task.Matrix(mat)
+        if color in m.colors:
+            if m.colorCount[color]>maxCount:
+                bestMatrix = mat.copy()
+                maxCount = m.colorCount[color]
+                matricesWithProperty = 1
+            if m.colorCount[color]==maxCount:
+                matricesWithProperty += 1
+    if matricesWithProperty!=1:
+        return matrix.m.copy()
+    else:
+        return bestMatrix
     
+def selectSubmatrixWithMinColor(matrix, color, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix, this function returns the submatrix with least appearances
+    of the color given. If the matrix is not a grid, an outShapeFactor must be
+    specified.
+    """
+    if isGrid:
+        matrices = [c[0].m for c in matrix.grid.cellList]
+    else:
+        matrices = getSubmatrices(matrix.m, outShapeFactor)
+        
+    minCount = 1000
+    matricesWithProperty = 0
+    bestMatrix = None
+    for mat in matrices:
+        m = Task.Matrix(mat)
+        if color in m.colors:
+            if m.colorCount[color]<minCount:
+                bestMatrix = mat.copy()
+                minCount = m.colorCount[color]
+                matricesWithProperty = 1
+            elif m.colorCount[color]==minCount:
+                matricesWithProperty += 1
+    if matricesWithProperty!=1:
+        return matrix.m.copy()
+    else:
+        return bestMatrix
+    
+def selectSubmatrixWithMostColors(matrix, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix, this function returns the submatrix with the most number of
+    colors. If the matrix is not a grid, an outShapeFactor must be specified.
+    """
+    if isGrid:
+        matrices = [c[0].m for c in matrix.grid.cellList]
+    else:
+        matrices = getSubmatrices(matrix.m, outShapeFactor)
+        
+    maxNColors = 0
+    matricesWithProperty = 0
+    bestMatrix = None
+    for mat in matrices:
+        m = Task.Matrix(mat)
+        if len(m.colorCount)>maxNColors:
+            bestMatrix = mat.copy()
+            maxNColors = len(m.colorCount)
+            matricesWithProperty = 1
+        elif len(m.colorCount)==maxNColors:
+            matricesWithProperty += 1
+    if matricesWithProperty!=1:
+        return matrix.m.copy()
+    else:
+        return bestMatrix
+    
+def selectSubmatrixWithLeastColors(matrix, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix, this function returns the submatrix with the least number
+    of colors. If the matrix is not a grid, an outShapeFactor must be
+    specified.
+    """
+    if isGrid:
+        matrices = [c[0].m for c in matrix.grid.cellList]
+    else:
+        matrices = getSubmatrices(matrix.m, outShapeFactor)
+        
+    minNColors = 1000
+    matricesWithProperty = 0
+    bestMatrix = None
+    for mat in matrices:
+        m = Task.Matrix(mat)
+        if len(m.colorCount)<minNColors:
+            bestMatrix = mat.copy()
+            minNColors = len(m.colorCount)
+            matricesWithProperty = 1
+        elif len(m.colorCount)==minNColors:
+            matricesWithProperty += 1
+    if matricesWithProperty!=1:
+        return matrix.m.copy()
+    else:
+        return bestMatrix
+        
+def getBestSubmatrixPosition(t, outShapeFactor=None, isGrid=False):
+    """
+    Given a task t, and assuming that all the input matrices have the same
+    shape and all the ouptut matrices have the same shape too, this function
+    tries to check whether the output matrix is just the submatrix in a given
+    position. If that's the case, it returns the position. Otherwise, it
+    returns 0.
+    """
+    iteration = 0
+    possiblePositions = []
+    for sample in t.trainSamples:
+        if isGrid:
+            matrices = [c[0].m for c in sample.inMatrix.grid.cellList]
+        else:
+            matrices = getSubmatrices(sample.inMatrix.m, outShapeFactor)
+            
+        possiblePositions.append(set())
+        for m in range(len(matrices)):
+            if np.array_equal(matrices[m], sample.outMatrix.m):
+                possiblePositions[iteration].add(m)
+        
+        iteration += 1
+    positions = set.intersection(*possiblePositions)
+    if len(positions)==1:
+        return next(iter(positions))
+    else:
+        return 0
+                
+def selectSubmatrixInPosition(matrix, position, outShapeFactor=None, isGrid=False):
+    """
+    Given a matrix and a position, this function returns the submatrix that
+    appears in the given position (submatrices are either defined by
+    outShapeFactor or by the shape of the grid cells).
+    """
+    if isGrid:
+        matrices = [c[0].m for c in matrix.grid.cellList]
+    else:
+        matrices = getSubmatrices(matrix.m, outShapeFactor)
+        
+    return matrices[position].copy()
+
+def maxColorFromCell(matrix):
+    """
+    Only to be called if matrix.isGrid.
+    Given a matrix with a grid, this function returns a matrix with the same
+    shape as the grid. Every pixel of the matrix will be colored with the 
+    color that appears the most in the corresponding cell of the grid.
+    """
+    m = np.zeros(matrix.grid.shape, dtype=np.uint8)
+    for i,j  in np.ndindex(matrix.grid.shape):
+        color = max(matrix.grid.cells[i][j][0].colorCount.items(), key=operator.itemgetter(1))[0]
+        m[i,j] = color
+    return m
+        
 def pixelwiseAndInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
     matrices = getSubmatrices(matrix.m.copy(), factor)
     return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
@@ -2669,6 +2942,15 @@ def getPossibleOperations(t, c):
     # switchColors
     if all([n==2 for n in candTask.nInColors]):
         x.append(partial(switchColors))
+        
+    # downsize
+    if candTask.sameOutShape:
+        outShape = candTask.outShape
+        x.append(partial(downsize, newShape=outShape))
+        
+    # minimize
+    x.append(partial(minimize))
+        
     
     ###########################################################################
     # sameIOShapes
@@ -2910,7 +3192,14 @@ def getPossibleOperations(t, c):
             
             
     if hasattr(candTask, 'outShapeFactor'):
-        # TODO Select a submatrix following certain criteria
+        if outputIsSubmatrix(candTask):
+            for color in range(10):
+                x.append(partial(selectSubmatrixWithMaxColor, color=color, outShapeFactor=candTask.outShapeFactor))
+                x.append(partial(selectSubmatrixWithMinColor, color=color, outShapeFactor=candTask.outShapeFactor))
+            x.append(partial(selectSubmatrixWithMostColors, outShapeFactor=candTask.outShapeFactor))
+            x.append(partial(selectSubmatrixWithLeastColors, outShapeFactor=candTask.outShapeFactor))
+            position = getBestSubmatrixPosition(candTask, outShapeFactor=candTask.outShapeFactor)
+            x.append(partial(selectSubmatrixInPosition, position=position, outShapeFactor=candTask.outShapeFactor))
         
         # Pixelwise And
         for c in candTask.commonOutColors:
@@ -2946,7 +3235,20 @@ def getPossibleOperations(t, c):
                                          factor=candTask.outShapeFactor, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
     
+    if candTask.inputIsGrid:
+        if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
+            x.append(partial(maxColorFromCell))
+    
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
+        if outputIsSubmatrix(candTask, isGrid=True):
+            for color in range(10):
+                x.append(partial(selectSubmatrixWithMaxColor, color=color, isGrid=True))
+                x.append(partial(selectSubmatrixWithMinColor, color=color, isGrid=True))
+            x.append(partial(selectSubmatrixWithMostColors, isGrid=True))
+            x.append(partial(selectSubmatrixWithLeastColors, isGrid=True))
+            position = getBestSubmatrixPosition(candTask, isGrid=True)
+            x.append(partial(selectSubmatrixInPosition, position=position, isGrid=True))
+        
         # Pixelwise And
         for c in candTask.commonOutColors:
             x.append(partial(pixelwiseAndInGridSubmatrices, falseColor=c))
