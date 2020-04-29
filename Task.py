@@ -885,18 +885,18 @@ class Sample():
                                                      multicolor=False, rotation=True, scaling=True, mirror=True)
             self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
                                                       multicolor=False, rotation=True, scaling=True, mirror=True)
-            self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
-                                                     multicolor=False, rotation=True, scaling=True, mirror=True)
-            self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
-                                                      multicolor=False, rotation=True, scaling=True, mirror=True)
+            #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
+            #                                         multicolor=False, rotation=True, scaling=True, mirror=True)
+            #self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
+            #                                          multicolor=False, rotation=True, scaling=True, mirror=True)
             self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
                                                                multicolor=True, rotation=True, scaling=True, mirror=True)
             self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
                                                                 multicolor=True, rotation=True, scaling=True, mirror=True)
-            self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
-                                                                   multicolor=True, rotation=True, scaling=True, mirror=True)
-            self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
-                                                                    multicolor=True, rotation=True, scaling=True, mirror=True)
+            #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
+            #                                                       multicolor=True, rotation=True, scaling=True, mirror=True)
+            #self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
+            #                                                        multicolor=True, rotation=True, scaling=True, mirror=True)
             
             """
             # Is the output a subset of the input?
