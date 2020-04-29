@@ -268,6 +268,12 @@ class Shape:
             elif (m2.shape[0]%m1.shape[0])==0 and (m2.shape[1]%m1.shape[1])==0:
                 factor = (int(m2.shape[0]/m1.shape[0]), int(m2.shape[1]/m1.shape[1]))
                 m1 = multiplyPixels(m1, factor)
+            elif rotation and (m1.shape[0]%m2.shape[1])==0 and (m1.shape[1]%m2.shape[0])==0:
+                factor = (int(m1.shape[0]/m2.shape[1]), int(m1.shape[1]/m2.shape[0]))
+                m2 = multiplyPixels(m2, factor)
+            elif rotation and (m2.shape[0]%m1.shape[1])==0 and (m2.shape[1]%m1.shape[0])==0:
+                factor = (int(m2.shape[0]/m1.shape[1]), int(m2.shape[1]/m1.shape[0]))
+                m1 = multiplyPixels(m1, factor)
             else:
                 return False
         if rotation and not mirror:
@@ -278,9 +284,9 @@ class Shape:
                 return True
         if mirror and rotation:
             for x in range(1, 4):
-                if np.array_equal(m1, np.fliplr(np.rot90(m2,x))) or\
-                np.array_equal(m1, np.flipud(np.rot90(m2,x))):
-                    return True
+                if any([np.array_equal(m1, np.rot90(m2,x))\
+                        or np.array_equal(m1, np.fliplr(np.rot90(m2,x))) for x in range(1,4)]):
+                    return True               
                 
         return np.array_equal(m1,m2)
     
@@ -875,12 +881,22 @@ class Sample():
                 self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
                 self.outIsInMulticolorDShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorDShapes)
     
-            self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True, multicolor=False)
-            self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True, multicolor=False)
-            self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=True, multicolor=True)
-            self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=True, multicolor=True)
-            self.commonShapesDifferentColor = self.getCommonShapes(diagonal=False, sameColor=False, multicolor=False)
-            self.commonDShapesDifferentColor = self.getCommonShapes(diagonal=True, sameColor=False, multicolor=False)
+            self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
+                                                     multicolor=False, rotation=True, scaling=True, mirror=True)
+            self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
+                                                      multicolor=False, rotation=True, scaling=True, mirror=True)
+            #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
+            #                                         multicolor=False, rotation=True, scaling=True, mirror=True)
+            #self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
+            #                                          multicolor=False, rotation=True, scaling=True, mirror=True)
+            self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
+                                                               multicolor=True, rotation=True, scaling=True, mirror=True)
+            self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
+                                                                multicolor=True, rotation=True, scaling=True, mirror=True)
+            #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
+            #                                                       multicolor=True, rotation=True, scaling=True, mirror=True)
+            #self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
+            #                                                        multicolor=True, rotation=True, scaling=True, mirror=True)
             
             """
             # Is the output a subset of the input?
@@ -1008,8 +1024,9 @@ class Sample():
             # Does the output matrix follow a pattern?
             self.followsRowPattern = self.outMatrix.followsRowPattern()
             self.followsColPattern = self.outMatrix.followsColPattern()
-        
-    def getCommonShapes(self, diagonal=True, sameColor=True, multicolor=False):
+
+    def getCommonShapes(self, diagonal=True, multicolor=False, sameColor=False, samePosition=False, rotation=False, \
+                     mirror=False, scaling=False):
         comSh = []
         if diagonal:
             if not multicolor:
@@ -1025,20 +1042,17 @@ class Sample():
             else:
                 ishs = self.inMatrix.multicolorShapes
                 oshs = self.outMatrix.multicolorShapes
-        #Arbitrary: shapes have size < 30.         
+        #Arbitrary: shapes have size < 150.         
         for ish in ishs:
             outCount = 0
-            if len(ish.pixels) == 1 or len(ish.pixels) > 30:
+            if len(ish.pixels) == 1 or len(ish.pixels) > 100:
                 continue
             for osh in oshs:
-                if len(osh.pixels) == 1 or len(osh.pixels) > 30:
+                if len(osh.pixels) == 1 or len(osh.pixels) > 100:
                     continue
-                if sameColor:
-                     if ish == osh:
-                        outCount += 1
-                else:
-                   if ish.pixels == osh.pixels:
-                       outCount += 1
+                if ish.hasSameShape(osh, sameColor=sameColor, samePosition=samePosition,\
+                                    rotation=rotation, mirror=mirror, scaling=scaling):
+                    outCount += 1
             if outCount > 0:
                 comSh.append((ish, outCount))
         return comSh
@@ -1209,26 +1223,14 @@ class Task():
         if all([(hasattr(s, "outIsInMulticolorDShapeSize") and s.outIsInMulticolorDShapeSize) for s in self.trainSamples]):
              self.outIsInMulticolorDShapeSize = True
              
-        """
-        if all([hasattr(s, 'outIsInDShape') for s in self.trainSamples]) and all(len(s.outIsInDShape)==1 for s in self.trainSamples):
-            self.outIsInDShape = True
-        if all([hasattr(s, 'outIsInShape') for s in self.trainSamples]) and all(len(s.outIsInShape)>0 for s in self.trainSamples):
-            self.outIsInShape = True
-        if all([hasattr(s, 'outIsInNonBMulticolorDShape') for s in self.trainSamples]) and all(len(s.outIsInNonBMulticolorDShape)>0 for s in self.trainSamples) and self.backgroundColor == 0:
-            self.outIsInMulticolorDShape = True
-        if all([hasattr(s, 'outIsInNonBMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInNonBMulticolorShape)>0 for s in self.trainSamples) and self.backgroundColor == 0:
-            self.outIsInMulticolorShape = True
-        if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
-            self.outIsInMulticolorShape = True
-        if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
-            self.outIsInMulticolorShape = True
-        """
         self.nCommonInOutShapes = min(len(s.commonShapes) for s in self.trainSamples)
         self.nCommonInOutDShapes = min(len(s.commonDShapes) for s in self.trainSamples) 
+        #self.nCommonInOutShapesNoColor = min(len(s.commonShapesNoColor) for s in self.trainSamples)
+        #self.nCommonInOutDShapesNoColor = min(len(s.commonDShapesNoColor) for s in self.trainSamples) 
         self.nCommonInOutMulticolorShapes = min(len(s.commonMulticolorShapes) for s in self.trainSamples)
         self.nCommonInOutMulticolorDShapes = min(len(s.commonMulticolorDShapes) for s in self.trainSamples) 
-        self.nCommonInOutShapesDifferentColor = min(len(s.commonShapesDifferentColor) for s in self.trainSamples)
-        self.nCommonInOutDShapesDifferentColor = min(len(s.commonDShapesDifferentColor) for s in self.trainSamples) 
+        #self.nCommonInOutMulticolorShapesNoColor = min(len(s.commonMulticolorShapesNoColor) for s in self.trainSamples)
+        #self.nCommonInOutMulticolorDShapesNoColor = min(len(s.commonMulticolorDShapesNoColor) for s in self.trainSamples) 
         
         """
         if len(self.commonInColors) == 1 and len(self.commonOutColors) == 1 and \
