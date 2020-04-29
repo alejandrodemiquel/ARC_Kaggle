@@ -1,40 +1,53 @@
-Task.Sample:
-	- identify when output is an input shape...
-	- backgound color problem
-Task.Task:
-	- attribute outIsInShape.
+IDEAS:
+- crop only multicolorshape -------> crop all non-background (216)
+- still worried about tryOperations score 0 (785)
+- background color issue: 215, 473, 586
+- 774 add cropshape options???
+- has full frame
+CropFrame:
+- Identify if output is in input
+- Identify characteristic attributes
+- Crop
 
-Detect subshapes;
-CropShape:
-	- update multicolor shapes
-	- frames
-	- cridar cropShape amb outisshape. 
-	- multicolor
-	- quan comptar pixels!?
-
-Matrix.shapeAttributeList:
-	- maybe then call shape and embed attribute there?
+- hasSameShape... update. 
+- 
+- 194, 28
 
 ------------Replicate--------
-- 53, 68, 74, 75, 79, 88, 100, 108, 111, 116, 132, 157, 172, 190, 194, 205, 207, 208, 274, 284, 326, 362, 365, 367, 369, 421, 424, 431, 464, 467, 472, 474, 475, 494, 497, 498, 500, 509, 514, 523, 524, 139, 140, 
+- 4, 17, 53, 68, 74, 75, 79, 88, 100, 108, 111, 116, 132, 157, 172, 190, 205, 207, 208, 274, 284, 326, 362, 365, 367, 369, 421, 424, 431, 464, 467, 472, 474, 475, 494, 497, 498, 500, 509, 514, 523, 524,539, 540, 583, 592, 626, 628, 636, 650, 659, 674, 683, 716, 742, 779, 786, 795
+
+140, 
 
 
 solved: 68, 367, 421, 524, 645
 
 same:
-- at pixels: 53, 74, 88, 509, 205, 424, 474
+- at pixels: 53, 74, 88, 509, 205, 424, 474, 628, 674, 716, 786
 - slots: 68, 645, 367, 421, 524
-- at subshapes: 75, 79, 100, 132, 157, 172, 190, 208, 500, 524
-- everywhere: 207, 362
+- at subshapes: 17, 75, 79, 100, 132, 157, 172, 190, 208, 500, 540, 659, 683, 779, 795
+- everywhere: 207, 362, 539, 650
 - symmetrize: 108, 111, 116, 284
-diff color:
 
+reference:
+- 626, 636, 742
+
+other cases:
+- 4, 583
 scaled:
 - 194
 
+---------Subshape----------
+453
+
+------------References---------
+reference:  142, 181, 205, 244q
+other ref: 153, 158, 208, 223, 229, 389
+
+
+
 ------------Crop-------------
 unsolved crop tasks:
-[13,87,133,215,216,217,270,318,395,440,445,464,473,509,586,655,676,689,768,774]
+[87,215,216,318,395,440,445,464,473,509,586,589,624,655,676,689,768,774]
 
 CropShape:
 - Identify if output is shape
@@ -42,26 +55,35 @@ CropShape:
 - Identify characteristic attributes
 - Crop
 
-reference:  142, 181, 205, 244q
-other ref: 153, 158, 208, 223, 229, 389
+solves: 13, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 217, 262, 270, 289, 299, 345, 383, 488, 576, 578, 635, 712, 727, 785, 690(sort)
 
-solves: 30, 35, 38, 48, 56, 78, 110, 120, 173, 176, 206, 262, 289, 299, 345, 383, 488, 576, 578, 635, 712, 727, 785, 690(sort)
+cropframe: 13, 28, 87, 216, 318, 395, 690
 
-not a shape/ cropframe: 13, 87, 216, 395
-
-color count in multicolor shapes: 215,217,270,473,586	
+color count in multicolor shapes: 215,473,586	
 
 color changes: 768, 774
 
-reference: 318
-
-shape scales: 133,
-
-OTHER: 440 move shapes to grid, 445 
+OTHER: 440 move shapes to grid, 445, 589
 
 
-CropFrame:
-- Identify if output is in input
-- Identify characteristic attributes
-- Crop
+--------overlapSubmatrices--------
+
+
+
+
+
+
+
+DELTED PARTS:
+
+
+#if candTask.outIsInMulticolorShapeSize:
+        #    for attrs in [set(['UnSh']),set(['MoCo']),set(['MoCl']),set(['OneSh'])]:
+        #        x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=False, diagonals=False))
+        #else:
+        #    for attrs in [set(['LaSh'])]:
+        #        x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True))
+       # if hasattr(candTask.outIsInMulticolorDShapeSize):
+        #    for attrs in:
+         #       x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=False, diagonals=True))
 
