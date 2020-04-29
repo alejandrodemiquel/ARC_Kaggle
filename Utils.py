@@ -2253,7 +2253,7 @@ def getDownsizeFactors(matrix):
  
     return downsizeFactors
 
-def downsize(matrix, newShape):
+def downsize(matrix, newShape, falseColor=None):
     """
     Given a matrix and a shape, this function returns a new matrix with the
     given shape. The elements of the return matrix are given by the colors of 
@@ -2261,6 +2261,8 @@ def downsize(matrix, newShape):
     background color and at most another one (that will define the output
     color of the corresponding pixel).
     """
+    if falseColor==None:
+        falseColor = matrix.backgroundColor
     if (matrix.shape[0]%newShape[0])!=0 or (matrix.shape[1]%newShape[1])!=0:
         return matrix.m.copy()
     xBlock = int(matrix.shape[0]/newShape[0])
@@ -2275,7 +2277,7 @@ def downsize(matrix, newShape):
                 else:
                     return matrix.m.copy()
         if color==-1:
-            m[i,j] = matrix.backgroundColor
+            m[i,j] = falseColor
         else:
             m[i,j] = color
     return m
@@ -3111,6 +3113,9 @@ def getPossibleOperations(t, c):
     if candTask.sameOutShape:
         outShape = candTask.outShape
         x.append(partial(downsize, newShape=outShape))
+        if t.backgroundColor!=-1:
+            x.append(partial(downsize, newShape=outShape, falseColor=t.backgroundColor))
+        
         
     # minimize
     x.append(partial(minimize))

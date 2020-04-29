@@ -531,8 +531,8 @@ class Matrix():
         self.nShapes = len(self.shapes)
         self.dShapes = detectShapes(self.m, self.backgroundColor, singleColor=True, diagonals=True)
         self.nDShapes = len(self.dShapes)
-        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
-        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
+        #self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
+        #self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         #R: Since black is the most common background color. 
         #self.nonBMulticolorShapes = detectShapes(self.m, 0)
         #self.nonBMulticolorDShapes = detectShapes(self.m, 0, diagonals=True)
@@ -541,6 +541,16 @@ class Matrix():
         #self.nNBShapes = len(self.notBackgroundShapes)
         #self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
         #self.nNBDShapes = len(self.notBackgroundDShapes)
+        
+        # Shape-based backgroundColor
+        for shape in self.shapes:
+            if shape.shape==self.shape:
+                self.backgroundColor = shape.color
+                break
+        # Define multicolor shapes based on the background color
+        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
+        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
+                     
         
         self.shapeColorCounter = Counter([s.color for s in self.shapes])
         self.blanks = []
@@ -557,15 +567,26 @@ class Matrix():
                                          len(self.frontiers))
         # Check if it's a grid and the dimensions of the cells
         self.isGrid = False
+        self.isAsymmetricGrid = False
         if detectGrid:
             for fc in set(self.frontierColors):
                 possibleGrid = [f for f in self.frontiers if f.color==fc]
                 possibleGrid = Grid(self.m, possibleGrid)
-                if possibleGrid.allCellsSameShape and possibleGrid.nCells > 1:
-                    self.grid = copy.deepcopy(possibleGrid)
-                    self.isGrid = True
-                    break 
-                
+                if possibleGrid.nCells>1:
+                    if possibleGrid.allCellsSameShape:
+                        self.grid = copy.deepcopy(possibleGrid)
+                        self.isGrid = True
+                        break
+                    else:
+                        self.asymmetricGrid = copy.deepcopy(possibleGrid)
+                        self.isAsymmetricGrid=True
+        
+        # CHANGE BACKGROUND COLOR IF GRID
+        #if self.isAsymmetricGrid:
+        #    self.backgroundColor = self.asymmetricGrid.color
+        #if self.isGrid:
+        #    self.backgroundColor = self.grid.color
+
         # Frames
         self.fullFrames = []
         for shape in self.shapes:
@@ -946,6 +967,9 @@ class Sample():
             if self.gridIsUnchanged:
                 self.gridCellsHaveOneColor = self.inMatrix.grid.allCellsHaveOneColor and\
                                              self.outMatrix.grid.allCellsHaveOneColor
+            # Asymmetric grids
+            self.asymmetricGridIsUnchanged = self.inMatrix.isAsymmetricGrid and self.outMatrix.isAsymmetricGrid \
+            and self.inMatrix.asymmetricGrid == self.outMatrix.asymmetricGrid
             
             # Is there a blank to fill?
             self.inputHasBlank = len(self.inMatrix.blanks)>0
@@ -1221,6 +1245,9 @@ class Task():
             self.gridCellIsInputShape = all([s.gridCellIsInputShape for s in self.trainSamples])
         if self.hasUnchangedGrid:
             self.gridCellsHaveOneColor = all([s.gridCellsHaveOneColor for s in self.trainSamples])
+        # Asymmetric grids
+        self.inputIsAsymmetricGrid = all([s.inMatrix.isAsymmetricGrid for s in self.trainSamples+self.testSamples])
+        self.hasUnchangedAsymmetricGrid = all([s.asymmetricGridIsUnchanged for s in self.trainSamples])
         
         # Shapes:
         # Does the task ONLY involve changing colors of shapes?

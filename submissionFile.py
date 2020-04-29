@@ -4500,9 +4500,9 @@ def getPossibleOperations(t, c):
         # This model predicts the color of the shape in the output.
         
         if candTask.onlyShapeColorChanges:
-            ccwp = getColorChangesWithFeatures(candTask)
+            ccwf = getColorChangesWithFeatures(candTask)
             fsf = candTask.fixedShapeFeatures
-            x.append(partial(changeShapesWithFeatures, ccwp=ccwp, fixedColors=candTask.fixedColors,\
+            x.append(partial(changeShapesWithFeatures, ccwf=ccwf, fixedColors=candTask.fixedColors,\
                              fixedShapeFeatures=fsf))
                 
             if all(["getBestLSTM" not in str(op.func) for op in c.ops]):        
