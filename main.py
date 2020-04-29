@@ -383,7 +383,8 @@ def recoverOriginalColors(matrix, rel):
     """
     m = matrix.copy()
     for i,j in np.ndindex(matrix.shape):
-        m[i,j] = rel[matrix[i,j]][0]
+        if matrix[i,j] in rel.keys(): # TODO Task 162 fails. Delete this when fixed
+            m[i,j] = rel[matrix[i,j]][0]
     return m
 
 def ignoreGrid(t, task):
@@ -498,7 +499,7 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[idx]
+    taskId = index[454]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId)
 
