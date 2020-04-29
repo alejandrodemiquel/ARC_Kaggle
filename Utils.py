@@ -1485,6 +1485,121 @@ def extendColorAcross(matrix, color, direction, until, untilBorder = True):
     #if direction == "h" or direction == "l":
     #if direction == "h" or direction == "r":
     return m
+
+# %% Color longest line
+def colorLongestLines(matrix, cic, coc, direction):
+    """
+    cic stands for "changedInColor"
+    coc stands for "changedOutColor"
+    direction can be one of 4 strings: 'v', 'h', 'hv', 'd' (vertical,
+    horizontal, diagonal)
+    It is assumed t.sameIOShapes
+    """
+    m = matrix.m.copy()
+    
+    longest=0
+    positions = set()
+    if direction=='h':
+        for i in range(m.shape[0]):
+            count = 0
+            for j in range(m.shape[1]):
+                if m[i,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longest:
+                        if count > longest:
+                            positions = set()
+                        longest = count
+                        positions.add((i,j))
+            if count >= longest:
+                if count > longest:
+                    positions = set()
+                longest = count
+                positions.add((i,m.shape[1]-1))
+        for pos in positions:
+            for j in range(pos[1]-longest, pos[1]):
+                m[pos[0],j] = coc
+        return m                
+        
+    elif direction=='v':
+        for j in range(m.shape[1]):
+            count = 0
+            for i in range(m.shape[0]):
+                if m[i,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longest:
+                        if count > longest:
+                            positions = set()
+                        longest = count
+                        positions.add((i,j))
+            if count >= longest:
+                if count > longest:
+                    positions = set()
+                longest = count
+                positions.add((m.shape[0]-1,j))
+        for pos in positions:
+            for i in range(pos[0]-longest, pos[0]):
+                m[i,pos[1]] = coc
+        return m 
+                        
+    elif direction=='hv':
+        longestH = 0
+        longestV = 0
+        positionsH = set()
+        positionsV = set()
+        for i in range(m.shape[0]):
+            count = 0
+            for j in range(m.shape[1]):
+                if m[i,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longestH:
+                        if count > longestH:
+                            positionsH = set()
+                        longestH = count
+                        positionsH.add((i,j))
+            if count >= longestH:
+                if count > longestH:
+                    positionsH = set()
+                longestH = count
+                positionsH.add((i,m.shape[1]-1))
+        for j in range(m.shape[1]):
+            count = 0
+            for i in range(m.shape[0]):
+                if m[i,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longestV:
+                        if count > longestV:
+                            positionsV = set()
+                        longestV = count
+                        positionsV.add((i,j))
+            if count >= longestV:
+                if count > longestV:
+                    positionsV = set()
+                longestV = count
+                positionsV.add((m.shape[0]-1,j))
+        for pos in positionsH:
+            for j in range(pos[1]-longestH, pos[1]):
+                m[pos[0],j] = coc
+        for pos in positionsV:
+            for i in range(pos[0]-longestV, pos[0]):
+                m[i,pos[1]] = coc
+        return m
+       
     
 # %% Move shapes    
 
