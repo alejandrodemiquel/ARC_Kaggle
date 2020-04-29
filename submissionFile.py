@@ -2783,6 +2783,8 @@ def getPixelFeatures(m, i, j):
         pixelFeatures.append((j%3)==x) 
         for y in range(3):
             pixelFeatures.append((i%3)==x and (j%3)==y)
+    pixelFeatures.append(((i+j)%2)==0)
+    pixelFeatures.append(((i+j)%2)==1)
     
     return pixelFeatures
 
@@ -2791,7 +2793,7 @@ def getPixelChangesWithFeatures(t):
     Only to be used if t.sameIOShapes.
     """
     pixelChangesWithFeatures = {}
-    nFeatures = 39 # Is there a way to not hard code this?
+    nFeatures = 41 # Is there a way to not hard code this?
     trueList = []
     falseList = []
     for i in range(nFeatures):
