@@ -243,7 +243,8 @@ class Shape:
             self.boolFeatures.append((self.nPixels%2)==0)
             self.boolFeatures.append((self.nPixels%2)==1)
     
-    def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False):
+    def hasSameShape(self, other, sameColor=False, samePosition=False, rotation=False, \
+                     mirror=False, scaling=False):
         if samePosition:
             if self.position != other.position:
                 return False
@@ -253,9 +254,34 @@ class Shape:
         else:
             m1 = self.shapeDummyMatrix()
             m2 = other.shapeDummyMatrix()
-        if rotation:
+        if scaling and m1.shape!=m2.shape:
+            def multiplyPixels(matrix, factor):
+                m = np.zeros(tuple(s * f for s, f in zip(matrix.shape, factor)), dtype=np.uint8)
+                for i,j in np.ndindex(matrix.shape):
+                    for k,l in np.ndindex(factor):
+                        m[i*factor[0]+k, j*factor[1]+l] = matrix[i,j]
+                return m
+            
+            if (m1.shape[0]%m2.shape[0])==0 and (m1.shape[1]%m2.shape[1])==0:
+                factor = (int(m1.shape[0]/m2.shape[0]), int(m1.shape[1]/m2.shape[1]))
+                m2 = multiplyPixels(m2, factor)
+            elif (m2.shape[0]%m1.shape[0])==0 and (m2.shape[1]%m1.shape[1])==0:
+                factor = (int(m2.shape[0]/m1.shape[0]), int(m2.shape[1]/m1.shape[1]))
+                m1 = multiplyPixels(m1, factor)
+            else:
+                return False
+        if rotation and not mirror:
             if any([np.array_equal(m1, np.rot90(m2,x)) for x in range(1,4)]):
                 return True
+        if mirror and not rotation:
+            if np.array_equal(m1, np.fliplr(m2)) or np.array_equal(m1, np.flipud(m2)):
+                return True
+        if mirror and rotation:
+            for x in range(1, 4):
+                if np.array_equal(m1, np.fliplr(np.rot90(m2,x))) or\
+                np.array_equal(m1, np.flipud(np.rot90(m2,x))):
+                    return True
+                
         return np.array_equal(m1,m2)
     
 
