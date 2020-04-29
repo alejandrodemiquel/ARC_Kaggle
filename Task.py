@@ -207,6 +207,10 @@ class Shape:
         if self.nColors==1:
             self.color = next(iter(self.colors))
         
+        self.colorCount = Counter(self.m.flatten()) + Counter({0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0})
+        del self.colorCount[255]
+        
+        
         # Symmetries
         self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
         self.udSymmetric = np.array_equal(self.m, np.flipud(self.m))
@@ -712,14 +716,24 @@ class Matrix():
                 attrList[i].append(shapeList[i].nColors)
                 if shapeList[i].nColors > mcolors:
                     mcolors = shapeList[i].nColors
-            #copies 
-            attrList[i] = [np.count_nonzero([np.all(shapeList[i].pixels == osh.pixels) for osh in shapeList])] + attrList[i]
-            if attrList[i][0] > mcopies:
-                mcopies = attrList[i][0]
+            #copies
+            if singleColor:
+                attrList[i] = [np.count_nonzero([np.all(shapeList[i].pixels == osh.pixels) for osh in shapeList])] + attrList[i]
+                if attrList[i][0] > mcopies:
+                    mcopies = attrList[i][0]
+            else: 
+                attrList[i] = [np.count_nonzero([shapeList[i] == osh for osh in shapeList])] + attrList[i]
+                if attrList[i][0] > mcopies:
+                    mcopies = attrList[i][0]
             #unique color?
             if singleColor:
                 if cc[shapeList[i].color] == 1:
                     attrList[i].append('UnCo')
+            #more of x color?
+            if not singleColor:
+                for c in range(10):
+                    if shapeList[i].colorCount[c] > 0 and  shapeList[i].colorCount[c] == max([sh.colorCount[c] for sh in shapeList]):
+                        attrList[i].append('mo'+str(c))    
             #largest?
             if len(shapeList[i].pixels) >= largest:
                 ila += [i]
@@ -814,10 +828,12 @@ class Sample():
                 self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
                 self.outIsInMulticolorDShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorDShapes)
     
-            self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True)
-            self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True)
-            self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=False)
-            self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=False)
+            self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True, multicolor=False)
+            self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True, multicolor=False)
+            self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=True, multicolor=True)
+            self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=True, multicolor=True)
+            self.commonShapesDifferentColor = self.getCommonShapes(diagonal=False, sameColor=False, multicolor=False)
+            self.commonDShapesDifferentColor = self.getCommonShapes(diagonal=True, sameColor=False, multicolor=False)
             
             """
             # Is the output a subset of the input?
@@ -943,17 +959,17 @@ class Sample():
             self.followsRowPattern = self.outMatrix.followsRowPattern()
             self.followsColPattern = self.outMatrix.followsColPattern()
         
-    def getCommonShapes(self, diagonal=True, sameColor=False):
+    def getCommonShapes(self, diagonal=True, sameColor=True, multicolor=False):
         comSh = []
         if diagonal:
-            if sameColor:
+            if not multicolor:
                 ishs = self.inMatrix.dShapes
                 oshs = self.outMatrix.dShapes
             else:
                 ishs = self.inMatrix.multicolorDShapes
                 oshs = self.outMatrix.multicolorDShapes
         else:
-            if sameColor:
+            if not multicolor:
                 ishs = self.inMatrix.shapes
                 oshs = self.outMatrix.shapes
             else:
@@ -970,7 +986,6 @@ class Sample():
                 if sameColor:
                      if ish == osh:
                         outCount += 1
-                        break
                 else:
                    if ish.pixels == osh.pixels:
                        outCount += 1
@@ -1162,6 +1177,8 @@ class Task():
         self.nCommonInOutDShapes = min(len(s.commonDShapes) for s in self.trainSamples) 
         self.nCommonInOutMulticolorShapes = min(len(s.commonMulticolorShapes) for s in self.trainSamples)
         self.nCommonInOutMulticolorDShapes = min(len(s.commonMulticolorDShapes) for s in self.trainSamples) 
+        self.nCommonInOutShapesDifferentColor = min(len(s.commonShapesDifferentColor) for s in self.trainSamples)
+        self.nCommonInOutDShapesDifferentColor = min(len(s.commonDShapesDifferentColor) for s in self.trainSamples) 
         
         """
         if len(self.commonInColors) == 1 and len(self.commonOutColors) == 1 and \
