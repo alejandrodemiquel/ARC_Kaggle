@@ -574,16 +574,6 @@ class Matrix():
         #self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
         #self.nNBDShapes = len(self.notBackgroundDShapes)
         
-        # Shape-based backgroundColor
-        for shape in self.shapes:
-            if shape.shape==self.shape:
-                self.backgroundColor = shape.color
-                break
-        # Define multicolor shapes based on the background color
-        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
-        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
-                     
-        
         self.shapeColorCounter = Counter([s.color for s in self.shapes])
         self.blanks = []
         for s in self.shapes:
@@ -612,12 +602,17 @@ class Matrix():
                     else:
                         self.asymmetricGrid = copy.deepcopy(possibleGrid)
                         self.isAsymmetricGrid=True
-        
-        # CHANGE BACKGROUND COLOR IF GRID
-        #if self.isAsymmetricGrid:
-        #    self.backgroundColor = self.asymmetricGrid.color
-        #if self.isGrid:
-        #    self.backgroundColor = self.grid.color
+                        
+        # Shape-based backgroundColor
+        if not self.isGrid:
+            for shape in self.shapes:
+                if shape.shape==self.shape:
+                    self.backgroundColor = shape.color
+                    break
+        # Define multicolor shapes based on the background color
+        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
+        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
+
 
         # Frames
         self.fullFrames = []
