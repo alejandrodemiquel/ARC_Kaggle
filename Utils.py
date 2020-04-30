@@ -3542,8 +3542,8 @@ def getPossibleOperations(t, c):
                               'gridCellIsOutputShape') and candTask.gridCellIsOutputShape):
                     ch = dict(sum([Counter(s.outMatrix.colorCount) for s in candTask.trainSamples],Counter()))
                     ch = sorted(ch, key=ch.get)
-                    if t.backgroundColor in ch:
-                        ch.remove(t.backgroundColor)
+                    if candTask.backgroundColor in ch:
+                        ch.remove(candTask.backgroundColor)
                     ch = list(set([0,1,2,3,4,5,6,7,8,9]).difference(set(ch))) + ch
                     if hasattr(candTask, 'outShapeFactor'):
                         x.append(partial(overlapSubmatrices, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
