@@ -367,7 +367,16 @@ class Shape:
             if m[i,j] == 255 and not seen[i,j]:
                 if isInHole(i,j):
                     nHoles += 1
-        return nHoles             
+        return nHoles
+
+    def isRotationInvariant(self, color=False):
+        if color:
+            m = np.rot90(self.m, 1)
+            return np.array_equal(m, self.m)
+        else:
+            m2 = self.shapeDummyMatrix()
+            m = np.rot90(m2, 1)
+            return np.array_equal(m, m2)
 
 def detectShapes(x, background, singleColor=False, diagonals=False):
     """

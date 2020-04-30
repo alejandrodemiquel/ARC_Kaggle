@@ -389,7 +389,8 @@ def getBestCNN(t):
         if score < bestScore:
             bestScore=score
             ret = partial(predictCNN, model=model, commonColors=cc, nChannels=10)
-        
+            if score==0:
+                return ret
     return ret
 
 def getBestSameNSampleColorsCNN(t):
@@ -404,7 +405,10 @@ def getBestSameNSampleColorsCNN(t):
                                      t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         if score < bestScore:
             bestScore=score
-            ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)    
+            ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)
+            if score==0:
+                return ret
+            
     return ret
 
 # %% CNN learning the output
@@ -734,22 +738,30 @@ def getBestEvolve(t):
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+        if bestScore==0:
+            return bestFunction
+        
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
 
     else:
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0, commonColors=t.orderedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+        if bestScore==0:
+            return bestFunction    
+        
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0, commonColors=t.orderedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     cfn = evolve(t, includeRotations=True)
     if t.allEqual(t.sampleColors):
@@ -757,22 +769,30 @@ def getBestEvolve(t):
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+        if bestScore==0:
+            return bestFunction    
+        
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
 
     else:
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0, commonColors=t.orderedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+        if bestScore==0:
+            return bestFunction    
+        
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0, commonColors=t.orderedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     return bestFunction
 
@@ -1065,7 +1085,9 @@ def getBestLSTM(t):
         if score < bestScore:
             bestScore=score
             ret = partial(predictLSTM, model=model, inColors=inColors,\
-                          colors=colors, inRel=inRel, rel=rel, reverse=r, order=o)    
+                          colors=colors, inRel=inRel, rel=rel, reverse=r, order=o) 
+            if bestScore==0:
+                return ret
     return ret
 
 # %% Other utility functions
@@ -2351,15 +2373,23 @@ def getBestMoveShapes(t):
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="singleColor")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="diagonalSingleColor")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="multiColor")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="diagonalMultiColor")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     colorsToChange = list(t.colors - t.fixedColors - set({t.backgroundColor}))
     ctc = [[c] for c in colorsToChange] + [colorsToChange] # Also all colors
@@ -2370,6 +2400,8 @@ def getBestMoveShapes(t):
                 f = partial(moveAllShapes, color=c, background=t.backgroundColor,\
                                 direction=d, until=u)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
     
     if t.backgroundColor != -1 and hasattr(t, 'fixedColors'):
         colorsToMove = set(range(10)) - set([t.backgroundColor]) - t.fixedColors
@@ -2378,28 +2410,40 @@ def getBestMoveShapes(t):
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                                  background=t.backgroundColor, until=uc)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
                 
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                                  background=t.backgroundColor, until=uc, restore=False)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
                 
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                             background=t.backgroundColor, until=uc, diagonals=True)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+                if bestScore==0:
+                    return bestFunction
+                
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                             background=t.backgroundColor, until=uc, diagonals=True, restore=False)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-    
+                if bestScore==0:
+                    return bestFunction
+                
     if all([len(sample.fixedShapes)>0 for sample in t.trainSamples]):
         f = partial(moveAllShapesToClosest, background=t.backgroundColor,\
                     fixedShapeFeatures = t.fixedShapeFeatures)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
         f = partial(moveAllShapesToClosest, background=t.backgroundColor,\
                     fixedShapeFeatures = t.fixedShapeFeatures, restore=False)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)  
-            
+        if bestScore==0:
+            return bestFunction    
+        
     return bestFunction
 
 # %% Complete rectangles
@@ -3068,6 +3112,8 @@ def getBestMosaic(t):
                 if score < bestScore:
                     bestScore = score
                     bestOp = op
+                    if score==0:
+                        break
             bestOps[i].append(bestOp)
     return bestOps
 
@@ -3140,6 +3186,8 @@ def getBestMultiplyMatrix(t):
         if score < bestScore:
             bestScore = score
             opCond = (op, cond)
+            if score==0:
+                return opCond
     return opCond
 
 def doBestMultiplyMatrix(matrix, opCond):
@@ -3640,21 +3688,37 @@ def getBestCropShape(t):
     bestFunction = partial(identityM)
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,True, False),\
                                                            backgroundColor=0, singleColor=True, diagonals=True), bestScore, bestFunction)
+    if bestScore==0:
+        return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,False, False),\
                                                            backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+    if bestScore==0:
+        return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,True, True),\
                                                            backgroundColor=0, singleColor=False, diagonals=True), bestScore, bestFunction)
+    if bestScore==0:
+        return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,False, True),\
                                                            backgroundColor=0, singleColor=False, diagonals=False), bestScore, bestFunction)
+    if bestScore==0:
+        return bestFunction
     for attr in ['LaSh', 'MoCo', 'MoCl', 'UnSh', 'UnSi']:
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
                                                            backgroundColor=0, singleColor=True, diagonals=True), bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
                                                            backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
                                                            backgroundColor=0, singleColor=False, diagonals=True), bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
                                                            backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     return bestFunction
     
