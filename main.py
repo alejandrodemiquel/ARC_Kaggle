@@ -100,9 +100,9 @@ train_tasks['a9f96cdd']['train'][3]['output'][1][3] = 0
 # 48131b3c
 valid_tasks['48131b3c']['train'][2]['output'][4][4] = 0
 # 150deff5
-aux = train_tasks['150deff5']['test'][0]['output']
-train_tasks['150deff5']['test'][0]['output'] = train_tasks['150deff5']['test'][0]['input']
-train_tasks['150deff5']['test'][0]['input'] = aux
+aux = train_tasks['150deff5']['train'][2]['output'].copy()
+train_tasks['150deff5']['train'][2]['output'] = train_tasks['150deff5']['train'][2]['input'].copy()
+train_tasks['150deff5']['train'][2]['input'] = aux
 # 17cae0c1
 for i in range(3):
     for j in range(3, 6):
@@ -131,6 +131,12 @@ for i in range(9):
 valid_tasks['b0f4d537']['train'][0]['output'][2][3] = 3
 valid_tasks['b0f4d537']['train'][0]['output'][2][4] = 3
 valid_tasks['b0f4d537']['train'][0]['output'][5][3] = 2
+# aa300dc3
+valid_tasks['aa300dc3']['train'][1]['input'][1][7] = 5
+valid_tasks['aa300dc3']['train'][1]['output'][1][7] = 5
+valid_tasks['aa300dc3']['train'][1]['input'][8][2] = 5
+valid_tasks['aa300dc3']['train'][1]['output'][8][2] = 5
+
 
 
 # allTasks stores the tasks as given originally. It is a dictionary, and its
@@ -496,6 +502,7 @@ cropTasks = [13,30,35,48,56,78,110,120,133,173,176,206,217,262,270,289,299,345,3
 replicateShapes = [68, 645, 367, 421, 207, 362, 431, 494, 524]
 #, 190, 367, 421, 431, 524
 count=0
+originalCount = 0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):

@@ -929,7 +929,8 @@ class Sample():
                         self.changedPixels[(self.inMatrix.m[i,j], self.outMatrix.m[i,j])] += 1
                 # Are any of these changes complete? (i.e. all pixels of one color are changed to another one)
                 self.completeColorChanges = set(change for change in self.changedPixels.keys() if\
-                                             self.changedPixels[change]==self.inMatrix.colorCount[change[0]])
+                                             self.changedPixels[change]==self.inMatrix.colorCount[change[0]] and\
+                                             change[0] not in self.outMatrix.colorCount.keys())
                 self.allColorChangesAreComplete = len(self.changedPixels) == len(self.completeColorChanges)
                 # Does any color never change?
                 self.changedInColors = set(change[0] for change in self.changedPixels.keys())
