@@ -1704,8 +1704,6 @@ def colorLongestLines(matrix, cic, coc, direction):
         return m
     return m
     
-       
-    
 # %% Move shapes    
 
 def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
@@ -3431,7 +3429,7 @@ def getPossibleOperations(t, c):
         # CNNs
         
         #x.append(getBestCNN(candTask))
-        if candTask.sameNSampleColors:
+        if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
             x.append(getBestSameNSampleColorsCNN(candTask))
 
         """

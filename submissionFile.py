@@ -3001,6 +3001,224 @@ def extendColorAcross(matrix, color, direction, until, untilBorder = True):
     #if direction == "h" or direction == "l":
     #if direction == "h" or direction == "r":
     return m
+
+# %% Color longest line
+def colorLongestLines(matrix, cic, coc, direction):
+    """
+    cic stands for "changedInColor"
+    coc stands for "changedOutColor"
+    direction can be one of 4 strings: 'v', 'h', 'hv', 'd' (vertical,
+    horizontal, diagonal)
+    It is assumed t.sameIOShapes
+    """    
+    m = matrix.m.copy()
+    
+    longest=0
+    positions = set()
+    if direction=='h':
+        for i in range(m.shape[0]):
+            count = 0
+            for j in range(m.shape[1]):
+                if m[i,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longest:
+                        if count > longest:
+                            positions = set()
+                        longest = count
+                        positions.add((i,j))
+                    count = 0
+            if count >= longest:
+                if count > longest:
+                    positions = set()
+                longest = count
+                positions.add((i,m.shape[1]-1))
+        for pos in positions:
+            for j in range(pos[1]-longest, pos[1]):
+                m[pos[0],j] = coc
+        return m                
+        
+    elif direction=='v':
+        for j in range(m.shape[1]):
+            count = 0
+            for i in range(m.shape[0]):
+                if m[i,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longest:
+                        if count > longest:
+                            positions = set()
+                        longest = count
+                        positions.add((i,j))
+                    count = 0
+            if count >= longest:
+                if count > longest:
+                    positions = set()
+                longest = count
+                positions.add((m.shape[0]-1,j))
+        for pos in positions:
+            for i in range(pos[0]-longest, pos[0]):
+                m[i,pos[1]] = coc
+        return m 
+                        
+    elif direction=='hv':
+        longestH = 0
+        longestV = 0
+        positionsH = set()
+        positionsV = set()
+        for i in range(m.shape[0]):
+            count = 0
+            for j in range(m.shape[1]):
+                if m[i,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longestH:
+                        if count > longestH:
+                            positionsH = set()
+                        longestH = count
+                        positionsH.add((i,j))
+                    count = 0
+            if count >= longestH:
+                if count > longestH:
+                    positionsH = set()
+                longestH = count
+                positionsH.add((i,m.shape[1]-1))
+        for j in range(m.shape[1]):
+            count = 0
+            for i in range(m.shape[0]):
+                if m[i,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longestV:
+                        if count > longestV:
+                            positionsV = set()
+                        longestV = count
+                        positionsV.add((i,j))
+                    count = 0
+            if count >= longestV:
+                if count > longestV:
+                    positionsV = set()
+                longestV = count
+                positionsV.add((m.shape[0]-1,j))
+        for pos in positionsH:
+            for j in range(pos[1]-longestH, pos[1]):
+                m[pos[0],j] = coc
+        for pos in positionsV:
+            for i in range(pos[0]-longestV, pos[0]):
+                m[i,pos[1]] = coc
+        return m
+    
+    elif direction=='d':
+        # Direction of main diagonal
+        for i in reversed(range(m.shape[0])):
+            count = 0
+            jLimit = min(m.shape[1], m.shape[0]-i)
+            for j in range(jLimit):
+                if m[i+j,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longest:
+                        if count > longest:
+                            positions = set()
+                        longest = count
+                        positions.add(((i+j-1,j-1), 'main'))
+                    count = 0
+            if count >= longest:
+                if count > longest:
+                    positions = set()
+                longest = count
+                positions.add(((i+jLimit-1,jLimit-1), 'main'))
+        for j in range(1, m.shape[1]):
+            count = 0
+            iLimit = min(m.shape[0], m.shape[1]-j)
+            for i in range(iLimit):
+                if m[i,j+i]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longest:
+                        if count > longest:
+                            positions = set()
+                        longest = count
+                        positions.add(((i-1,j+i-1), 'main'))
+                    count = 0
+            if count >= longest:
+                if count > longest:
+                    positions = set()
+                longest = count
+                positions.add(((iLimit-1,j+iLimit-1), 'main'))
+                
+        # Direction of counterdiagonal
+        for i in range(m.shape[0]):
+            count = 0
+            jLimit = min(m.shape[1], i+1)
+            for j in range(jLimit):
+                if m[i-j,j]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longest:
+                        if count > longest:
+                            positions = set()
+                        longest = count
+                        positions.add(((i-j+1, j-1), 'counter'))
+                    count = 0
+            if count >= longest:
+                if count > longest:
+                    positions = set()
+                longest = count
+                positions.add(((i-jLimit+1,jLimit-1), 'counter'))
+        for j in range(m.shape[1]):
+            count = 0
+            iLimit = min(m.shape[0], m.shape[1]-j)
+            for i in range(iLimit):
+                if m[m.shape[0]-i-1,j+i]==cic:
+                    if count!=0:
+                        count += 1
+                    else:
+                        count = 1
+                else:
+                    if count >= longest:
+                        if count > longest:
+                            positions = set()
+                        longest = count
+                        positions.add(((m.shape[0]-i,j+i-1), 'counter'))
+                    count = 0
+            if count >= longest:
+                if count > longest:
+                    positions = set()
+                longest = count
+                positions.add(((m.shape[0]-iLimit,j+iLimit-1), 'counter'))
+        
+        # Draw the lines
+        for pos in positions:
+            if pos[1]=='main':
+                for x in range(longest):
+                    m[pos[0][0]-x, pos[0][1]-x] = coc
+            else:
+                for x in range(longest):
+                    m[pos[0][0]+x, pos[0][1]-x] = coc
+        return m
+    return m
     
 # %% Move shapes    
 
@@ -4670,8 +4888,8 @@ def getPossibleOperations(t, c):
             x.append(partial(completeRectangles, sourceColor=sc, newColor=nc))
             
         # Change pixels with features
-        pcwf = getPixelChangesWithFeatures(candTask)
-        x.append(partial(changePixelsWithFeatures, pcwf=pcwf))
+        #pcwf = getPixelChangesWithFeatures(candTask)
+        #x.append(partial(changePixelsWithFeatures, pcwf=pcwf))
         
         #######################################################################
         # For LinearShapeModel we need to have the same shapes in the input
@@ -4694,7 +4912,7 @@ def getPossibleOperations(t, c):
                                      bigOrSmall=bs, isBorder=border))
                     
             # Move shapes
-            #x.append(getBestMoveShapes(candTask))
+            x.append(getBestMoveShapes(candTask))
             
             return x
         
@@ -4727,7 +4945,7 @@ def getPossibleOperations(t, c):
         # CNNs
         
         #x.append(getBestCNN(candTask))
-        if candTask.sameNSampleColors:
+        if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
             x.append(getBestSameNSampleColorsCNN(candTask))
 
         """
@@ -4770,7 +4988,16 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
-        x.append(getBestMoveShapes(candTask))
+        #x.append(getBestMoveShapes(candTask))
+        
+        # Color longest lines
+        if len(candTask.colorChanges)==1:
+            change = next(iter(candTask.colorChanges))
+            x.append(partial(colorLongestLines, cic=change[0], coc=change[1], direction='h'))
+            x.append(partial(colorLongestLines, cic=change[0], coc=change[1], direction='v'))
+            x.append(partial(colorLongestLines, cic=change[0], coc=change[1], direction='hv'))
+            x.append(partial(colorLongestLines, cic=change[0], coc=change[1], direction='d'))
+
         # Connect Pixels
         x.append(partial(connectAnyPixels))
         if all([len(x)==1 for x in candTask.changedInColors]):
