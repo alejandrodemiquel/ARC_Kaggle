@@ -1388,19 +1388,19 @@ class Task():
         # change. Only valid if t.sameIOShapes
         if self.sameIOShapes:
             for c in self.fixedColors:
-                if c in self.testSamples[0].inMatrix.colors:
+                if all([c in sample.inMatrix.colors for sample in self.testSamples]):
                     orderedColors.append(c)
         # 2: Colors that appear in every sample and are always changed from,
         # never changed to.
             for c in self.commonChangedInColors:
                 if c not in self.commonChangedOutColors:
-                    if c in self.testSamples[0].inMatrix.colors:
+                    if all([c in sample.inMatrix.colors for sample in self.testSamples]):
                         if c not in orderedColors:
                             orderedColors.append(c)
         # 3: Colors that appear in every sample and are always changed to,
         # never changed from.
             for c in self.commonChangedOutColors:
-                if c not in self.commonChangedInColors:
+                if not all([[c in sample.inMatrix.colors for sample in self.trainSamples]]):
                     if c not in orderedColors:
                         orderedColors.append(c)
         # 4: Add the background color.
@@ -1409,17 +1409,18 @@ class Task():
                 orderedColors.append(self.backgroundColor)
         # 5: Other colors that appear in every input.
         for c in self.commonInColors:
-            if c in self.testSamples[0].inMatrix.colors:
+            if all([c in sample.inMatrix.colors for sample in self.testSamples]):
                 if c not in orderedColors:
                     orderedColors.append(c)
         # 6: Other colors that appear in every output.
         for c in self.commonOutColors:
-            if c not in orderedColors:
-                orderedColors.append(c)
+            if not all([[c in sample.inMatrix.colors for sample in self.trainSamples]]):
+                if c not in orderedColors:
+                    orderedColors.append(c)
                 
         # TODO Dealing with grids and frames
         
-        return orderedColors   
+        return orderedColors    
         
 #############################################################################
 # %% Models
@@ -2810,8 +2811,7 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
                 continue
             if hasFeatures(featureList[sh], ccwf[color]):
                 m = changeColorShapes(m, [matrix.shapes[sh]], color)
-                break
-
+                #break
     return m
 
 

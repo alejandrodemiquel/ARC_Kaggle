@@ -1169,8 +1169,7 @@ def getShapeFeaturesForColorChange(t, fixedShapeFeatures=None, fixedColors=None,
         else:
             fixedShapes = t.trainSamples[m].fixedShapes
         
-        
-        for shape in matrices[m].shapes:            
+        for shape in matrices[m].shapes:
             shFeatures = []
             for c in range(10):
                 shFeatures.append(shape.color==c)
@@ -1295,7 +1294,6 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
             if hasFeatures(featureList[sh], ccwf[color]):
                 m = changeColorShapes(m, [matrix.shapes[sh]], color)
                 #break
-
     return m
 
 
