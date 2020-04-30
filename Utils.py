@@ -1294,7 +1294,7 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
                 continue
             if hasFeatures(featureList[sh], ccwf[color]):
                 m = changeColorShapes(m, [matrix.shapes[sh]], color)
-                break
+                #break
 
     return m
 
