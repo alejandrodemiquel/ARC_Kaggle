@@ -3524,7 +3524,7 @@ def deletePixels(matrix, diagonals=False):
 
 # %% Connect Pixels
 
-def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set(),\
+def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
                   allowedChanges={}, lineExclusive=False):
     """
     Given a matrix, this function connects all the pixels that have the same
@@ -3534,8 +3534,8 @@ def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()
     will be connected.
     Ìf "connColor" is specified, the color used to connect the pixels will be
     the one given by this parameter.
-    If there are any colors in the "unchangedColors" set, then they it is made
-    sure that they remain unchanged.
+    If there are any colors in the "fixedColors" set, then it is made sure that
+    they remain unchanged.
     "allowedChanges" is a dictionary determining which color changes are
     allowed. It's exclusive with the options unchangedColors and connColor.
     """
@@ -3543,48 +3543,48 @@ def connectPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set()
     # Row
     for i in range(m.shape[0]):
         lowLimit = 0
-        while lowLimit < m.shape[1] and m[i, lowLimit] != pixelColor:
+        while lowLimit < m.shape[1] and matrix[i, lowLimit] != pixelColor:
             lowLimit += 1
         lowLimit += 1
         upLimit = m.shape[1]-1
-        while upLimit > lowLimit and m[i, upLimit] != pixelColor:
+        while upLimit > lowLimit and matrix[i, upLimit] != pixelColor:
             upLimit -= 1
         if upLimit > lowLimit:
             if lineExclusive:
                 for j in range(lowLimit, upLimit):
-                    if m[i,j] == pixelColor:
+                    if matrix[i,j] == pixelColor:
                         lowLimit = upLimit
                         break
             for j in range(lowLimit, upLimit):
                 if connColor != None:
-                    if m[i,j] != pixelColor and m[i,j] not in unchangedColors:
+                    if matrix[i,j] != pixelColor and matrix[i,j] not in fixedColors:
                         m[i,j] = connColor
                 else:
-                    if m[i,j] in allowedChanges.keys():
-                        m[i,j] = allowedChanges[m[i,j]]
+                    if matrix[i,j] in allowedChanges.keys():
+                        m[i,j] = allowedChanges[matrix[i,j]]
        
     # Column             
     for j in range(m.shape[1]):
         lowLimit = 0
-        while lowLimit < m.shape[0] and m[lowLimit, j] != pixelColor:
+        while lowLimit < m.shape[0] and matrix[lowLimit, j] != pixelColor:
             lowLimit += 1
         lowLimit += 1
         upLimit = m.shape[0]-1
-        while upLimit > lowLimit and m[upLimit, j] != pixelColor:
+        while upLimit > lowLimit and matrix[upLimit, j] != pixelColor:
             upLimit -= 1
         if upLimit > lowLimit:
             if lineExclusive:
                 for i in range(lowLimit, upLimit):
-                    if m[i,j] == pixelColor:
+                    if matrix[i,j] == pixelColor:
                         lowLimit = upLimit
                         break
             for i in range(lowLimit, upLimit):
                 if connColor != None:
-                    if m[i,j] != pixelColor and m[i,j] not in unchangedColors:
+                    if matrix[i,j] != pixelColor and matrix[i,j] not in fixedColors:
                         m[i,j] = connColor
                 else:
-                    if m[i,j] in allowedChanges.keys():
-                        m[i,j] = allowedChanges[m[i,j]]
+                    if matrix[i,j] in allowedChanges.keys():
+                        m[i,j] = allowedChanges[matrix[i,j]]
  
     return m
 
@@ -5002,18 +5002,16 @@ def getPossibleOperations(t, c):
         x.append(partial(connectAnyPixels))
         if all([len(x)==1 for x in candTask.changedInColors]):
             x.append(partial(connectAnyPixels, connColor=next(iter(candTask.changedOutColors[0]))))
-        if hasattr(candTask, "unchangedColors"):
-            uc = candTask.unchangedColors
-        else:
-            uc = set()
-        if hasattr(t, "unchangedColors"):
-            tuc = candTask.unchangedColors
-        else:
-            tuc = set()
+        
+        fc = candTask.fixedColors
+        #if hasattr(t, "fixedColors"):
+        #    tfc = candTask.fixedColors
+        #else:
+        #    tfc = set()
         for pc in candTask.colors - candTask.commonChangedInColors:
-            for cc in candTask.colors - tuc:
+            for cc in candTask.commonChangedOutColors:
                 x.append(partial(connectAnyPixels, pixelColor=pc, \
-                                 connColor=cc, unchangedColors=uc))
+                                 connColor=cc, fixedColors=fc))
         for pc in candTask.colors - candTask.commonChangedInColors:
             x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges)))
             x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges),\
