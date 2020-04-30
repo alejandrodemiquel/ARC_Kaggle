@@ -509,7 +509,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId)
-           
+            
     if needsRecoloring(originalT):
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
         t = Task.Task(task, taskId)

@@ -2817,6 +2817,112 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
 
 # %% Change pixels with features
     
+def zoltanRecolor(t):
+    """
+    if t.sameIOShapes
+    """
+    Input = [s.inMatrix.m for s in t.trainSamples]
+    Output = [s.outMatrix.m for s in t.trainSamples]
+        
+    Best_Dict = -1
+    Best_Q1 = -1
+    Best_Q2 = -1
+    Best_v = -1
+    
+    # v ranges from 0 to 3. This gives an extra flexibility of measuring distance from any of the 4 corners
+    Pairs = []
+    for t in range(15):
+        for Q1 in range(1,8):
+            for Q2 in range(1,8):
+                if Q1+Q2 == t:
+                    Pairs.append((Q1,Q2))
+                    
+    for Q1, Q2 in Pairs:
+        for v in range(4):
+            if Best_Dict != -1:
+                continue
+            possible = True
+            Dict = {}
+            
+            for x, y in zip(Input, Output):
+                n = len(x)
+                k = len(x[0])
+                for i in range(n):
+                    for j in range(k):
+                        if v == 0 or v ==2:
+                            p1 = i%Q1
+                        else:
+                            p1 = (n-1-i)%Q1
+                        if v == 0 or v ==3:
+                            p2 = j%Q2
+                        else :
+                            p2 = (k-1-j)%Q2
+                        color1 = x[i][j]
+                        color2 = y[i][j]
+                        if color1 != color2:
+                            rule = (p1, p2, color1)
+                            if rule not in Dict:
+                                Dict[rule] = color2
+                            elif Dict[rule] != color2:
+                                possible = False
+            if possible:
+                
+                # Let's see if we actually solve the problem
+                for x, y in zip(Input, Output):
+                    n = len(x)
+                    k = len(x[0])
+                    for i in range(n):
+                        for j in range(k):
+                            if v == 0 or v ==2:
+                                p1 = i%Q1
+                            else:
+                                p1 = (n-1-i)%Q1
+                            if v == 0 or v ==3:
+                                p2 = j%Q2
+                            else :
+                                p2 = (k-1-j)%Q2
+                           
+                            color1 = x[i][j]
+                            rule = (p1,p2,color1)
+                            
+                            if rule in Dict:
+                                color2 = 0 + Dict[rule]
+                            else:
+                                color2 = 0 + y[i][j]
+                            if color2 != y[i][j]:
+                                possible = False 
+                if possible:
+                    Best_Dict = Dict
+                    Best_Q1 = Q1
+                    Best_Q2 = Q2
+                    Best_v = v
+        
+    if Best_Dict == -1:
+        return [-1]#meaning that we didn't find a rule that works for the traning cases
+    else:
+        return [Best_Dict, Best_v, Best_Q1, Best_Q2]
+    
+def executeZoltanRecolor(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
+    m = np.zeros(matrix.shape, dtype = np.uint8)
+    for i,j in np.ndindex(matrix.shape):
+        if Best_v == 0 or Best_v ==2:
+            p1 = i%Best_Q1
+        else:
+            p1 = (matrix.shape[0]-1-i)%Best_Q1
+        if Best_v == 0 or Best_v ==3:
+            p2 = j%Best_Q2
+        else :
+            p2 = (matrix.shape[1]-1-j)%Best_Q2
+       
+        color1 = matrix.m[i,j]
+        rule = (p1, p2, color1)
+        if (p1, p2, color1) in Best_Dict:
+            m[i][j] = 0 + Best_Dict[rule]
+        else:
+            m[i][j] = 0 + color1
+ 
+    return m
+    
 def getPixelFeatures(m, i, j):
     """
     m is the matrix, and (i,j) is the position of the pixel.
@@ -3588,7 +3694,7 @@ def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
  
     return m
 
-def connectAnyPixels(matrix, pixelColor=None, connColor=None, unchangedColors=set(),\
+def connectAnyPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
                      allowedChanges={}, lineExclusive=False):
     m = matrix.m.copy()
     if pixelColor==None:
@@ -3605,7 +3711,7 @@ def connectAnyPixels(matrix, pixelColor=None, connColor=None, unchangedColors=se
             m = connectPixels(m, pixelColor, allowedChanges=allowedChanges,\
                               lineExclusive=lineExclusive)
         else:
-            m = connectPixels(m, pixelColor, connColor, unchangedColors, lineExclusive=lineExclusive)
+            m = connectPixels(m, pixelColor, connColor, fixedColors, lineExclusive=lineExclusive)
     return m
 
 def rotate(matrix, angle):
@@ -4989,6 +5095,11 @@ def getPossibleOperations(t, c):
         # Other sameIOShapes functions
         # Move shapes
         #x.append(getBestMoveShapes(candTask))
+        
+        zp = zoltanRecolor(candTask)
+        if len(zp)!=1:
+            x.append(partial(executeZoltanRecolor, Best_Dict=zp[0], Best_v=zp[1], Best_Q1=zp[2], Best_Q2=zp[3]))
+        
         
         # Color longest lines
         if len(candTask.colorChanges)==1:

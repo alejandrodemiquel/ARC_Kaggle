@@ -1298,7 +1298,432 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
 
 
 # %% Change pixels with features
+
+def zoltanRecolor(t):
+    """
+    if t.sameIOShapes
+    """
+    Input = [s.inMatrix.m for s in t.trainSamples]
+    Output = [s.outMatrix.m for s in t.trainSamples]
+        
+    Best_Dict = -1
+    Best_Q1 = -1
+    Best_Q2 = -1
+    Best_v = -1
     
+    # v ranges from 0 to 3. This gives an extra flexibility of measuring distance from any of the 4 corners
+    Pairs = []
+    for t in range(15):
+        for Q1 in range(1,8):
+            for Q2 in range(1,8):
+                if Q1+Q2 == t:
+                    Pairs.append((Q1,Q2))
+                    
+    for Q1, Q2 in Pairs:
+        for v in range(4):
+            if Best_Dict != -1:
+                continue
+            possible = True
+            Dict = {}
+            
+            for x, y in zip(Input, Output):
+                n = len(x)
+                k = len(x[0])
+                for i in range(n):
+                    for j in range(k):
+                        if v == 0 or v ==2:
+                            p1 = i%Q1
+                        else:
+                            p1 = (n-1-i)%Q1
+                        if v == 0 or v ==3:
+                            p2 = j%Q2
+                        else :
+                            p2 = (k-1-j)%Q2
+                        color1 = x[i][j]
+                        color2 = y[i][j]
+                        if color1 != color2:
+                            rule = (p1, p2, color1)
+                            if rule not in Dict:
+                                Dict[rule] = color2
+                            elif Dict[rule] != color2:
+                                possible = False
+            if possible:
+                
+                # Let's see if we actually solve the problem
+                for x, y in zip(Input, Output):
+                    n = len(x)
+                    k = len(x[0])
+                    for i in range(n):
+                        for j in range(k):
+                            if v == 0 or v ==2:
+                                p1 = i%Q1
+                            else:
+                                p1 = (n-1-i)%Q1
+                            if v == 0 or v ==3:
+                                p2 = j%Q2
+                            else :
+                                p2 = (k-1-j)%Q2
+                           
+                            color1 = x[i][j]
+                            rule = (p1,p2,color1)
+                            
+                            if rule in Dict:
+                                color2 = 0 + Dict[rule]
+                            else:
+                                color2 = 0 + y[i][j]
+                            if color2 != y[i][j]:
+                                possible = False 
+                if possible:
+                    Best_Dict = Dict
+                    Best_Q1 = Q1
+                    Best_Q2 = Q2
+                    Best_v = v
+        
+    if Best_Dict == -1:
+        return [-1]#meaning that we didn't find a rule that works for the traning cases
+    else:
+        return [Best_Dict, Best_v, Best_Q1, Best_Q2]
+    
+def executeZoltanRecolor(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
+    m = np.zeros(matrix.shape, dtype = np.uint8)
+    for i,j in np.ndindex(matrix.shape):
+        if Best_v == 0 or Best_v ==2:
+            p1 = i%Best_Q1
+        else:
+            p1 = (matrix.shape[0]-1-i)%Best_Q1
+        if Best_v == 0 or Best_v ==3:
+            p2 = j%Best_Q2
+        else :
+            p2 = (matrix.shape[1]-1-j)%Best_Q2
+       
+        color1 = matrix.m[i,j]
+        rule = (p1, p2, color1)
+        if (p1, p2, color1) in Best_Dict:
+            m[i][j] = 0 + Best_Dict[rule]
+        else:
+            m[i][j] = 0 + color1
+ 
+    return m
+    
+
+
+def doRulesWithReference(m, reference, rules):
+    for i,j in np.ndindex(m.shape):
+        y = (m[i,j], reference[i,j])
+        if y in rules.keys():
+            m[i,j] = rules[y]
+    return m    
+
+def doPixelMod2Row(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    onesRow = np.ones(m.shape[1], dtype=np.uint8)
+    for i in range(m.shape[0]):
+        if i%2 == 0:
+            reference[i,:] = onesRow.copy()
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod3Row(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    onesRow = np.ones(m.shape[1], dtype=np.uint8)
+    twosRow = np.full(m.shape[1], 2, dtype=np.uint8)
+    for i in range(m.shape[0]):
+        if i%3 == 0:
+            reference[i,:] = onesRow.copy()
+        elif i%3 == 1:
+            reference[i,:] = twosRow.copy()
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod2RowReverse(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    onesRow = np.ones(m.shape[1], dtype=np.uint8)
+    for i in range(m.shape[0]):
+        if i%2 == 0:
+            reference[m.shape[0]-i-1,:] = onesRow.copy()
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod3RowReverse(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    onesRow = np.ones(m.shape[1], dtype=np.uint8)
+    twosRow = np.full(m.shape[1], 2, dtype=np.uint8)
+    for i in range(m.shape[0]):
+        if i%3 == 0:
+            reference[m.shape[0]-i-1,:] = onesRow.copy()
+        elif i%3 == 1:
+            reference[m.shape[0]-i-1,:] = twosRow.copy()
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod2Col(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    onesCol = np.ones(m.shape[0], dtype=np.uint8)
+    for j in range(m.shape[1]):
+        if j%2 == 0:
+            reference[:,j] = onesCol.copy()
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod3Col(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    onesCol = np.ones(m.shape[0], dtype=np.uint8)
+    twosCol = np.full(m.shape[0], 2, dtype=np.uint8)
+    for j in range(m.shape[1]):
+        if j%3 == 0:
+            reference[:,j] = onesCol.copy()
+        elif j%3 == 1:
+            reference[:,j] = twosCol.copy()
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod2ColReverse(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    onesCol = np.ones(m.shape[0], dtype=np.uint8)
+    for j in range(m.shape[1]):
+        if j%2 == 0:
+            reference[:,m.shape[1]-j-1] = onesCol.copy()
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod3ColReverse(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    onesCol = np.ones(m.shape[0], dtype=np.uint8)
+    twosCol = np.full(m.shape[0], 2, dtype=np.uint8)
+    for j in range(m.shape[1]):
+        if j%3 == 0:
+            reference[:,m.shape[1]-j-1] = onesCol.copy()
+        elif j%3 == 1:
+            reference[:,m.shape[1]-j-1] = twosCol.copy()
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod2Alternate(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    for i,j in np.ndindex(m.shape):
+        reference[i,j] = (i+j)%2
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def doPixelMod3Alternate(matrix, rules):
+    m = matrix.m.copy()
+    reference = np.zeros(m.shape, dtype=np.uint8)
+    for i,j in np.ndindex(m.shape):
+        reference[i,j] = (i+j)%3
+    m = doRulesWithReference(m, reference, rules)
+    return m
+
+def getPixelChangeCriteria(t):
+    # Row
+    # Mod 2
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        onesRow = np.ones(sample.inMatrix.shape[1], dtype=np.uint8)
+        for i in range(sample.inMatrix.shape[0]):
+            if i%2 == 0:
+                reference[i,:] = onesRow.copy()
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod2Row, rules=x)
+    # Mod 3
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        onesRow = np.ones(sample.inMatrix.shape[1], dtype=np.uint8)
+        twosRow = np.full(sample.inMatrix.shape[1], 2, dtype=np.uint8)
+        for i in range(sample.inMatrix.shape[0]):
+            if i%3 == 0:
+                reference[i,:] = onesRow.copy()
+            elif i%3 == 1:
+                reference[i,:] = twosRow.copy()
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod3Row, rules=x)
+    
+    # Row Reverse
+    # Mod 2
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        onesRow = np.ones(sample.inMatrix.shape[1], dtype=np.uint8)
+        for i in range(sample.inMatrix.shape[0]):
+            if i%2 == 0:
+                reference[sample.inMatrix.shape[0]-i-1,:] = onesRow.copy()
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod2RowReverse, rules=x)
+    # Mod 3
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        onesRow = np.ones(sample.inMatrix.shape[1], dtype=np.uint8)
+        twosRow = np.full(sample.inMatrix.shape[1], 2, dtype=np.uint8)
+        for i in range(sample.inMatrix.shape[0]):
+            if i%3 == 0:
+                reference[sample.inMatrix.shape[0]-i-1,:] = onesRow.copy()
+            elif i%3 == 1:
+                reference[sample.inMatrix.shape[0]-i-1,:] = twosRow.copy()
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod3RowReverse, rules=x)
+
+    # Col
+    # Mod 2
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        onesCol = np.ones(sample.inMatrix.shape[0], dtype=np.uint8)
+        for j in range(sample.inMatrix.shape[1]):
+            if j%2 == 0:
+                reference[:,j] = onesCol.copy()
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod2Col, rules=x)
+    # Mod 3
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        onesCol = np.ones(sample.inMatrix.shape[0], dtype=np.uint8)
+        twosCol = np.full(sample.inMatrix.shape[0], 2, dtype=np.uint8)
+        for j in range(sample.inMatrix.shape[1]):
+            if j%3 == 0:
+                reference[:,j] = onesCol.copy()
+            elif j%3 == 1:
+                reference[:,j] = twosCol.copy()
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod3Col, rules=x)
+    
+    # Col Reverse
+    # Mod 2
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        onesCol = np.ones(sample.inMatrix.shape[0], dtype=np.uint8)
+        for j in range(sample.inMatrix.shape[1]):
+            if j%2 == 0:
+                reference[:,sample.inMatrix.shape[1]-j-1] = onesCol.copy()
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod2ColReverse, rules=x)
+    # Mod 3
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        onesCol = np.ones(sample.inMatrix.shape[0], dtype=np.uint8)
+        twosCol = np.full(sample.inMatrix.shape[0], 2, dtype=np.uint8)
+        for j in range(sample.inMatrix.shape[1]):
+            if j%3 == 0:
+                reference[:,sample.inMatrix.shape[1]-j-1] = onesCol.copy()
+            elif j%3 == 1:
+                reference[:,sample.inMatrix.shape[1]-j-1] = twosCol.copy()
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod3ColReverse, rules=x)
+    
+    # Alternate
+    # Mod2
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        for i,j in np.ndindex(sample.inMatrix.shape):
+            reference[i,j] = (i+j)%2
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod2Alternate, rules=x)
+    # Mod3
+    x = {}
+    for sample in t.trainSamples:
+        reference = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
+        for i,j in np.ndindex(sample.inMatrix.shape):
+            reference[i,j] = (i+j)%3
+        for i,j in np.ndindex(reference.shape):
+            y = (sample.inMatrix.m[i,j], reference[i,j])
+            if y in x.keys():
+                x[y].add(sample.outMatrix.m[i,j])
+            else:
+                x[y] = set([sample.outMatrix.m[i,j]])
+    x = {k:next(iter(v)) for k,v in x.items() if len(v)==1}
+    x = {k:v for k,v in x.items() if v not in t.fixedColors}
+    if len(x)>0:
+        return partial(doPixelMod3Alternate, rules=x)
+    
+    return 0
+
+
 def getPixelFeatures(m, i, j):
     """
     m is the matrix, and (i,j) is the position of the pixel.
@@ -3471,6 +3896,14 @@ def getPossibleOperations(t, c):
         # Other sameIOShapes functions
         # Move shapes
         #x.append(getBestMoveShapes(candTask))
+        
+        #zp = zoltanRecolor(candTask)
+        #if len(zp)!=1:
+        #    x.append(partial(executeZoltanRecolor, Best_Dict=zp[0], Best_v=zp[1], Best_Q1=zp[2], Best_Q2=zp[3]))
+        
+        fun = getPixelChangeCriteria(candTask)
+        if fun != 0:
+            x.append(fun)
         
         # Color longest lines
         if len(candTask.colorChanges)==1:
