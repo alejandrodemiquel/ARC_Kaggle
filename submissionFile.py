@@ -1630,69 +1630,94 @@ def updateBestFunction(t, f, bestScore, bestFunction):
 
 # %% Symmetrize
 
-# 7/800 solved
+# %% Symmetrize
+
 # if t.lrSymmetric or t.udSymmetric or t.d1Symmetric:
 # if len(t.changingColors) == 1:
-def symmetrize(matrix, axis, color):
+def symmetrize(matrix, axis, color=None, outColor=None, refColor=None):
     """
     Given a matrix and a color, this function tries to turn pixels of that
     given color into some other one in order to make the matrix symmetric.
     "axis" is a list or set specifying the symmetry axis (lr, ud, d1 or d2).
     """
     # Left-Right
-    def LRSymmetrize(m, color):
+    def LRSymmetrize(m):
         width = m.shape[1] - 1
         for i in range(m.shape[0]):
             for j in range(int(m.shape[1] / 2)):
                 if m[i,j] != m[i,width-j]:
-                    if m[i,j] == color:
-                        m[i,j] = m[i,width-j]
+                    if color==None:
+                        if m[i,j]==refColor and m[i,width-j]!=refColor:
+                            m[i,width-j] = outColor
+                        elif m[i,j]!=refColor and m[i,width-j]==refColor:
+                            m[i,j] = outColor
                     else:
-                        m[i,width-j] = m[i,j]
+                        if m[i,j] == color:
+                            m[i,j] = m[i,width-j]
+                        elif m[i,width-j]==color:
+                            m[i,width-j] = m[i,j]
         return m
     
     # Up-Down
-    def UDSymmetrize(m, color):
+    def UDSymmetrize(m):
         height = m.shape[0] - 1
         for i in range(int(m.shape[0] / 2)):
             for j in range(m.shape[1]):
                 if m[i,j] != m[height-i,j]:
-                    if m[i,j] == color:
-                        m[i,j] = m[height-i,j]
+                    if color==None:
+                        if m[i,j]==refColor and m[height-i,j]!=refColor:
+                            m[height-i,j] = outColor
+                        elif m[i,j]!=refColor and m[height-i,j]==refColor:
+                            m[i,j] = outColor
                     else:
-                        m[height-i,j] = m[i,j]
+                        if m[i,j] == color:
+                            m[i,j] = m[height-i,j]
+                        elif m[height-i,j]==color:
+                            m[height-i,j] = m[i,j]
         return m
 
     # Main diagonal
-    def D1Symmetrize(m, color):
+    def D1Symmetrize(m):
         for i,j in np.ndindex(m.shape):
             if m[i,j] != m[j,i]:
-                if m[i,j] == color:
-                    m[i,j] = m[j,i]
+                if color==None:
+                    if m[i,j]==refColor and m[j,i]!=refColor:
+                        m[j,i] = outColor
+                    elif m[i,j]!=refColor and m[j,i]==refColor:
+                        m[i,j] = outColor
                 else:
-                    m[j,i] = m[i,j]
+                    if m[i,j] == color:
+                        m[i,j] = m[j,i]
+                    elif m[j,i]==color:
+                        m[j,i] = m[i,j]
         return m
     
-    def D2Symmetrize(matrix, color):
+    def D2Symmetrize(matrix):
         for i,j in np.ndindex(m.shape):
             if m[i,j] != m[m.shape[0]-j-1, m.shape[1]-i-1]:
-                if m[i,j] == color:
-                    m[i,j] = m[m.shape[0]-j-1, m.shape[1]-i-1]
+                if color==None:
+                    if m[i,j]==refColor and m[m.shape[0]-j-1, m.shape[1]-i-1]!=refColor:
+                        m[m.shape[0]-j-1, m.shape[1]-i-1] = outColor
+                    elif m[i,j]!=refColor and m[m.shape[0]-j-1, m.shape[1]-i-1]==refColor:
+                        m[i,j] = outColor
                 else:
-                    m[m.shape[0]-j-1, m.shape[1]-i-1] = m[i,j]
+                    if m[i,j] == color:
+                        m[i,j] = m[m.shape[0]-j-1, m.shape[1]-i-1]
+                    elif m[m.shape[0]-j-1, m.shape[1]-i-1]==color:
+                        m[m.shape[0]-j-1, m.shape[1]-i-1] = m[i,j]
         return m
     
     m = matrix.m.copy()
     while True:
         prevMatrix = m.copy()
         if "lr" in axis:
-            m = LRSymmetrize(m, color)
+            m = LRSymmetrize(m)
         if "ud" in axis:
-            m = UDSymmetrize(m, color)
+            m = UDSymmetrize(m)
         if "d1" in axis:
-            m = D1Symmetrize(m, color)
+            m = D1Symmetrize(m)
         if "d2" in axis:
-            m = D2Symmetrize(m, color)
+            m = D2Symmetrize(m)
         if np.array_equal(prevMatrix, m):
             break
             
@@ -5302,6 +5327,10 @@ def getPossibleOperations(t, c):
             if candTask.d2Symmetric:
                 axis.append("d2")
             x.append(partial(symmetrize, axis=axis, color=color))
+            if candTask.totalOutColors==1:
+                for fc in candTask.fixedColors:
+                    x.append(partial(symmetrize, axis=axis, refColor=fc,\
+                                     outColor=next(iter(candTask.totalOutColors))))
     
         # Complete rectangles
         if candTask.backgroundColor!=-1 and len(candTask.fixedColors)==1 and \
