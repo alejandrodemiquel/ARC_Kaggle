@@ -1375,7 +1375,7 @@ class Task():
         # 3: Colors that appear in every sample and are always changed to,
         # never changed from.
             for c in self.commonChangedOutColors:
-                if not all([[c in sample.inMatrix.colors for sample in self.trainSamples]]):
+                if not all([c in sample.inMatrix.colors for sample in self.trainSamples]):
                     if c not in orderedColors:
                         orderedColors.append(c)
         # 4: Add the background color.
@@ -1389,7 +1389,7 @@ class Task():
                     orderedColors.append(c)
         # 6: Other colors that appear in every output.
         for c in self.commonOutColors:
-            if not all([[c in sample.inMatrix.colors for sample in self.trainSamples]]):
+            if not all([c in sample.inMatrix.colors for sample in self.trainSamples]):
                 if c not in orderedColors:
                     orderedColors.append(c)
                 

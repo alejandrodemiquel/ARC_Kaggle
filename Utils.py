@@ -2670,6 +2670,14 @@ def switchColors(matrix, color1=None, color2=None):
             m[i,j] = color1        
     return m
 
+# %% Rotation things
+
+# TODO (task 26)
+def makeShapeRotationInvariant(matrix, color):
+    m = matrix.m.copy()
+    
+    return m
+
 # %% Follow row/col patterns
 def identifyColor(m, pixelPos, c2c, rowStep=None, colStep=None):
     """
@@ -2881,10 +2889,11 @@ def pixelwiseAnd(matrices, falseColor, targetColor=None, trueColor=None):
                 m[i,j] = falseColor
     return m
 
-def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None):
-    """
+"""
+def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None, \
+                trueValues=None):
     See pixelwiseAnd.
-    """
+    trueValues is a list with as many elements as matrices.
     m = np.zeros(matrices[0].shape, dtype=np.uint8)
     for i,j in np.ndindex(m.shape):
         if targetColor == None:
@@ -2908,8 +2917,48 @@ def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None):
             else:
                 m[i,j] = falseColor
     return m
+"""
 
-def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
+def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None, \
+                trueValues=None):
+    """
+    See pixelwiseAnd.
+    trueValues is a list with as many elements as matrices.
+    """
+    m = np.zeros(matrices[0].shape, dtype=np.uint8)
+    for i,j in np.ndindex(m.shape):
+        if targetColor == None:
+            trueCount = 0
+            index = 0
+            for x in matrices:
+                if x[i,j] != falseColor:
+                    trueCount += 1
+                    trueIndex = index
+                index += 1
+            if trueCount==0:
+                m[i,j] = falseColor
+            else:
+                if trueColor!=None:
+                    m[i,j] = trueColor
+                elif trueValues!=None:
+                    if trueCount==1:
+                        m[i,j] = trueValues[trueIndex]
+                    else:
+                        m[i,j] = matrices[trueIndex][i,j]
+                else:
+                    m[i,j] = matrices[trueIndex][i,j]
+        else:
+            if any([x[i,j] == targetColor for x in matrices]):
+                if trueColor == None:
+                    m[i,j] = targetColor
+                else:
+                    m[i,j] = trueColor
+            else:
+                m[i,j] = falseColor
+    return m
+
+def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None, \
+                 firstTrue=None, secondTrue=None):
     """
     See pixelwiseAnd. The difference is that the Xor operation only makes sense
     with two input matrices.
@@ -2919,10 +2968,16 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
         if targetColor == None:
             if (m1[i,j] == falseColor) != (m2[i,j] == falseColor):
                 if trueColor == None:
-                    if m1[i,j] != falseColor:
-                        m[i,j] = m1[i,j]
+                    if firstTrue == None:
+                        if m1[i,j] != falseColor:
+                            m[i,j] = m1[i,j]
+                        else:
+                            m[i,j] = m2[i,j]
                     else:
-                        m[i,j] = m2[i,j]
+                        if m1[i,j] != falseColor:
+                            m[i,j] = firstTrue
+                        else:
+                            m[i,j] = secondTrue
                 else:
                     m[i,j] = trueColor     
             else:
@@ -2930,10 +2985,16 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
         else:
             if (m1[i,j] == targetColor) != (m2[i,j] == targetColor):
                 if trueColor == None:
-                    if m1[i,j] != targetColor:
-                        m[i,j] = m1[i,j]
+                    if firstTrue == None:
+                        if m1[i,j] != falseColor:
+                            m[i,j] = m1[i,j]
+                        else:
+                            m[i,j] = m2[i,j]
                     else:
-                        m[i,j] = m2[i,j]
+                        if m1[i,j] != falseColor:
+                            m[i,j] = firstTrue
+                        else:
+                            m[i,j] = secondTrue
                 else:
                     m[i,j] = trueColor     
             else:
@@ -3443,13 +3504,15 @@ def pixelwiseAndInSubmatrices(matrix, factor, falseColor, targetColor=None, true
     matrices = getSubmatrices(matrix.m.copy(), factor)
     return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
 
-def pixelwiseOrInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
+def pixelwiseOrInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None, \
+                             trueValues=None):
     matrices = getSubmatrices(matrix.m.copy(), factor)
-    return pixelwiseOr(matrices, falseColor, targetColor, trueColor)
+    return pixelwiseOr(matrices, falseColor, targetColor, trueColor, trueValues)
 
-def pixelwiseXorInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
+def pixelwiseXorInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None, \
+                              firstTrue=None, secondTrue=None):
     matrices = getSubmatrices(matrix.m.copy(), factor)
-    return pixelwiseXor(matrices[0], matrices[1], falseColor, targetColor, trueColor)
+    return pixelwiseXor(matrices[0], matrices[1], falseColor, targetColor, trueColor, firstTrue, secondTrue)
 
 # %% Operations considering all submatrices of a grid
 
@@ -3457,14 +3520,16 @@ def pixelwiseAndInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
     matrices = [c[0].m for c in matrix.grid.cellList]
     return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
 
-def pixelwiseOrInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
+def pixelwiseOrInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None, \
+                                 trueValues=None):
     matrices = [c[0].m for c in matrix.grid.cellList]
-    return pixelwiseOr(matrices, falseColor, targetColor, trueColor)
+    return pixelwiseOr(matrices, falseColor, targetColor, trueColor, trueValues)
 
-def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
+def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None, \
+                                  firstTrue=None, secondTrue=None):
     m1 = matrix.grid.cellList[0][0].m.copy()
     m2 = matrix.grid.cellList[1][0].m.copy()
-    return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor)
+    return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor, firstTrue, secondTrue)
 
 # %% Stuff added by Roderic
 #replicate shape
@@ -3988,9 +4053,9 @@ def getPossibleOperations(t, c):
         # Move shapes
         #x.append(getBestMoveShapes(candTask))
         
-        #zp = zoltanRecolor(candTask)
-        #if len(zp)!=1:
-        #    x.append(partial(executeZoltanRecolor, Best_Dict=zp[0], Best_v=zp[1], Best_Q1=zp[2], Best_Q2=zp[3]))
+        zp = zoltanRecolor(candTask)
+        if len(zp)!=1:
+            x.append(partial(executeZoltanRecolor, Best_Dict=zp[0], Best_v=zp[1], Best_Q1=zp[2], Best_Q2=zp[3]))
         
         fun = getPixelChangeCriteria(candTask)
         if fun != 0:
@@ -4034,6 +4099,16 @@ def getPossibleOperations(t, c):
         """
         x.append(getBestReplicateShapes(candTask))
         """
+        
+        # TODO
+        """
+        if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]) and\
+        all([len(s.outMatrix.multicolorShapes)==1 for s in candTask.testSamples]):
+            if all([s.outMatrix.multicolorShapes[0].isRotationInvariant() for s in candTask.trainSamples]):
+                for color in candTask.commonChangedOutColors:
+                    x.append(makeShapeRotationInvariant, color=color)
+        """
+                    
     ###########################################################################
     # Cases in which the input has always the same shape, and the output too
     if candTask.sameInShape and candTask.sameOutShape and \
@@ -4134,12 +4209,25 @@ def getPossibleOperations(t, c):
                     x.append(partial(pixelwiseOrInSubmatrices, \
                                      factor=candTask.outShapeFactor, falseColor=c[0],\
                                      targetColor=target, trueColor=c[1]))
+        if candTask.backgroundColor!=-1:
+            colors = candTask.commonOutColors - candTask.commonInColors
+            if candTask.outShapeFactor[0]*candTask.outShapeFactor[1]==len(colors):
+                for c in permutations(colors, len(colors)):
+                    x.append(partial(pixelwiseOrInSubmatrices, factor=candTask.outShapeFactor,\
+                                     falseColor=candTask.backgroundColor,\
+                                     trueValues = c))
         
         # Pixelwise Xor
         if candTask.outShapeFactor in [(2,1), (1,2)]:
             for c in candTask.commonOutColors:
                 x.append(partial(pixelwiseXorInSubmatrices, factor=candTask.outShapeFactor,\
                                  falseColor=c))
+            if len(candTask.commonOutColors - candTask.commonInColors)==2 and\
+            candTask.backgroundColor!=-1:
+                colors = candTask.commonOutColors - candTask.commonInColors
+                for c in permutations(colors, 2):
+                    x.append(partial(pixelwiseXorInSubmatrices, falseColor=candTask.backgroundColor,\
+                                     firstTrue=c[0], secondTrue=c[1]))
             if len(candTask.totalOutColors) == 2:
                 for target in candTask.totalInColors:
                     for c in permutations(candTask.totalOutColors, 2):
@@ -4178,12 +4266,25 @@ def getPossibleOperations(t, c):
                 for c in permutations(candTask.totalOutColors, 2):
                     x.append(partial(pixelwiseOrInGridSubmatrices, falseColor=c[0],\
                                      targetColor=target, trueColor=c[1]))
+        if candTask.backgroundColor!=-1:
+            colors = candTask.commonOutColors - candTask.commonInColors
+            if candTask.trainSamples[0].inMatrix.grid.nCells==len(colors):
+                for c in permutations(colors, len(colors)):
+                    x.append(partial(pixelwiseOrInGridSubmatrices,\
+                                     falseColor=candTask.backgroundColor,\
+                                     trueValues = c))
         
         # Pixelwise Xor
         if all([s.inMatrix.grid.nCells == 2 for s in candTask.trainSamples]) \
         and all([s.inMatrix.grid.nCells == 2 for s in candTask.testSamples]):
             for c in candTask.commonOutColors:
                 x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c))
+            if len(candTask.commonOutColors - candTask.commonInColors)==2 and\
+            candTask.backgroundColor!=-1:
+                colors = candTask.commonOutColors - candTask.commonInColors
+                for c in permutations(colors, 2):
+                    x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=candTask.backgroundColor,\
+                                     firstTrue=c[0], secondTrue=c[1]))
             if len(candTask.totalOutColors) == 2:
                 for target in candTask.totalInColors:
                     for c in permutations(candTask.totalOutColors, 2):

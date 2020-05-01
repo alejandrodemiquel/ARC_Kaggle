@@ -2842,7 +2842,7 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
 
 # %% Change pixels with features
     
-def zoltanRecolor(t):
+def recolorPixels(t):
     """
     if t.sameIOShapes
     """
@@ -2927,7 +2927,7 @@ def zoltanRecolor(t):
     else:
         return [Best_Dict, Best_v, Best_Q1, Best_Q2]
     
-def executeZoltanRecolor(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
+def executeRecolorPixels(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
     m = np.zeros(matrix.shape, dtype = np.uint8)
     for i,j in np.ndindex(matrix.shape):
         if Best_v == 0 or Best_v ==2:
@@ -4383,7 +4383,8 @@ def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None):
                 m[i,j] = falseColor
     return m
 
-def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
+def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None, \
+                 firstTrue=None, secondTrue=None):
     """
     See pixelwiseAnd. The difference is that the Xor operation only makes sense
     with two input matrices.
@@ -4393,10 +4394,16 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
         if targetColor == None:
             if (m1[i,j] == falseColor) != (m2[i,j] == falseColor):
                 if trueColor == None:
-                    if m1[i,j] != falseColor:
-                        m[i,j] = m1[i,j]
+                    if firstTrue == None:
+                        if m1[i,j] != falseColor:
+                            m[i,j] = m1[i,j]
+                        else:
+                            m[i,j] = m2[i,j]
                     else:
-                        m[i,j] = m2[i,j]
+                        if m1 == falseColor:
+                            m[i,j] = secondTrue
+                        else:
+                            m[i,j] = firstTrue
                 else:
                     m[i,j] = trueColor     
             else:
@@ -4404,10 +4411,16 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None):
         else:
             if (m1[i,j] == targetColor) != (m2[i,j] == targetColor):
                 if trueColor == None:
-                    if m1[i,j] != targetColor:
-                        m[i,j] = m1[i,j]
+                    if firstTrue == None:
+                        if m1[i,j] != falseColor:
+                            m[i,j] = m1[i,j]
+                        else:
+                            m[i,j] = m2[i,j]
                     else:
-                        m[i,j] = m2[i,j]
+                        if m1 == falseColor:
+                            m[i,j] = secondTrue
+                        else:
+                            m[i,j] = firstTrue
                 else:
                     m[i,j] = trueColor     
             else:
@@ -5442,9 +5455,9 @@ def getPossibleOperations(t, c):
         # Move shapes
         #x.append(getBestMoveShapes(candTask))
         
-        #zp = zoltanRecolor(candTask)
-        #if len(zp)!=1:
-        #    x.append(partial(executeZoltanRecolor, Best_Dict=zp[0], Best_v=zp[1], Best_Q1=zp[2], Best_Q2=zp[3]))
+        rp = recolorPixels(candTask)
+        if len(rp)!=1:
+            x.append(partial(executeRecolorPixels, Best_Dict=rp[0], Best_v=rp[1], Best_Q1=rp[2], Best_Q2=rp[3]))
         
         fun = getPixelChangeCriteria(candTask)
         if fun != 0:
@@ -5638,6 +5651,10 @@ def getPossibleOperations(t, c):
         and all([s.inMatrix.grid.nCells == 2 for s in candTask.testSamples]):
             for c in candTask.commonOutColors:
                 x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c))
+            if len(candTask.commonOutColors - candTask.commonInColors)==2:
+                colors = candTask.commonOutColors - candTask.commonInColors
+                for c in permutations(colors, 2):
+                    x.append(partial(pixelwiseXorInGridSubmatrices, firstTrue=c[0], secondTrue=c[1]))
             if len(candTask.totalOutColors) == 2:
                 for target in candTask.totalInColors:
                     for c in permutations(candTask.totalOutColors, 2):
