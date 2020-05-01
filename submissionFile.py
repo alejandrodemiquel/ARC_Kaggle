@@ -5496,9 +5496,6 @@ def getPossibleOperations(t, c):
                 for border, bs in product([True, False, None], ["big", "small", None]):
                     x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                      bigOrSmall=bs, isBorder=border))
-                    
-            # Move shapes
-            x.append(getBestMoveShapes(candTask))
             
             return x
         
@@ -5570,6 +5567,8 @@ def getPossibleOperations(t, c):
                     x.append(partial(flipAllShapes, axis=d, color=c, \
                                      background=t.backgroundColor))
             """
+            
+            x.append(getBestMoveShapes(candTask))
                     
         #######################################################################
         # Other sameIOShapes functions
