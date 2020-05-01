@@ -5403,11 +5403,14 @@ def cropOnlyMulticolorShape(matrix, diagonals=False):
         m[m==255] = matrix.multicolorShapes[0].background
     return m
 
-def cropOnlyFullFrame(matrix, includeBorder=True):
+def cropFullFrame(matrix, includeBorder=True, bigOrSmall = None):
     m = matrix.m.copy()
-    if len(matrix.fullFrames) != 1:
+    if bigOrSmall == None and len(matrix.fullFrames) != 1:
         return m
-    frame = matrix.fullFrames[0]
+    if bigOrSmall == "small":
+        frame = matrix.fullFrames[-1]
+    else:
+        frame = matrix.fullFrames[0]
     if includeBorder:
         return m[frame.position[0]:frame.position[0]+frame.shape[0], \
                  frame.position[1]:frame.position[1]+frame.shape[1]]
@@ -5847,9 +5850,13 @@ def getPossibleOperations(t, c):
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=True))
     if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
-        x.append(partial(cropOnlyFullFrame))
-        x.append(partial(cropOnlyFullFrame, includeBorder=True))
-    
+        x.append(partial(cropFullFrame))
+        x.append(partial(cropFullFrame, includeBorder=True))
+    if all([len(sample.inMatrix.fullFrames)>1 for sample in candTask.trainSamples+candTask.testSamples]):
+        x.append(partial(cropFullFrame, bigOrSmall="big"))
+        x.append(partial(cropFullFrame, bigOrSmall="small"))
+        x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=True))
+        x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=True))
     
     return x
 
@@ -6076,7 +6083,7 @@ def tryOperations(t, c, firstIt=False):
     if c.score==0 or b3c.allPerfect():
         return
     startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize", \
-                "maxColorFromCell", "cropOnlyFullFrame")
+                "maxColorFromCell")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = getPossibleOperations(t, c)
     for op in possibleOps:
