@@ -436,7 +436,7 @@ def tryOperations(t, c, firstIt=False):
     if c.score==0 or b3c.allPerfect():
         return
     startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize", \
-                "maxColorFromCell")
+                "maxColorFromCell", "cropOnlyFullFrame")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
@@ -497,12 +497,10 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
                    672, 677, 678, 690, 699, 704, 710, 722, 726, 737, 742, 745, 758,\
                    760, 768, 779]
 
-scctSolved = [7,31,52,86,139,149,154,178,240,249,269,372,379,556,719,741]
 cropTasks = [13,30,35,48,56,78,110,120,133,173,176,206,215,217,262,270,289,299,345,364,383,488,576,578,635,712,727,785]
 replicateTasks = [68, 645, 367, 421, 207, 362, 431, 494, 524]
 #, 190, 367, 421, 431, 524
 count=0
-originalCount = 0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):

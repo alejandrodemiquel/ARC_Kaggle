@@ -5403,6 +5403,18 @@ def cropOnlyMulticolorShape(matrix, diagonals=False):
         m[m==255] = matrix.multicolorShapes[0].background
     return m
 
+def cropOnlyFullFrame(matrix, includeBorder=True):
+    m = matrix.m.copy()
+    if len(matrix.fullFrames) != 1:
+        return m
+    frame = matrix.fullFrames[0]
+    if includeBorder:
+        return m[frame.position[0]:frame.position[0]+frame.shape[0], \
+                 frame.position[1]:frame.position[1]+frame.shape[1]]
+    else:
+        return m[frame.position[0]+1:frame.position[0]+frame.shape[0]-1, \
+                 frame.position[1]+1:frame.position[1]+frame.shape[1]-1]
+
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
     """
@@ -5834,6 +5846,9 @@ def getPossibleOperations(t, c):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=True))
+    if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
+        x.append(partial(cropOnlyFullFrame))
+        x.append(partial(cropOnlyFullFrame, includeBorders=True))
     
     
     return x
@@ -6061,7 +6076,7 @@ def tryOperations(t, c, firstIt=False):
     if c.score==0 or b3c.allPerfect():
         return
     startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize", \
-                "maxColorFromCell")
+                "maxColorFromCell", "cropOnlyFullFrame")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = getPossibleOperations(t, c)
     for op in possibleOps:

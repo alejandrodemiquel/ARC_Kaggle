@@ -226,6 +226,8 @@ class Shape:
         
         self.nHoles = self.getNHoles()
         
+        self.isFullFrame = self.isFullFrame()
+        
         if self.nColors==1:
             self.boolFeatures = []
             for c in range(10):
@@ -377,6 +379,17 @@ class Shape:
             m2 = self.shapeDummyMatrix()
             m = np.rot90(m2, 1)
             return np.array_equal(m, m2)
+        
+    def isFullFrame(self):
+        if self.shape[0]<3 or self.shape[1]<3:
+            return False
+        for i in range(1, self.shape[0]-1):
+            for j in range(1, self.shape[1]-1):
+                if self.m[i,j] != 255:
+                    return False
+        if self.nPixels == 2 * (self.shape[0]+self.shape[1]-2):
+            return True
+        return False
 
 def detectShapes(x, background, singleColor=False, diagonals=False):
     """
@@ -572,6 +585,7 @@ class Matrix():
         self.nShapes = len(self.shapes)
         self.dShapes = detectShapes(self.m, self.backgroundColor, singleColor=True, diagonals=True)
         self.nDShapes = len(self.dShapes)
+        self.fullFrames = [shape for shape in self.shapes if shape.isFullFrame]
         #self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         #self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         #R: Since black is the most common background color. 
@@ -621,13 +635,6 @@ class Matrix():
         # Define multicolor shapes based on the background color
         self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
-
-        # Frames
-        self.fullFrames = []
-        for shape in self.shapes:
-            if shape.shape[0]>2 and shape.shape[1]>2:
-                if not np.any(shape.m[1:shape.shape[0]-1,1:shape.shape[1]-1]==shape.color):
-                    self.fullFrames.append(shape)
         
         # Symmetries
         self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
