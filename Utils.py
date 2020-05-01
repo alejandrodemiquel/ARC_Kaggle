@@ -4325,6 +4325,6 @@ def getPossibleOperations(t, c):
         x.append(partial(cropOnlyMulticolorShape, diagonals=True))
     if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyFullFrame))
-        x.append(partial(cropOnlyFullFrame, includeBorders=True))
+        x.append(partial(cropOnlyFullFrame, includeBorder=True))
     
     return x
