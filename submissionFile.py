@@ -299,6 +299,12 @@ class Shape:
             elif (m2.shape[0]%m1.shape[0])==0 and (m2.shape[1]%m1.shape[1])==0:
                 factor = (int(m2.shape[0]/m1.shape[0]), int(m2.shape[1]/m1.shape[1]))
                 m1 = multiplyPixels(m1, factor)
+            elif rotation and (m1.shape[0]%m2.shape[1])==0 and (m1.shape[1]%m2.shape[0])==0:
+                factor = (int(m1.shape[0]/m2.shape[1]), int(m1.shape[1]/m2.shape[0]))
+                m2 = multiplyPixels(m2, factor)
+            elif rotation and (m2.shape[0]%m1.shape[1])==0 and (m2.shape[1]%m1.shape[0])==0:
+                factor = (int(m2.shape[0]/m1.shape[1]), int(m2.shape[1]/m1.shape[0]))
+                m1 = multiplyPixels(m1, factor)
             else:
                 return False
         if rotation and not mirror:
@@ -309,9 +315,9 @@ class Shape:
                 return True
         if mirror and rotation:
             for x in range(1, 4):
-                if np.array_equal(m1, np.fliplr(np.rot90(m2,x))) or\
-                np.array_equal(m1, np.flipud(np.rot90(m2,x))):
-                    return True
+                if any([np.array_equal(m1, np.rot90(m2,x))\
+                        or np.array_equal(m1, np.fliplr(np.rot90(m2,x))) for x in range(1,4)]):
+                    return True               
                 
         return np.array_equal(m1,m2)
     
@@ -392,7 +398,16 @@ class Shape:
             if m[i,j] == 255 and not seen[i,j]:
                 if isInHole(i,j):
                     nHoles += 1
-        return nHoles             
+        return nHoles
+
+    def isRotationInvariant(self, color=False):
+        if color:
+            m = np.rot90(self.m, 1)
+            return np.array_equal(m, self.m)
+        else:
+            m2 = self.shapeDummyMatrix()
+            m = np.rot90(m2, 1)
+            return np.array_equal(m, m2)
 
 def detectShapes(x, background, singleColor=False, diagonals=False):
     """
@@ -599,16 +614,6 @@ class Matrix():
         #self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
         #self.nNBDShapes = len(self.notBackgroundDShapes)
         
-        # Shape-based backgroundColor
-        for shape in self.shapes:
-            if shape.shape==self.shape:
-                self.backgroundColor = shape.color
-                break
-        # Define multicolor shapes based on the background color
-        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
-        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
-                     
-        
         self.shapeColorCounter = Counter([s.color for s in self.shapes])
         self.blanks = []
         for s in self.shapes:
@@ -637,12 +642,16 @@ class Matrix():
                     else:
                         self.asymmetricGrid = copy.deepcopy(possibleGrid)
                         self.isAsymmetricGrid=True
-        
-        # CHANGE BACKGROUND COLOR IF GRID
-        #if self.isAsymmetricGrid:
-        #    self.backgroundColor = self.asymmetricGrid.color
-        #if self.isGrid:
-        #    self.backgroundColor = self.grid.color
+                        
+        # Shape-based backgroundColor
+        if not self.isGrid:
+            for shape in self.shapes:
+                if shape.shape==self.shape:
+                    self.backgroundColor = shape.color
+                    break
+        # Define multicolor shapes based on the background color
+        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
+        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
 
         # Frames
         self.fullFrames = []
@@ -906,12 +915,22 @@ class Sample():
                 self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
                 self.outIsInMulticolorDShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorDShapes)
     
-            self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True, multicolor=False)
-            self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True, multicolor=False)
-            self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=True, multicolor=True)
-            self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=True, multicolor=True)
-            self.commonShapesDifferentColor = self.getCommonShapes(diagonal=False, sameColor=False, multicolor=False)
-            self.commonDShapesDifferentColor = self.getCommonShapes(diagonal=True, sameColor=False, multicolor=False)
+            self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
+                                                     multicolor=False, rotation=True, scaling=True, mirror=True)
+            self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
+                                                      multicolor=False, rotation=True, scaling=True, mirror=True)
+            #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
+            #                                         multicolor=False, rotation=True, scaling=True, mirror=True)
+            #self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
+            #                                          multicolor=False, rotation=True, scaling=True, mirror=True)
+            self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
+                                                               multicolor=True, rotation=True, scaling=True, mirror=True)
+            self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
+                                                                multicolor=True, rotation=True, scaling=True, mirror=True)
+            #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
+            #                                                       multicolor=True, rotation=True, scaling=True, mirror=True)
+            #self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
+            #                                                        multicolor=True, rotation=True, scaling=True, mirror=True)
             
             """
             # Is the output a subset of the input?
@@ -960,7 +979,8 @@ class Sample():
                         self.changedPixels[(self.inMatrix.m[i,j], self.outMatrix.m[i,j])] += 1
                 # Are any of these changes complete? (i.e. all pixels of one color are changed to another one)
                 self.completeColorChanges = set(change for change in self.changedPixels.keys() if\
-                                             self.changedPixels[change]==self.inMatrix.colorCount[change[0]])
+                                             self.changedPixels[change]==self.inMatrix.colorCount[change[0]] and\
+                                             change[0] not in self.outMatrix.colorCount.keys())
                 self.allColorChangesAreComplete = len(self.changedPixels) == len(self.completeColorChanges)
                 # Does any color never change?
                 self.changedInColors = set(change[0] for change in self.changedPixels.keys())
@@ -1039,8 +1059,9 @@ class Sample():
             # Does the output matrix follow a pattern?
             self.followsRowPattern = self.outMatrix.followsRowPattern()
             self.followsColPattern = self.outMatrix.followsColPattern()
-        
-    def getCommonShapes(self, diagonal=True, sameColor=True, multicolor=False):
+
+    def getCommonShapes(self, diagonal=True, multicolor=False, sameColor=False, samePosition=False, rotation=False, \
+                     mirror=False, scaling=False):
         comSh = []
         if diagonal:
             if not multicolor:
@@ -1056,20 +1077,17 @@ class Sample():
             else:
                 ishs = self.inMatrix.multicolorShapes
                 oshs = self.outMatrix.multicolorShapes
-        #Arbitrary: shapes have size < 30.         
+        #Arbitrary: shapes have size < 150.         
         for ish in ishs:
             outCount = 0
-            if len(ish.pixels) == 1 or len(ish.pixels) > 30:
+            if len(ish.pixels) == 1 or len(ish.pixels) > 100:
                 continue
             for osh in oshs:
-                if len(osh.pixels) == 1 or len(osh.pixels) > 30:
+                if len(osh.pixels) == 1 or len(osh.pixels) > 100:
                     continue
-                if sameColor:
-                     if ish == osh:
-                        outCount += 1
-                else:
-                   if ish.pixels == osh.pixels:
-                       outCount += 1
+                if ish.hasSameShape(osh, sameColor=sameColor, samePosition=samePosition,\
+                                    rotation=rotation, mirror=mirror, scaling=scaling):
+                    outCount += 1
             if outCount > 0:
                 comSh.append((ish, outCount))
         return comSh
@@ -1240,26 +1258,14 @@ class Task():
         if all([(hasattr(s, "outIsInMulticolorDShapeSize") and s.outIsInMulticolorDShapeSize) for s in self.trainSamples]):
              self.outIsInMulticolorDShapeSize = True
              
-        """
-        if all([hasattr(s, 'outIsInDShape') for s in self.trainSamples]) and all(len(s.outIsInDShape)==1 for s in self.trainSamples):
-            self.outIsInDShape = True
-        if all([hasattr(s, 'outIsInShape') for s in self.trainSamples]) and all(len(s.outIsInShape)>0 for s in self.trainSamples):
-            self.outIsInShape = True
-        if all([hasattr(s, 'outIsInNonBMulticolorDShape') for s in self.trainSamples]) and all(len(s.outIsInNonBMulticolorDShape)>0 for s in self.trainSamples) and self.backgroundColor == 0:
-            self.outIsInMulticolorDShape = True
-        if all([hasattr(s, 'outIsInNonBMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInNonBMulticolorShape)>0 for s in self.trainSamples) and self.backgroundColor == 0:
-            self.outIsInMulticolorShape = True
-        if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
-            self.outIsInMulticolorShape = True
-        if all([hasattr(s, 'outIsInMulticolorShape') for s in self.trainSamples]) and all(len(s.outIsInMulticolorShape)>0 for s in self.trainSamples):
-            self.outIsInMulticolorShape = True
-        """
         self.nCommonInOutShapes = min(len(s.commonShapes) for s in self.trainSamples)
         self.nCommonInOutDShapes = min(len(s.commonDShapes) for s in self.trainSamples) 
+        #self.nCommonInOutShapesNoColor = min(len(s.commonShapesNoColor) for s in self.trainSamples)
+        #self.nCommonInOutDShapesNoColor = min(len(s.commonDShapesNoColor) for s in self.trainSamples) 
         self.nCommonInOutMulticolorShapes = min(len(s.commonMulticolorShapes) for s in self.trainSamples)
         self.nCommonInOutMulticolorDShapes = min(len(s.commonMulticolorDShapes) for s in self.trainSamples) 
-        self.nCommonInOutShapesDifferentColor = min(len(s.commonShapesDifferentColor) for s in self.trainSamples)
-        self.nCommonInOutDShapesDifferentColor = min(len(s.commonDShapesDifferentColor) for s in self.trainSamples) 
+        #self.nCommonInOutMulticolorShapesNoColor = min(len(s.commonMulticolorShapesNoColor) for s in self.trainSamples)
+        #self.nCommonInOutMulticolorDShapesNoColor = min(len(s.commonMulticolorDShapesNoColor) for s in self.trainSamples) 
         
         """
         if len(self.commonInColors) == 1 and len(self.commonOutColors) == 1 and \
@@ -1400,7 +1406,7 @@ class Task():
         # 3: Colors that appear in every sample and are always changed to,
         # never changed from.
             for c in self.commonChangedOutColors:
-                if not all([[c in sample.inMatrix.colors for sample in self.trainSamples]]):
+                if not all([c in sample.inMatrix.colors for sample in self.trainSamples]):
                     if c not in orderedColors:
                         orderedColors.append(c)
         # 4: Add the background color.
@@ -1414,13 +1420,13 @@ class Task():
                     orderedColors.append(c)
         # 6: Other colors that appear in every output.
         for c in self.commonOutColors:
-            if not all([[c in sample.inMatrix.colors for sample in self.trainSamples]]):
+            if not all([c in sample.inMatrix.colors for sample in self.trainSamples]):
                 if c not in orderedColors:
                     orderedColors.append(c)
                 
         # TODO Dealing with grids and frames
         
-        return orderedColors    
+        return orderedColors   
         
 #############################################################################
 # %% Models
@@ -1524,7 +1530,7 @@ def pixelCorrespondence(t):
     
     return pixelMap
 
-##############################################################################
+###############################################################################
 # %% Utils
 
 def identityM(matrix):
@@ -1630,8 +1636,6 @@ def updateBestFunction(t, f, bestScore, bestFunction):
 
 # %% Symmetrize
 
-# %% Symmetrize
-
 # if t.lrSymmetric or t.udSymmetric or t.d1Symmetric:
 # if len(t.changingColors) == 1:
 def symmetrize(matrix, axis, color=None, outColor=None, refColor=None):
@@ -1727,7 +1731,7 @@ def symmetrize(matrix, axis, color=None, outColor=None, refColor=None):
 """
 def trainCNNDummyCommonColors(t, commonColors, k, pad):
     nChannels = len(commonColors)+2
-    model = OneConvModel(nChannels, k, pad)
+    model = Models.OneConvModel(nChannels, k, pad)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     criterion = nn.CrossEntropyLoss()
     for e in range(100): # numEpochs   
@@ -1908,7 +1912,8 @@ def getBestCNN(t):
         if score < bestScore:
             bestScore=score
             ret = partial(predictCNN, model=model, commonColors=cc, nChannels=10)
-        
+            if score==0:
+                return ret
     return ret
 
 def getBestSameNSampleColorsCNN(t):
@@ -1923,7 +1928,10 @@ def getBestSameNSampleColorsCNN(t):
                                      t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         if score < bestScore:
             bestScore=score
-            ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)    
+            ret = partial(predictCNN, model=model, commonColors=cc, nChannels=nc)
+            if score==0:
+                return ret
+            
     return ret
 
 # %% CNN learning the output
@@ -2253,22 +2261,30 @@ def getBestEvolve(t):
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+        if bestScore==0:
+            return bestFunction
+        
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
 
     else:
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0, commonColors=t.orderedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+        if bestScore==0:
+            return bestFunction    
+        
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0, commonColors=t.orderedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     cfn = evolve(t, includeRotations=True)
     if t.allEqual(t.sampleColors):
@@ -2276,22 +2292,30 @@ def getBestEvolve(t):
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+        if bestScore==0:
+            return bestFunction    
+        
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
 
     else:
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                     kernel=None, border=0, commonColors=t.orderedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+        if bestScore==0:
+            return bestFunction    
+        
         f =  partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                      fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
                      kernel=5, border=0, commonColors=t.orderedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     return bestFunction
 
@@ -2584,7 +2608,9 @@ def getBestLSTM(t):
         if score < bestScore:
             bestScore=score
             ret = partial(predictLSTM, model=model, inColors=inColors,\
-                          colors=colors, inRel=inRel, rel=rel, reverse=r, order=o)    
+                          colors=colors, inRel=inRel, rel=rel, reverse=r, order=o) 
+            if bestScore==0:
+                return ret
     return ret
 
 # %% Other utility functions
@@ -2711,8 +2737,7 @@ def getShapeFeaturesForColorChange(t, fixedShapeFeatures=None, fixedColors=None,
         else:
             fixedShapes = t.trainSamples[m].fixedShapes
         
-        
-        for shape in matrices[m].shapes:            
+        for shape in matrices[m].shapes:
             shFeatures = []
             for c in range(10):
                 shFeatures.append(shape.color==c)
@@ -2841,8 +2866,8 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
 
 
 # %% Change pixels with features
-    
-def recolorPixels(t):
+
+def pixelRecolor(t):
     """
     if t.sameIOShapes
     """
@@ -2927,7 +2952,7 @@ def recolorPixels(t):
     else:
         return [Best_Dict, Best_v, Best_Q1, Best_Q2]
     
-def executeRecolorPixels(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
+def executePixelRecolor(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
     m = np.zeros(matrix.shape, dtype = np.uint8)
     for i,j in np.ndindex(matrix.shape):
         if Best_v == 0 or Best_v ==2:
@@ -2947,6 +2972,7 @@ def executeRecolorPixels(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
             m[i][j] = 0 + color1
  
     return m
+    
 
 
 def doRulesWithReference(m, reference, rules):
@@ -3264,7 +3290,8 @@ def getPixelChangeCriteria(t):
         return partial(doPixelMod3Alternate, rules=x)
     
     return 0
-    
+
+
 def getPixelFeatures(m, i, j):
     """
     m is the matrix, and (i,j) is the position of the pixel.
@@ -3869,15 +3896,23 @@ def getBestMoveShapes(t):
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="singleColor")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="diagonalSingleColor")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="multiColor")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="diagonalMultiColor")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     colorsToChange = list(t.colors - t.fixedColors - set({t.backgroundColor}))
     ctc = [[c] for c in colorsToChange] + [colorsToChange] # Also all colors
@@ -3888,6 +3923,8 @@ def getBestMoveShapes(t):
                 f = partial(moveAllShapes, color=c, background=t.backgroundColor,\
                                 direction=d, until=u)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
     
     if t.backgroundColor != -1 and hasattr(t, 'fixedColors'):
         colorsToMove = set(range(10)) - set([t.backgroundColor]) - t.fixedColors
@@ -3896,28 +3933,40 @@ def getBestMoveShapes(t):
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                                  background=t.backgroundColor, until=uc)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
                 
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                                  background=t.backgroundColor, until=uc, restore=False)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
                 
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                             background=t.backgroundColor, until=uc, diagonals=True)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-            
+                if bestScore==0:
+                    return bestFunction
+                
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                             background=t.backgroundColor, until=uc, diagonals=True, restore=False)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-    
+                if bestScore==0:
+                    return bestFunction
+                
     if all([len(sample.fixedShapes)>0 for sample in t.trainSamples]):
         f = partial(moveAllShapesToClosest, background=t.backgroundColor,\
                     fixedShapeFeatures = t.fixedShapeFeatures)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
         f = partial(moveAllShapesToClosest, background=t.backgroundColor,\
                     fixedShapeFeatures = t.fixedShapeFeatures, restore=False)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)  
-            
+        if bestScore==0:
+            return bestFunction    
+        
     return bestFunction
 
 # %% Complete rectangles
@@ -4144,6 +4193,14 @@ def switchColors(matrix, color1=None, color2=None):
             m[i,j] = color1        
     return m
 
+# %% Rotation things
+
+# TODO (task 26)
+def makeShapeRotationInvariant(matrix, color):
+    m = matrix.m.copy()
+    
+    return m
+
 # %% Follow row/col patterns
 def identifyColor(m, pixelPos, c2c, rowStep=None, colStep=None):
     """
@@ -4355,10 +4412,11 @@ def pixelwiseAnd(matrices, falseColor, targetColor=None, trueColor=None):
                 m[i,j] = falseColor
     return m
 
-def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None):
-    """
+"""
+def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None, \
+                trueValues=None):
     See pixelwiseAnd.
-    """
+    trueValues is a list with as many elements as matrices.
     m = np.zeros(matrices[0].shape, dtype=np.uint8)
     for i,j in np.ndindex(m.shape):
         if targetColor == None:
@@ -4373,6 +4431,45 @@ def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None):
                     break
             if isFalse:
                 m[i,j] = falseColor
+        else:
+            if any([x[i,j] == targetColor for x in matrices]):
+                if trueColor == None:
+                    m[i,j] = targetColor
+                else:
+                    m[i,j] = trueColor
+            else:
+                m[i,j] = falseColor
+    return m
+"""
+
+def pixelwiseOr(matrices, falseColor, targetColor=None, trueColor=None, \
+                trueValues=None):
+    """
+    See pixelwiseAnd.
+    trueValues is a list with as many elements as matrices.
+    """
+    m = np.zeros(matrices[0].shape, dtype=np.uint8)
+    for i,j in np.ndindex(m.shape):
+        if targetColor == None:
+            trueCount = 0
+            index = 0
+            for x in matrices:
+                if x[i,j] != falseColor:
+                    trueCount += 1
+                    trueIndex = index
+                index += 1
+            if trueCount==0:
+                m[i,j] = falseColor
+            else:
+                if trueColor!=None:
+                    m[i,j] = trueColor
+                elif trueValues!=None:
+                    if trueCount==1:
+                        m[i,j] = trueValues[trueIndex]
+                    else:
+                        m[i,j] = matrices[trueIndex][i,j]
+                else:
+                    m[i,j] = matrices[trueIndex][i,j]
         else:
             if any([x[i,j] == targetColor for x in matrices]):
                 if trueColor == None:
@@ -4400,10 +4497,10 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None, \
                         else:
                             m[i,j] = m2[i,j]
                     else:
-                        if m1 == falseColor:
-                            m[i,j] = secondTrue
-                        else:
+                        if m1[i,j] != falseColor:
                             m[i,j] = firstTrue
+                        else:
+                            m[i,j] = secondTrue
                 else:
                     m[i,j] = trueColor     
             else:
@@ -4417,10 +4514,10 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None, \
                         else:
                             m[i,j] = m2[i,j]
                     else:
-                        if m1 == falseColor:
-                            m[i,j] = secondTrue
-                        else:
+                        if m1[i,j] != falseColor:
                             m[i,j] = firstTrue
+                        else:
+                            m[i,j] = secondTrue
                 else:
                     m[i,j] = trueColor     
             else:
@@ -4599,6 +4696,8 @@ def getBestMosaic(t):
                 if score < bestScore:
                     bestScore = score
                     bestOp = op
+                    if score==0:
+                        break
             bestOps[i].append(bestOp)
     return bestOps
 
@@ -4671,6 +4770,8 @@ def getBestMultiplyMatrix(t):
         if score < bestScore:
             bestScore = score
             opCond = (op, cond)
+            if score==0:
+                return opCond
     return opCond
 
 def doBestMultiplyMatrix(matrix, opCond):
@@ -4926,13 +5027,15 @@ def pixelwiseAndInSubmatrices(matrix, factor, falseColor, targetColor=None, true
     matrices = getSubmatrices(matrix.m.copy(), factor)
     return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
 
-def pixelwiseOrInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
+def pixelwiseOrInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None, \
+                             trueValues=None):
     matrices = getSubmatrices(matrix.m.copy(), factor)
-    return pixelwiseOr(matrices, falseColor, targetColor, trueColor)
+    return pixelwiseOr(matrices, falseColor, targetColor, trueColor, trueValues)
 
-def pixelwiseXorInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
+def pixelwiseXorInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None, \
+                              firstTrue=None, secondTrue=None):
     matrices = getSubmatrices(matrix.m.copy(), factor)
-    return pixelwiseXor(matrices[0], matrices[1], falseColor, targetColor, trueColor)
+    return pixelwiseXor(matrices[0], matrices[1], falseColor, targetColor, trueColor, firstTrue, secondTrue)
 
 # %% Operations considering all submatrices of a grid
 
@@ -4940,14 +5043,16 @@ def pixelwiseAndInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
     matrices = [c[0].m for c in matrix.grid.cellList]
     return pixelwiseAnd(matrices, falseColor, targetColor, trueColor)
 
-def pixelwiseOrInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
+def pixelwiseOrInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None, \
+                                 trueValues=None):
     matrices = [c[0].m for c in matrix.grid.cellList]
-    return pixelwiseOr(matrices, falseColor, targetColor, trueColor)
+    return pixelwiseOr(matrices, falseColor, targetColor, trueColor, trueValues)
 
-def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
+def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None, \
+                                  firstTrue=None, secondTrue=None):
     m1 = matrix.grid.cellList[0][0].m.copy()
     m2 = matrix.grid.cellList[1][0].m.copy()
-    return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor)
+    return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor, firstTrue, secondTrue)
 
 # %% Stuff added by Roderic
 #replicate shape
@@ -5171,21 +5276,37 @@ def getBestCropShape(t):
     bestFunction = partial(identityM)
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,True, False),\
                                                            backgroundColor=0, singleColor=True, diagonals=True), bestScore, bestFunction)
+    if bestScore==0:
+        return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,False, False),\
                                                            backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+    if bestScore==0:
+        return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,True, True),\
                                                            backgroundColor=0, singleColor=False, diagonals=True), bestScore, bestFunction)
+    if bestScore==0:
+        return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,False, True),\
                                                            backgroundColor=0, singleColor=False, diagonals=False), bestScore, bestFunction)
+    if bestScore==0:
+        return bestFunction
     for attr in ['LaSh', 'MoCo', 'MoCl', 'UnSh', 'UnSi']:
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
                                                            backgroundColor=0, singleColor=True, diagonals=True), bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
                                                            backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
                                                            backgroundColor=0, singleColor=False, diagonals=True), bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
                                                            backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     return bestFunction
     
@@ -5455,9 +5576,9 @@ def getPossibleOperations(t, c):
         # Move shapes
         #x.append(getBestMoveShapes(candTask))
         
-        rp = recolorPixels(candTask)
-        if len(rp)!=1:
-            x.append(partial(executeRecolorPixels, Best_Dict=rp[0], Best_v=rp[1], Best_Q1=rp[2], Best_Q2=rp[3]))
+        pr = pixelRecolor(candTask)
+        if len(pr)!=1:
+            x.append(partial(executePixelRecolor, Best_Dict=pr[0], Best_v=pr[1], Best_Q1=pr[2], Best_Q2=pr[3]))
         
         fun = getPixelChangeCriteria(candTask)
         if fun != 0:
@@ -5475,7 +5596,7 @@ def getPossibleOperations(t, c):
         x.append(partial(connectAnyPixels))
         if all([len(x)==1 for x in candTask.changedInColors]):
             x.append(partial(connectAnyPixels, connColor=next(iter(candTask.changedOutColors[0]))))
-        
+
         fc = candTask.fixedColors
         #if hasattr(t, "fixedColors"):
         #    tfc = candTask.fixedColors
@@ -5501,6 +5622,16 @@ def getPossibleOperations(t, c):
         """
         x.append(getBestReplicateShapes(candTask))
         """
+        
+        # TODO
+        """
+        if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]) and\
+        all([len(s.outMatrix.multicolorShapes)==1 for s in candTask.testSamples]):
+            if all([s.outMatrix.multicolorShapes[0].isRotationInvariant() for s in candTask.trainSamples]):
+                for color in candTask.commonChangedOutColors:
+                    x.append(makeShapeRotationInvariant, color=color)
+        """
+                    
     ###########################################################################
     # Cases in which the input has always the same shape, and the output too
     if candTask.sameInShape and candTask.sameOutShape and \
@@ -5527,8 +5658,8 @@ def getPossibleOperations(t, c):
                               'gridCellIsOutputShape') and candTask.gridCellIsOutputShape):
                     ch = dict(sum([Counter(s.outMatrix.colorCount) for s in candTask.trainSamples],Counter()))
                     ch = sorted(ch, key=ch.get)
-                    if t.backgroundColor in ch:
-                        ch.remove(t.backgroundColor)
+                    if candTask.backgroundColor in ch:
+                        ch.remove(candTask.backgroundColor)
                     ch = list(set([0,1,2,3,4,5,6,7,8,9]).difference(set(ch))) + ch
                     if hasattr(candTask, 'outShapeFactor'):
                         x.append(partial(overlapSubmatrices, colorHierarchy=ch, shapeFactor=candTask.outShapeFactor))
@@ -5541,9 +5672,9 @@ def getPossibleOperations(t, c):
     
     ###########################################################################
     # Evolve
-    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
-    len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-        x.append(getBestEvolve(candTask))
+    #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
+    #    x.append(getBestEvolve(candTask))
         
     ###########################################################################
     # Other cases
@@ -5601,12 +5732,25 @@ def getPossibleOperations(t, c):
                     x.append(partial(pixelwiseOrInSubmatrices, \
                                      factor=candTask.outShapeFactor, falseColor=c[0],\
                                      targetColor=target, trueColor=c[1]))
+        if candTask.backgroundColor!=-1:
+            colors = candTask.commonOutColors - candTask.commonInColors
+            if candTask.outShapeFactor[0]*candTask.outShapeFactor[1]==len(colors):
+                for c in permutations(colors, len(colors)):
+                    x.append(partial(pixelwiseOrInSubmatrices, factor=candTask.outShapeFactor,\
+                                     falseColor=candTask.backgroundColor,\
+                                     trueValues = c))
         
         # Pixelwise Xor
         if candTask.outShapeFactor in [(2,1), (1,2)]:
             for c in candTask.commonOutColors:
                 x.append(partial(pixelwiseXorInSubmatrices, factor=candTask.outShapeFactor,\
                                  falseColor=c))
+            if len(candTask.commonOutColors - candTask.commonInColors)==2 and\
+            candTask.backgroundColor!=-1:
+                colors = candTask.commonOutColors - candTask.commonInColors
+                for c in permutations(colors, 2):
+                    x.append(partial(pixelwiseXorInSubmatrices, falseColor=candTask.backgroundColor,\
+                                     firstTrue=c[0], secondTrue=c[1]))
             if len(candTask.totalOutColors) == 2:
                 for target in candTask.totalInColors:
                     for c in permutations(candTask.totalOutColors, 2):
@@ -5645,16 +5789,25 @@ def getPossibleOperations(t, c):
                 for c in permutations(candTask.totalOutColors, 2):
                     x.append(partial(pixelwiseOrInGridSubmatrices, falseColor=c[0],\
                                      targetColor=target, trueColor=c[1]))
+        if candTask.backgroundColor!=-1:
+            colors = candTask.commonOutColors - candTask.commonInColors
+            if candTask.trainSamples[0].inMatrix.grid.nCells==len(colors):
+                for c in permutations(colors, len(colors)):
+                    x.append(partial(pixelwiseOrInGridSubmatrices,\
+                                     falseColor=candTask.backgroundColor,\
+                                     trueValues = c))
         
         # Pixelwise Xor
         if all([s.inMatrix.grid.nCells == 2 for s in candTask.trainSamples]) \
         and all([s.inMatrix.grid.nCells == 2 for s in candTask.testSamples]):
             for c in candTask.commonOutColors:
                 x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c))
-            if len(candTask.commonOutColors - candTask.commonInColors)==2:
+            if len(candTask.commonOutColors - candTask.commonInColors)==2 and\
+            candTask.backgroundColor!=-1:
                 colors = candTask.commonOutColors - candTask.commonInColors
                 for c in permutations(colors, 2):
-                    x.append(partial(pixelwiseXorInGridSubmatrices, firstTrue=c[0], secondTrue=c[1]))
+                    x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=candTask.backgroundColor,\
+                                     firstTrue=c[0], secondTrue=c[1]))
             if len(candTask.totalOutColors) == 2:
                 for target in candTask.totalInColors:
                     for c in permutations(candTask.totalOutColors, 2):
