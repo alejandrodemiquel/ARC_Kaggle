@@ -1,4 +1,4 @@
-IDEAS:
+ IDEAS:
 - crop only multicolorshape -------> crop all non-background (216)
 - still worried about tryOperations score 0 (712)
 - background color issue: 766 (no grids can be backgounrd/???)
@@ -8,8 +8,6 @@ CropFrame:
 - Identify if output is in input
 - Identify characteristic attributes
 - Crop
-
-- hasSameShape... update. 
 - 
 - 194, 28
 

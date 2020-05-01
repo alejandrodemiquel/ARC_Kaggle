@@ -3867,6 +3867,20 @@ def cropShapeReference(matrix, referenceShape, diagonal=True):
         bestShape[bestShape==255]=matrix.backgroundColor
         return bestShape         
 
+def cropAllBackground(matrix):
+    m = matrix.m.copy()
+    bC = matrix.backgroundColor
+    x1, x2, y1, y2 = 0, m.shape[0]-1, 0, m.shape[1]-1
+    while x1 <= x2 and np.all(m[x1,:] == bC):
+        x1 += 1
+    while x2 >= x1 and np.all(m[x2,:] == bC):
+        x2 -= 1
+    while y1 <= y2 and np.all(m[:,y1] == bC):
+        y1 += 1
+    while y2 >= y1 and np.all(m[:,y2] == bC):
+        y2 -= 1
+    return(m[x1:x2+1,y1:y2+1])
+
 def cropOnlyMulticolorShape(matrix, diagonals=False):
     """
     This function is supposed to be called if there is one and only one 
@@ -4323,10 +4337,13 @@ def getPossibleOperations(t, c):
         for attrs in [set(['LaSh'])]:
                 x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True)) 
     
+    x.append(partial(cropAllBackground))
+    """
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=True))
+    """
     if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropFullFrame))
         x.append(partial(cropFullFrame, includeBorder=True))
@@ -4335,5 +4352,6 @@ def getPossibleOperations(t, c):
         x.append(partial(cropFullFrame, bigOrSmall="small"))
         x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=True))
         x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=True))
+    
         
     return x
