@@ -226,6 +226,8 @@ class Shape:
         
         self.nHoles = self.getNHoles()
         
+        self.isFullFrame = self.isFullFrame()
+        
         if self.nColors==1:
             self.boolFeatures = []
             for c in range(10):
@@ -367,7 +369,27 @@ class Shape:
             if m[i,j] == 255 and not seen[i,j]:
                 if isInHole(i,j):
                     nHoles += 1
-        return nHoles             
+        return nHoles
+
+    def isRotationInvariant(self, color=False):
+        if color:
+            m = np.rot90(self.m, 1)
+            return np.array_equal(m, self.m)
+        else:
+            m2 = self.shapeDummyMatrix()
+            m = np.rot90(m2, 1)
+            return np.array_equal(m, m2)
+        
+    def isFullFrame(self):
+        if self.shape[0]<3 or self.shape[1]<3:
+            return False
+        for i in range(1, self.shape[0]-1):
+            for j in range(1, self.shape[1]-1):
+                if self.m[i,j] != 255:
+                    return False
+        if self.nPixels == 2 * (self.shape[0]+self.shape[1]-2):
+            return True
+        return False
 
 def detectShapes(x, background, singleColor=False, diagonals=False):
     """
@@ -563,6 +585,8 @@ class Matrix():
         self.nShapes = len(self.shapes)
         self.dShapes = detectShapes(self.m, self.backgroundColor, singleColor=True, diagonals=True)
         self.nDShapes = len(self.dShapes)
+        self.fullFrames = [shape for shape in self.shapes if shape.isFullFrame]
+        self.fullFrames = sorted(self.fullFrames, key=lambda x: x.shape[0]*x.shape[1], reverse=True)
         #self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         #self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         #R: Since black is the most common background color. 
@@ -573,16 +597,6 @@ class Matrix():
         #self.nNBShapes = len(self.notBackgroundShapes)
         #self.notBackgroundDShapes = [s for s in self.dShapes if s.color != self.backgroundColor]
         #self.nNBDShapes = len(self.notBackgroundDShapes)
-        
-        # Shape-based backgroundColor
-        for shape in self.shapes:
-            if shape.shape==self.shape:
-                self.backgroundColor = shape.color
-                break
-        # Define multicolor shapes based on the background color
-        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
-        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
-                     
         
         self.shapeColorCounter = Counter([s.color for s in self.shapes])
         self.blanks = []
@@ -612,19 +626,16 @@ class Matrix():
                     else:
                         self.asymmetricGrid = copy.deepcopy(possibleGrid)
                         self.isAsymmetricGrid=True
-        
-        # CHANGE BACKGROUND COLOR IF GRID
-        #if self.isAsymmetricGrid:
-        #    self.backgroundColor = self.asymmetricGrid.color
-        #if self.isGrid:
-        #    self.backgroundColor = self.grid.color
-
-        # Frames
-        self.fullFrames = []
-        for shape in self.shapes:
-            if shape.shape[0]>2 and shape.shape[1]>2:
-                if not np.any(shape.m[1:shape.shape[0]-1,1:shape.shape[1]-1]==shape.color):
-                    self.fullFrames.append(shape)
+                        
+        # Shape-based backgroundColor
+        if not self.isGrid:
+            for shape in self.shapes:
+                if shape.shape==self.shape:
+                    self.backgroundColor = shape.color
+                    break
+        # Define multicolor shapes based on the background color
+        self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
+        self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         
         # Symmetries
         self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
@@ -945,7 +956,8 @@ class Sample():
                         self.changedPixels[(self.inMatrix.m[i,j], self.outMatrix.m[i,j])] += 1
                 # Are any of these changes complete? (i.e. all pixels of one color are changed to another one)
                 self.completeColorChanges = set(change for change in self.changedPixels.keys() if\
-                                             self.changedPixels[change]==self.inMatrix.colorCount[change[0]])
+                                             self.changedPixels[change]==self.inMatrix.colorCount[change[0]] and\
+                                             change[0] not in self.outMatrix.colorCount.keys())
                 self.allColorChangesAreComplete = len(self.changedPixels) == len(self.completeColorChanges)
                 # Does any color never change?
                 self.changedInColors = set(change[0] for change in self.changedPixels.keys())
@@ -1359,19 +1371,19 @@ class Task():
         # change. Only valid if t.sameIOShapes
         if self.sameIOShapes:
             for c in self.fixedColors:
-                if c in self.testSamples[0].inMatrix.colors:
+                if all([c in sample.inMatrix.colors for sample in self.testSamples]):
                     orderedColors.append(c)
         # 2: Colors that appear in every sample and are always changed from,
         # never changed to.
             for c in self.commonChangedInColors:
                 if c not in self.commonChangedOutColors:
-                    if c in self.testSamples[0].inMatrix.colors:
+                    if all([c in sample.inMatrix.colors for sample in self.testSamples]):
                         if c not in orderedColors:
                             orderedColors.append(c)
         # 3: Colors that appear in every sample and are always changed to,
         # never changed from.
             for c in self.commonChangedOutColors:
-                if c not in self.commonChangedInColors:
+                if not all([c in sample.inMatrix.colors for sample in self.trainSamples]):
                     if c not in orderedColors:
                         orderedColors.append(c)
         # 4: Add the background color.
@@ -1380,13 +1392,14 @@ class Task():
                 orderedColors.append(self.backgroundColor)
         # 5: Other colors that appear in every input.
         for c in self.commonInColors:
-            if c in self.testSamples[0].inMatrix.colors:
+            if all([c in sample.inMatrix.colors for sample in self.testSamples]):
                 if c not in orderedColors:
                     orderedColors.append(c)
         # 6: Other colors that appear in every output.
         for c in self.commonOutColors:
-            if c not in orderedColors:
-                orderedColors.append(c)
+            if not all([c in sample.inMatrix.colors for sample in self.trainSamples]):
+                if c not in orderedColors:
+                    orderedColors.append(c)
                 
         # TODO Dealing with grids and frames
         
