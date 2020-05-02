@@ -393,25 +393,29 @@ def recoverOriginalColors(matrix, rel):
             m[i,j] = rel[matrix[i,j]][0]
     return m
 
-def ignoreGrid(t, task):
+def ignoreGrid(t, task, inMatrix=True, outMatrix=True):
     for s in range(t.nTrain):
-        m = np.zeros(t.trainSamples[s].inMatrix.grid.shape, dtype=np.uint8)
-        for i,j in np.ndindex(m.shape):
-            m[i,j] = next(iter(t.trainSamples[s].inMatrix.grid.cells[i][j][0].colors))
-        task["train"][s]["input"] = m.tolist()
-        m = np.zeros(t.trainSamples[s].outMatrix.grid.shape, dtype=np.uint8)
-        for i,j in np.ndindex(m.shape):
-            m[i,j] = next(iter(t.trainSamples[s].outMatrix.grid.cells[i][j][0].colors))
-        task["train"][s]["output"] = m.tolist()
+        if inMatrix:
+            m = np.zeros(t.trainSamples[s].inMatrix.grid.shape, dtype=np.uint8)
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = next(iter(t.trainSamples[s].inMatrix.grid.cells[i][j][0].colors))
+            task["train"][s]["input"] = m.tolist()
+        if outMatrix:
+            m = np.zeros(t.trainSamples[s].outMatrix.grid.shape, dtype=np.uint8)
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = next(iter(t.trainSamples[s].outMatrix.grid.cells[i][j][0].colors))
+            task["train"][s]["output"] = m.tolist()
     for s in range(t.nTest):
-        m = np.zeros(t.testSamples[s].inMatrix.grid.shape, dtype=np.uint8)
-        for i,j in np.ndindex(m.shape):
-            m[i,j] = next(iter(t.testSamples[s].inMatrix.grid.cells[i][j][0].colors))
-        task["test"][s]["input"] = m.tolist()
-        m = np.zeros(t.testSamples[s].outMatrix.grid.shape, dtype=np.uint8)
-        for i,j in np.ndindex(m.shape):
-            m[i,j] = next(iter(t.testSamples[s].outMatrix.grid.cells[i][j][0].colors))
-        task["test"][s]["output"] = m.tolist()
+        if inMatrix:
+            m = np.zeros(t.testSamples[s].inMatrix.grid.shape, dtype=np.uint8)
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = next(iter(t.testSamples[s].inMatrix.grid.cells[i][j][0].colors))
+            task["test"][s]["input"] = m.tolist()
+        if outMatrix:
+            m = np.zeros(t.testSamples[s].outMatrix.grid.shape, dtype=np.uint8)
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = next(iter(t.testSamples[s].outMatrix.grid.cells[i][j][0].colors))
+            task["test"][s]["output"] = m.tolist()
 
 def recoverGrid(t, x):
     realX = t.testSamples[s].inMatrix.m.copy()
@@ -515,9 +519,13 @@ for idx in tqdm(range(800), position=0, leave=True):
         t = originalT
 
     cTask = copy.deepcopy(task)
-    if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
-        ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
-        t2 = Task.Task(cTask, taskId)
+    if t.hasUnchangedGrid:
+        if t.gridCellsHaveOneColor:
+            ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
+            t2 = Task.Task(cTask, taskId)
+        elif t.outGridCellsHaveOneColor:
+            ignoreGrid(t, cTask, inMatrix=False)
+            t2 = Task.Task(cTask, taskId)
     else:
         t2 = t
 
@@ -556,7 +564,7 @@ for idx in tqdm(range(800), position=0, leave=True):
                     x = Utils.correctFixedColors(x, newX, t.fixedColors)
                 else:
                     x = newX.copy()
-            if t.hasUnchangedGrid and t.gridCellsHaveOneColor:
+            if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
                 x = recoverGrid(t, x)
             if needsRecoloring(originalT):
                 x = recoverOriginalColors(x, testRels[s])
