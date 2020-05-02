@@ -797,8 +797,8 @@ def getBestEvolve(t):
     return bestFunction
 
 
-# Good examples: 790, 749, 748, 703, 679, 629, 605, 585, 573, 457, 344, 322,
-#                283, 236, 231, 201, 198, 59, 23
+# Good examples: 790,749,748,703,679,629,605,585,575,573,457,344,322,
+#                283,236,231,201,198,59,23
 
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
@@ -821,7 +821,7 @@ class EvolvingLine():
             self.dealWith[cr[0]] = cr[1]            
         
    
-    def step(self, m, direction=None):
+    def draw(self, m, direction=None):
         if direction==None:
             direction=self.direction
                     
@@ -838,7 +838,7 @@ class EvolvingLine():
                     self.turning=False
                 m[self.position[0], self.position[1]-1] = self.color
                 self.position[1] -= 1
-                self.step(m)
+                self.draw(m)
             else:
                 if not self.turning:
                     self.turning=True
@@ -857,7 +857,7 @@ class EvolvingLine():
                     self.turning=False
                 m[self.position[0], self.position[1]+1] = self.color
                 self.position[1] += 1
-                self.step(m)
+                self.draw(m)
             else:
                 if not self.turning:
                     self.turning=True
@@ -876,7 +876,7 @@ class EvolvingLine():
                     self.turning=False
                 m[self.position[0]-1, self.position[1]] = self.color
                 self.position[0] -= 1
-                self.step(m)
+                self.draw(m)
             else:
                 if not self.turning:
                     self.turning=True
@@ -895,7 +895,7 @@ class EvolvingLine():
                     self.turning=False
                 m[self.position[0]+1, self.position[1]] = self.color
                 self.position[0] += 1
-                self.step(m)
+                self.draw(m)
             else:
                 if not self.turning:
                     self.turning=True
@@ -908,65 +908,72 @@ class EvolvingLine():
         if self.dealWith[color] == 'l':
             if self.direction=='u':
                 if self.position[1]!=0:
-                    self.step(m, direction='l')
+                    self.draw(m, direction='l')
                 return
             if self.direction=='d':
                 if self.position[1]!=m.shape[1]-1:
-                    self.step(m, direction='r')
+                    self.draw(m, direction='r')
                 return
             if self.direction=='l':
                 if self.position[0]!=m.shape[0]-1:
-                    self.step(m, direction='d')
+                    self.draw(m, direction='d')
                 return
             if self.direction=='r':
                 if self.position[0]!=0:
-                    self.step(m, direction='u')
+                    self.draw(m, direction='u')
                 return
             
         # Right
         if self.dealWith[color] == 'r':
             if self.direction=='u':
                 if self.position[1]!=m.shape[1]-1:
-                    self.step(m, direction='r')
+                    self.draw(m, direction='r')
                 return
             if self.direction=='d':
                 if self.position[1]!=0:
-                    self.step(m, direction='l')
+                    self.draw(m, direction='l')
                 return
             if self.direction=='l':
                 if self.position[0]!=0:
-                    self.step(m, direction='u')
+                    self.draw(m, direction='u')
                 return
             if self.direction=='r':
                 if self.position[0]!=m.shape[0]-1:
-                    self.step(m, direction='d')
+                    self.draw(m, direction='d')
                 return            
         
 def detectEvolvingLineSources(t):
     sources = set()
     possibleSourceColors = set.intersection(t.commonChangedOutColors, t.commonInColors)
     if len(possibleSourceColors) != 0:
-        for color in possibleSourceColors:
-            firstIt = True
-            for sample in t.trainSamples:
-                sampleSources = set()
+        firstIt = True
+        for sample in t.trainSamples:
+            sampleSources = set()
+            for color in possibleSourceColors:
                 for shape in sample.inMatrix.shapes:
                     if shape.color==color and shape.nPixels==1:                        
                         if shape.isBorder:
                             sampleSources.add((color, "away"))
+                            if shape.position[0] in [0, sample.inMatrix.shape[0]-1]:
+                                sampleSources.add((color, 'u'))
+                                sampleSources.add((color, 'd'))
+                            if shape.position[1] in [0, sample.inMatrix.shape[1]-1]:
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
                         else:
                             if sample.outMatrix.m[shape.position[0]+1, shape.position[1]]==color:
-                                sampleSources.add((color, 'u'))
-                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==color:
                                 sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==color:
+                                sampleSources.add((color, 'u'))
                             if sample.outMatrix.m[shape.position[0], shape.position[1]+1]==color:
                                 sampleSources.add((color, 'r'))
                             if sample.outMatrix.m[shape.position[0], shape.position[1]-1]==color:
                                 sampleSources.add((color, 'l'))
-                if firstIt:
-                    sources = sampleSources
-                else:
-                    sources = set.intersection(sources, sampleSources)
+            if firstIt:
+                sources = sampleSources
+                firstIt = False
+            else:
+                sources = set.intersection(sources, sampleSources)
 
     return sources
 
@@ -989,25 +996,46 @@ def getBestEvolvingLines(t):
             
     return bestFunction
 
+def mergeMatrices(matrices, backgroundColor):
+    """
+    All matrices are required to have the same shape.
+    """
+    result = np.zeros(matrices[0].shape, dtype=np.uint8)
+    for i,j in np.ndindex(matrices[0].shape):
+        done=False
+        for m in matrices:
+            if m[i,j]!=backgroundColor:
+                result[i,j] = m[i,j]
+                done=True
+                break
+        if not done:
+            result[i,j] = backgroundColor
+    return result
+        
 def drawEvolvingLines(matrix, sources, rules, cic):
-    m = matrix.m.copy()
+    if len(sources)==0:
+        return matrix.m.copy()
+    matrices = []
     for source in sources:
+        newM = matrix.m.copy()
         for i,j in np.ndindex(matrix.shape):
             if matrix.m[i,j]==source[0]:
                 if source[1]=="away":
                     if i==0:
                         line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules)
-                    elif i==m.shape[0]-1:
+                    elif i==matrix.m.shape[0]-1:
                         line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules)
                     elif j==0:
                         line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules)
-                    elif j==m.shape[1]-1:
+                    elif j==matrix.m.shape[1]-1:
                         line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules)
                     else:
-                        return m
+                        return matrix.m.copy()
                 else:
                     line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules)
-                line.step(m)
+                line.draw(newM)
+        matrices.append(newM)
+    m = mergeMatrices(matrices, next(iter(cic)))
     return m
 
 # %% Linear Models

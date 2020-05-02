@@ -28,6 +28,7 @@ test_path = data_path / 'test'
 
 train_tasks = { task.stem: json.load(task.open()) for task in train_path.iterdir() }
 valid_tasks = { task.stem: json.load(task.open()) for task in valid_path.iterdir() }
+test_tasks = { task.stem: json.load(task.open()) for task in test_path.iterdir() }
 
 # Correct wrong cases:
 # 025d127b
@@ -257,7 +258,7 @@ class Candidate():
         Assign to the attribute t the Task.Task object corresponding to the
         current task status.
         """
-        self.t = Task.Task(self.tasks[-1], 'dummyIndex')
+        self.t = Task.Task(self.tasks[-1], 'dummyIndex', submission=False)
 
 class Best3Candidates():
     """
@@ -510,11 +511,11 @@ count=0
 for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
-    originalT = Task.Task(task, taskId)
+    originalT = Task.Task(task, taskId, submission=False)
             
     if needsRecoloring(originalT):
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
-        t = Task.Task(task, taskId)
+        t = Task.Task(task, taskId, submission=False)
     else:
         t = originalT
 
@@ -522,10 +523,10 @@ for idx in tqdm(range(800), position=0, leave=True):
     if t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
             ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
-            t2 = Task.Task(cTask, taskId)
+            t2 = Task.Task(cTask, taskId, submission=False)
         elif t.outGridCellsHaveOneColor:
             ignoreGrid(t, cTask, inMatrix=False)
-            t2 = Task.Task(cTask, taskId)
+            t2 = Task.Task(cTask, taskId, submission=False)
     else:
         t2 = t
 

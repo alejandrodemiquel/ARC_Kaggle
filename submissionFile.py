@@ -2341,7 +2341,7 @@ class EvolvingLine():
             self.dealWith[cr[0]] = cr[1]            
         
    
-    def step(self, m, direction=None):
+    def draw(self, m, direction=None):
         if direction==None:
             direction=self.direction
                     
@@ -2358,7 +2358,7 @@ class EvolvingLine():
                     self.turning=False
                 m[self.position[0], self.position[1]-1] = self.color
                 self.position[1] -= 1
-                self.step(m)
+                self.draw(m)
             else:
                 if not self.turning:
                     self.turning=True
@@ -2377,7 +2377,7 @@ class EvolvingLine():
                     self.turning=False
                 m[self.position[0], self.position[1]+1] = self.color
                 self.position[1] += 1
-                self.step(m)
+                self.draw(m)
             else:
                 if not self.turning:
                     self.turning=True
@@ -2396,7 +2396,7 @@ class EvolvingLine():
                     self.turning=False
                 m[self.position[0]-1, self.position[1]] = self.color
                 self.position[0] -= 1
-                self.step(m)
+                self.draw(m)
             else:
                 if not self.turning:
                     self.turning=True
@@ -2415,7 +2415,7 @@ class EvolvingLine():
                     self.turning=False
                 m[self.position[0]+1, self.position[1]] = self.color
                 self.position[0] += 1
-                self.step(m)
+                self.draw(m)
             else:
                 if not self.turning:
                     self.turning=True
@@ -2428,65 +2428,72 @@ class EvolvingLine():
         if self.dealWith[color] == 'l':
             if self.direction=='u':
                 if self.position[1]!=0:
-                    self.step(m, direction='l')
+                    self.draw(m, direction='l')
                 return
             if self.direction=='d':
                 if self.position[1]!=m.shape[1]-1:
-                    self.step(m, direction='r')
+                    self.draw(m, direction='r')
                 return
             if self.direction=='l':
                 if self.position[0]!=m.shape[0]-1:
-                    self.step(m, direction='d')
+                    self.draw(m, direction='d')
                 return
             if self.direction=='r':
                 if self.position[0]!=0:
-                    self.step(m, direction='u')
+                    self.draw(m, direction='u')
                 return
             
         # Right
         if self.dealWith[color] == 'r':
             if self.direction=='u':
                 if self.position[1]!=m.shape[1]-1:
-                    self.step(m, direction='r')
+                    self.draw(m, direction='r')
                 return
             if self.direction=='d':
                 if self.position[1]!=0:
-                    self.step(m, direction='l')
+                    self.draw(m, direction='l')
                 return
             if self.direction=='l':
                 if self.position[0]!=0:
-                    self.step(m, direction='u')
+                    self.draw(m, direction='u')
                 return
             if self.direction=='r':
                 if self.position[0]!=m.shape[0]-1:
-                    self.step(m, direction='d')
+                    self.draw(m, direction='d')
                 return            
         
 def detectEvolvingLineSources(t):
     sources = set()
     possibleSourceColors = set.intersection(t.commonChangedOutColors, t.commonInColors)
     if len(possibleSourceColors) != 0:
-        for color in possibleSourceColors:
-            firstIt = True
-            for sample in t.trainSamples:
-                sampleSources = set()
+        firstIt = True
+        for sample in t.trainSamples:
+            sampleSources = set()
+            for color in possibleSourceColors:
                 for shape in sample.inMatrix.shapes:
                     if shape.color==color and shape.nPixels==1:                        
                         if shape.isBorder:
                             sampleSources.add((color, "away"))
+                            if shape.position[0] in [0, sample.inMatrix.shape[0]-1]:
+                                sampleSources.add((color, 'u'))
+                                sampleSources.add((color, 'd'))
+                            if shape.position[1] in [0, sample.inMatrix.shape[1]-1]:
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
                         else:
                             if sample.outMatrix.m[shape.position[0]+1, shape.position[1]]==color:
-                                sampleSources.add((color, 'u'))
-                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==color:
                                 sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==color:
+                                sampleSources.add((color, 'u'))
                             if sample.outMatrix.m[shape.position[0], shape.position[1]+1]==color:
                                 sampleSources.add((color, 'r'))
                             if sample.outMatrix.m[shape.position[0], shape.position[1]-1]==color:
                                 sampleSources.add((color, 'l'))
-                if firstIt:
-                    sources = sampleSources
-                else:
-                    sources = set.intersection(sources, sampleSources)
+            if firstIt:
+                sources = sampleSources
+                firstIt = False
+            else:
+                sources = set.intersection(sources, sampleSources)
 
     return sources
 
@@ -2509,25 +2516,46 @@ def getBestEvolvingLines(t):
             
     return bestFunction
 
+def mergeMatrices(matrices, backgroundColor):
+    """
+    All matrices are required to have the same shape.
+    """
+    result = np.zeros(matrices[0].shape, dtype=np.uint8)
+    for i,j in np.ndindex(matrices[0].shape):
+        done=False
+        for m in matrices:
+            if m[i,j]!=backgroundColor:
+                result[i,j] = m[i,j]
+                done=True
+                break
+        if not done:
+            result[i,j] = backgroundColor
+    return result
+        
 def drawEvolvingLines(matrix, sources, rules, cic):
-    m = matrix.m.copy()
+    if len(sources)==0:
+        return matrix.m.copy()
+    matrices = []
     for source in sources:
+        newM = matrix.m.copy()
         for i,j in np.ndindex(matrix.shape):
             if matrix.m[i,j]==source[0]:
                 if source[1]=="away":
                     if i==0:
                         line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules)
-                    elif i==m.shape[0]-1:
+                    elif i==matrix.m.shape[0]-1:
                         line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules)
                     elif j==0:
                         line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules)
-                    elif j==m.shape[1]-1:
+                    elif j==matrix.m.shape[1]-1:
                         line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules)
                     else:
-                        return m
+                        return matrix.m.copy()
                 else:
                     line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules)
-                line.step(m)
+                line.draw(newM)
+        matrices.append(newM)
+    m = mergeMatrices(matrices, next(iter(cic)))
     return m
 
 # %% Linear Models
@@ -6074,13 +6102,11 @@ def getPossibleOperations(t, c):
         for attrs in [set(['LaSh'])]:
                 x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True)) 
     
-    x.append(partial(cropAllBackground))
-    """
+    #x.append(partial(cropAllBackground))
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=True))
-    """
     if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropFullFrame))
         x.append(partial(cropFullFrame, includeBorder=False))
@@ -6318,7 +6344,7 @@ def tryOperations(t, c, firstIt=False):
     """
     if c.score==0 or b3c.allPerfect():
         return
-    startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
+    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize", \
                 "maxColorFromCell")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = getPossibleOperations(t, c)
@@ -6376,10 +6402,10 @@ for output_id in submission.index:
     if t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
             ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
-            t2 = Task.Task(cTask, task_id)
+            t2 = Task.Task(cTask, task_id, submission=True)
         elif t.outGridCellsHaveOneColor:
             ignoreGrid(t, cTask, inMatrix=False)
-            t2 = Task.Task(cTask, task_id)
+            t2 = Task.Task(cTask, task_id, submission=True)
     else:
         t2 = t
         
