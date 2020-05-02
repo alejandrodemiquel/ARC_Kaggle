@@ -5,7 +5,7 @@ import Models
 import Task
 import torch
 import torch.nn as nn
-from itertools import product, permutations, combinations
+from itertools import product, permutations, combinations, combinations_with_replacement
 from functools import partial
 from collections import Counter
 from random import randint
@@ -801,49 +801,214 @@ def getBestEvolve(t):
 #                283, 236, 231, 201, 198, 59
 
 class EvolvingLine():
-    def __init__(self):
-        self.source = 0 # Task.Shape
-        self.color = 0
-        self.direction = 0
-        self.position = [0,0]
-        self.stepSize = 0
-        self.backgroundColors = set()
+    def __init__(self, color, direction, position, cic, source=None, \
+                 colorRules=None, stepSize=None):
+        """
+        cic = changedInColors
+        """
+        self.source = source # Task.Shape
+        self.color = color
+        self.direction = direction
+        self.position = position
+        self.cic = cic
         self.dealWith = {}
+        self.stepSize = stepSize
+        self.turning=False
         # left=10, right=11, top=12, bot=13
         for color in range(14): # 10 colors + 4 borders
             self.dealWith[color] = 'stop'
-
+        for cr in colorRules:
+            self.dealWith[cr[0]] = cr[1]            
         
+   
     def step(self, m, direction=None):
-        if self.direction=='l':
+        if direction==None:
+            direction=self.direction
+                    
+        # Left
+        if direction=='l':
             if self.position[1]==0:
-                self.dealWithColor(10, m)
+                if not self.turning:
+                    self.turning=True
+                    self.dealWithColor(10, m)
                 return
             newColor = m[self.position[0], self.position[1]-1]
-            if newColor in self.backgroundColors:
+            if newColor in self.cic:
+                if self.turning:
+                    self.turning=False
                 m[self.position[0], self.position[1]-1] = self.color
                 self.position[1] -= 1
                 self.step(m)
             else:
-                self.dealWithColor(newColor, m)
-        return
+                if not self.turning:
+                    self.turning=True
+                    self.dealWithColor(newColor, m)
+    
+        # Right
+        if direction=='r':
+            if self.position[1]==m.shape[1]-1:
+                if not self.turning:
+                    self.turning=True
+                    self.dealWithColor(11, m)
+                return
+            newColor = m[self.position[0], self.position[1]+1]
+            if newColor in self.cic:
+                if self.turning:
+                    self.turning=False
+                m[self.position[0], self.position[1]+1] = self.color
+                self.position[1] += 1
+                self.step(m)
+            else:
+                if not self.turning:
+                    self.turning=True
+                    self.dealWithColor(newColor, m)
+                
+        # Up
+        if direction=='u':
+            if self.position[0]==0:
+                if not self.turning:
+                    self.turning=True
+                    self.dealWithColor(12, m)
+                return
+            newColor = m[self.position[0]-1, self.position[1]]
+            if newColor in self.cic:
+                if self.turning:
+                    self.turning=False
+                m[self.position[0]-1, self.position[1]] = self.color
+                self.position[0] -= 1
+                self.step(m)
+            else:
+                if not self.turning:
+                    self.turning=True
+                    self.dealWithColor(newColor, m)
+        
+        # Down
+        if direction=='d':
+            if self.position[0]==m.shape[0]-1:
+                if not self.turning:
+                    self.turning=True
+                    self.dealWithColor(13, m)
+                return
+            newColor = m[self.position[0]+1, self.position[1]]
+            if newColor in self.cic:
+                if self.turning:
+                    self.turning=False
+                m[self.position[0]+1, self.position[1]] = self.color
+                self.position[0] += 1
+                self.step(m)
+            else:
+                if not self.turning:
+                    self.turning=True
+                    self.dealWithColor(newColor, m)
         
     def dealWithColor(self, color, m):
         if self.dealWith[color] == 'stop':
             return
+        # Left
         if self.dealWith[color] == 'l':
-            if self.position[1]==0:
-                self.dealWithColor(10)
+            if self.direction=='u':
+                if self.position[1]!=0:
+                    self.step(m, direction='l')
                 return
-            newColor = m[self.position[0], self.position[1]-1]
-            if newColor in self.backgroundColors:
-                m[self.position[0], self.position[1]-1] = self.color
-                self.position[1] -= 1
-                self.step(m)
-            else:
-                self.dealWithColor(newColor, m)
-        return
+            if self.direction=='d':
+                if self.position[1]!=m.shape[1]-1:
+                    self.step(m, direction='r')
+                return
+            if self.direction=='l':
+                if self.position[0]!=m.shape[0]-1:
+                    self.step(m, direction='d')
+                return
+            if self.direction=='r':
+                if self.position[0]!=0:
+                    self.step(m, direction='u')
+                return
+            
+        # Right
+        if self.dealWith[color] == 'r':
+            if self.direction=='u':
+                if self.position[1]!=m.shape[1]-1:
+                    self.step(m, direction='r')
+                return
+            if self.direction=='d':
+                if self.position[1]!=0:
+                    self.step(m, direction='l')
+                return
+            if self.direction=='l':
+                if self.position[0]!=0:
+                    self.step(m, direction='u')
+                return
+            if self.direction=='r':
+                if self.position[0]!=m.shape[0]-1:
+                    self.step(m, direction='d')
+                return            
         
+def detectEvolvingLineSources(t):
+    sources = set()
+    possibleSourceColors = set.intersection(t.commonChangedOutColors, t.commonInColors)
+    if len(possibleSourceColors) != 0:
+        for color in possibleSourceColors:
+            firstIt = True
+            for sample in t.trainSamples:
+                sampleSources = set()
+                for shape in sample.inMatrix.shapes:
+                    if shape.color==color and shape.nPixels==1:                        
+                        if shape.isBorder:
+                            sampleSources.add((color, "away"))
+                        else:
+                            if sample.outMatrix.m[shape.position[0]+1, shape.position[1]]==color:
+                                sampleSources.add((color, 'u'))
+                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==color:
+                                sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[shape.position[0], shape.position[1]+1]==color:
+                                sampleSources.add((color, 'r'))
+                            if sample.outMatrix.m[shape.position[0], shape.position[1]-1]==color:
+                                sampleSources.add((color, 'l'))
+                if firstIt:
+                    sources = sampleSources
+                else:
+                    sources = set.intersection(sources, sampleSources)
+
+    return sources
+
+def getBestEvolvingLines(t):
+    sources = detectEvolvingLineSources(t)
+    
+    fixedColorsList = list(t.fixedColors)
+    
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    for actions in combinations_with_replacement(["stop", 'l', 'r', 'u', 'd'], len(t.fixedColors)):
+        rules = []
+        for c in range(len(fixedColorsList)):
+            rules.append([fixedColorsList[c], actions[c]])
+        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=t.commonChangedInColors)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+            
+    return bestFunction
+
+def drawEvolvingLines(matrix, sources, rules, cic):
+    m = matrix.m.copy()
+    for source in sources:
+        for i,j in np.ndindex(matrix.shape):
+            if matrix.m[i,j]==source[0]:
+                if source[1]=="away":
+                    if i==0:
+                        line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules)
+                    elif i==m.shape[0]-1:
+                        line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules)
+                    elif j==0:
+                        line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules)
+                    elif j==m.shape[1]-1:
+                        line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules)
+                    else:
+                        return m
+                else:
+                    line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules)
+                line.step(m)
+    return m
 
 # %% Linear Models
 
