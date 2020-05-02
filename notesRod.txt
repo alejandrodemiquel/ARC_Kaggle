@@ -1,15 +1,13 @@
-IDEAS:
+ IDEAS:
 - crop only multicolorshape -------> crop all non-background (216)
-- still worried about tryOperations score 0 (785)
-- background color issue: 215, 473, 586
+- still worried about tryOperations score 0 (712)
+- background color issue: 766 (no grids can be backgounrd/???)
 - 774 add cropshape options???
 - has full frame
 CropFrame:
 - Identify if output is in input
 - Identify characteristic attributes
 - Crop
-
-- hasSameShape... update. 
 - 
 - 194, 28
 
@@ -18,6 +16,8 @@ CropFrame:
 
 140, 
 
+maybe 592?
+add 'all' + context? eg 583
 
 solved: 68, 367, 421, 524, 645
 
@@ -33,8 +33,6 @@ reference:
 
 other cases:
 - 4, 583
-scaled:
-- 194
 
 ---------Subshape----------
 453
@@ -47,7 +45,7 @@ other ref: 153, 158, 208, 223, 229, 389
 
 ------------Crop-------------
 unsolved crop tasks:
-[87,215,216,318,395,440,445,464,473,509,586,589,624,655,676,689,768,774]
+[28,87,204,216,258,318,395,440,445,464,473,509,586,589,624,655,676,689,768,774]
 
 CropShape:
 - Identify if output is shape
@@ -55,15 +53,20 @@ CropShape:
 - Identify characteristic attributes
 - Crop
 
-solves: 13, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 217, 262, 270, 289, 299, 345, 383, 488, 576, 578, 635, 712, 727, 785, 690(sort)
+solves: 13, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 217, 262, 270, 289, 299, 345, 364,  383, 488, 576, 578, 635, 712, 727, 785, 690(sort)
 
-cropframe: 13, 28, 87, 216, 318, 395, 690
+cropframe: 13, 28, 204, 395
+cropLargestNonbackgroudnFrame = 87, 194, 216, 258, 464
+reference: 318, 690
+cropsomething? 354, 365
 
-color count in multicolor shapes: 215,473,586	
+color count in multicolor shapes: 473, 586(count holes?)	
+
+something + cropshape: 424 (replicate), 440 (sort), 455 (overlap), 676 (encaixar)
 
 color changes: 768, 774
 
-OTHER: 440 move shapes to grid, 445, 589
+OTHER: 589
 
 
 --------overlapSubmatrices--------
