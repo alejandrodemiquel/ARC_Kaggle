@@ -796,6 +796,55 @@ def getBestEvolve(t):
         
     return bestFunction
 
+
+# Good examples: 790, 749, 748, 703, 679, 629, 605, 585, 573, 457, 344, 322,
+#                283, 236, 231, 201, 198, 59
+
+class EvolvingLine():
+    def __init__(self):
+        self.source = 0 # Task.Shape
+        self.color = 0
+        self.direction = 0
+        self.position = [0,0]
+        self.stepSize = 0
+        self.backgroundColors = set()
+        self.dealWith = {}
+        # left=10, right=11, top=12, bot=13
+        for color in range(14): # 10 colors + 4 borders
+            self.dealWith[color] = 'stop'
+
+        
+    def step(self, m, direction=None):
+        if self.direction=='l':
+            if self.position[1]==0:
+                self.dealWithColor(10, m)
+                return
+            newColor = m[self.position[0], self.position[1]-1]
+            if newColor in self.backgroundColors:
+                m[self.position[0], self.position[1]-1] = self.color
+                self.position[1] -= 1
+                self.step(m)
+            else:
+                self.dealWithColor(newColor, m)
+        return
+        
+    def dealWithColor(self, color, m):
+        if self.dealWith[color] == 'stop':
+            return
+        if self.dealWith[color] == 'l':
+            if self.position[1]==0:
+                self.dealWithColor(10)
+                return
+            newColor = m[self.position[0], self.position[1]-1]
+            if newColor in self.backgroundColors:
+                m[self.position[0], self.position[1]-1] = self.color
+                self.position[1] -= 1
+                self.step(m)
+            else:
+                self.dealWithColor(newColor, m)
+        return
+        
+
 # %% Linear Models
 
 # If input always has the same shape and output always has the same shape
@@ -1766,114 +1815,7 @@ def getPixelChangeCriteria(t):
     if len(x)>0:
         return partial(doPixelMod3Alternate, rules=x)
     
-    return 0
-
-
-def getPixelFeatures(m, i, j):
-    """
-    m is the matrix, and (i,j) is the position of the pixel.
-    """
-    pixelFeatures = []
-    for color in range(10):
-        pixelFeatures.append(m[i,j]==color)
-    for x in range(2):
-        pixelFeatures.append((i%2)==x)
-        pixelFeatures.append((j%2)==x)
-        for y in range(2):
-            pixelFeatures.append((i%2)==x and (j%2)==y)
-        for y in range(3):
-            pixelFeatures.append((i%2)==x and (j%3)==y)
-    for x in range(3):
-        pixelFeatures.append((i%3)==x)
-        pixelFeatures.append((j%3)==x) 
-        for y in range(3):
-            pixelFeatures.append((i%3)==x and (j%3)==y)
-    pixelFeatures.append(((i+j)%2)==0)
-    pixelFeatures.append(((i+j)%2)==1)
-    
-    return pixelFeatures
-
-def getPixelChangesWithFeatures(t):
-    """
-    Only to be used if t.sameIOShapes.
-    """
-    pixelChangesWithFeatures = {}
-    nFeatures = 41 # Is there a way to not hard code this?
-    trueList = []
-    falseList = []
-    for i in range(nFeatures):
-        trueList.append(True)
-        falseList.append(False)
-    for c in t.totalOutColors:
-        pixelChangesWithFeatures[c] = trueList
-        
-    trueCounts = [0]*nFeatures
-    trueCountsMatrix = [trueCounts]*nFeatures
-    
-    for sample in t.trainSamples:
-        for i,j in np.ndindex(sample.inMatrix.shape):
-            color = sample.outMatrix.m[i,j]
-            pixelFeatures = getPixelFeatures(sample.inMatrix.m, i, j)
-            pixelChangesWithFeatures[color] = \
-            [pixelChangesWithFeatures[color][x] and pixelFeatures[x] for x in range(nFeatures)]
-                        
-            trueCounts = [trueCounts[x]+pixelFeatures[x] for x in range(nFeatures)]
-            for x in range(nFeatures):
-                trueCountsMatrix[x] = [trueCountsMatrix[x][y]+pixelFeatures[x]*pixelFeatures[y] for y in range(nFeatures)]
-            
-    # Now, there might be more True values than necessary in a certain entry
-    # of colorChangesWithFeatures. Therefore, we try to determine the minimum
-    # number of necessary True features.
-    for c in t.totalOutColors:
-        if pixelChangesWithFeatures[c] == trueList:
-            continue
-        trueIndices = [i for i, x in enumerate(pixelChangesWithFeatures[c]) if x]
-        # First, check if only one feature is enough
-        goodIndices = []
-        for index in trueIndices:
-            trueCount = 0
-            featureList = falseList.copy()
-            featureList[index] = True
-            for sample in t.trainSamples:
-                for i,j in np.ndindex(sample.inMatrix.shape):
-                    if sample.outMatrix.m[i,j]==c and hasFeatures(getPixelFeatures(sample.inMatrix.m,i,j), featureList):
-                        trueCount += 1
-            if trueCount == trueCounts[index]:
-                goodIndices.append(index)
-        if len(goodIndices) > 0:
-            featureList = falseList.copy()
-            for index in goodIndices:
-                featureList[index] = True
-            pixelChangesWithFeatures[c] = featureList
-            
-        # If we're not done, then check with combinations of 2 features
-        else:
-            for x,y in combinations(trueIndices, 2):
-                trueCount = 0
-                featureList = falseList.copy()
-                featureList[x] = True
-                featureList[y] = True
-                for sample in t.trainSamples:
-                    for i,j in np.ndindex(sample.inMatrix.shape):
-                        if sample.outMatrix.m[i,j]==c and hasFeatures(getPixelFeatures(sample.inMatrix.m,i,j), featureList):
-                            trueCount += 1
-                if trueCount == trueCountsMatrix[x][y]:
-                    pixelChangesWithFeatures[c] = featureList
-                    break
-            
-    return pixelChangesWithFeatures
-
-def changePixelsWithFeatures(matrix, pcwf):
-    m = matrix.m.copy()
-    sortedPcwf = {k: v for k, v in sorted(pcwf.items(), key=lambda item: sum(item[1][10:-1]), reverse=True)}
-    for i,j in np.ndindex(m.shape):
-        pixelFeatures = getPixelFeatures(matrix.m, i, j)
-        for color in sortedPcwf.keys():
-            if hasFeatures(pixelFeatures, pcwf[color]):
-                m[i,j] = color
-                break
-    return m
-    
+    return 0    
 
 # %% Surround Shape
 
@@ -3965,10 +3907,6 @@ def getPossibleOperations(t, c):
             sc = next(iter(candTask.fixedColors))
             nc = next(iter(candTask.colorChanges))[1]
             x.append(partial(completeRectangles, sourceColor=sc, newColor=nc))
-            
-        # Change pixels with features
-        #pcwf = getPixelChangesWithFeatures(candTask)
-        #x.append(partial(changePixelsWithFeatures, pcwf=pcwf))
         
         #######################################################################
         # For LinearShapeModel we need to have the same shapes in the input
