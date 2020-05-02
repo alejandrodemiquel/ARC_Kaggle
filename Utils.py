@@ -798,7 +798,7 @@ def getBestEvolve(t):
 
 
 # Good examples: 790, 749, 748, 703, 679, 629, 605, 585, 573, 457, 344, 322,
-#                283, 236, 231, 201, 198, 59
+#                283, 236, 231, 201, 198, 59, 23
 
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
@@ -4284,6 +4284,10 @@ def getPossibleOperations(t, c):
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
     #    x.append(getBestEvolve(candTask))
+    
+    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    len(candTask.commonChangedInColors)==1:
+        x.append(getBestEvolvingLines(candTask))
         
     ###########################################################################
     # Other cases
@@ -4449,12 +4453,12 @@ def getPossibleOperations(t, c):
     """
     if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropFullFrame))
-        x.append(partial(cropFullFrame, includeBorder=True))
+        x.append(partial(cropFullFrame, includeBorder=False))
     if all([len(sample.inMatrix.fullFrames)>1 for sample in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropFullFrame, bigOrSmall="big"))
         x.append(partial(cropFullFrame, bigOrSmall="small"))
-        x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=True))
-        x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=True))
+        x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=False))
+        x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=False))
     
         
     return x

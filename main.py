@@ -435,7 +435,7 @@ def tryOperations(t, c, firstIt=False):
     """
     if c.score==0 or b3c.allPerfect():
         return
-    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "cropAllBackground", "minimize", \
+    startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
                 "maxColorFromCell")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = Utils.getPossibleOperations(t, c)
