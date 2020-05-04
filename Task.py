@@ -1206,6 +1206,9 @@ class Task():
             self.allColorChangesAreComplete = all([s.allColorChangesAreComplete for s in self.trainSamples])
             # Are there any fixed colors?
             self.fixedColors = set.intersection(*[s.fixedColors for s in self.trainSamples])
+            self.fixedColors2 = set.union(*[s.fixedColors for s in self.trainSamples]) - \
+            set.union(*[s.changedInColors for s in self.trainSamples]) -\
+            set.union(*[s.changedOutColors for s in self.trainSamples])
             # Does any color never change?
             if self.commonChangedInColors == set(self.changedInColors[0]):
                 self.unchangedColors = set(range(10)) - self.commonChangedInColors
@@ -1271,8 +1274,7 @@ class Task():
             for shape in self.fixedShapes:
                 self.fixedShapeFeatures = [shape.boolFeatures[i] and self.fixedShapeFeatures[i] \
                                              for i in range(nFeatures)]
-
-         
+     
         self.orderedColors = self.orderColors()
         
         # Grids:

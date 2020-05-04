@@ -802,7 +802,7 @@ def getBestEvolve(t):
 
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
-                 colorRules=None, stepSize=None):
+                 colorRules=None, stepSize=None, fixedDirection=True, turning=False):
         """
         cic = changedInColors
         """
@@ -811,16 +811,18 @@ class EvolvingLine():
         self.direction = direction
         self.position = position
         self.cic = cic
+        self.colorRules = colorRules
+        self.fixedDirection = fixedDirection
         self.dealWith = {}
         self.stepSize = stepSize
-        self.turning=False
+        self.turning = turning
         # left=10, right=11, top=12, bot=13
         for color in range(14): # 10 colors + 4 borders
             self.dealWith[color] = 'stop'
         for cr in colorRules:
-            self.dealWith[cr[0]] = cr[1]            
+            self.dealWith[cr[0]] = cr[1]    
+        self.dealWith[self.color] = "skip"
         
-   
     def draw(self, m, direction=None):
         if direction==None:
             direction=self.direction
@@ -902,24 +904,91 @@ class EvolvingLine():
                     self.dealWithColor(newColor, m)
         
     def dealWithColor(self, color, m):
-        if self.dealWith[color] == 'stop':
+        if self.dealWith[color] == "stop":
             return
+            
+        if self.dealWith[color] == "split":
+            if self.direction=='l' or self.direction=='r':
+                if self.position[0]!=0:
+                    l1 = EvolvingLine(self.color, self.direction, self.position.copy(), self.cic,\
+                                      colorRules=self.colorRules, fixedDirection=self.fixedDirection, \
+                                      turning=True)
+                    if self.fixedDirection==False:
+                        l1.direction='u'
+                    l1.draw(m, direction='u')
+                if self.position[0]!=m.shape[0]-1:
+                    l2 = EvolvingLine(self.color, self.direction, self.position.copy(), self.cic,\
+                                      colorRules=self.colorRules, fixedDirection=self.fixedDirection, \
+                                      turning=True)
+                    if self.fixedDirection==False:
+                        l2.direction='d'
+                    l2.draw(m, direction='d')
+            if self.direction=='u' or self.direction=='d':
+                if self.position[1]!=0:
+                    l1 = EvolvingLine(self.color, self.direction, self.position.copy(), self.cic,\
+                                      colorRules=self.colorRules, fixedDirection=self.fixedDirection, \
+                                      turning=True)
+                    if self.fixedDirection==False:
+                        l1.direction='l'
+                    l1.draw(m, direction='l')
+                if self.position[1]!=m.shape[1]-1:
+                    l2 = EvolvingLine(self.color, self.direction, self.position.copy(), self.cic,\
+                                      colorRules=self.colorRules, fixedDirection=self.fixedDirection, \
+                                      turning=True)
+                    if self.fixedDirection==False:
+                        l2.direction='r'
+                    l2.draw(m, direction='r')
+                    
+        if self.dealWith[color] == "skip":
+            if self.direction=='l':
+                if self.position[1]!=0:
+                    self.position[1]-=1
+                    self.draw(m)
+                else:
+                    return
+            if self.direction=='r':
+                if self.position[1]!=m.shape[1]-1:
+                    self.position[1]+=1
+                    self.draw(m)
+                else:
+                    return
+            if self.direction=='u':
+                if self.position[0]!=0:
+                    self.position[0]-=1
+                    self.draw(m)
+                else:
+                    return
+            if self.direction=='d':
+                if self.position[0]!=m.shape[0]-1:
+                    self.position[0]+=1
+                    self.draw(m)
+                else:
+                    return
+                    
         # Left
         if self.dealWith[color] == 'l':
             if self.direction=='u':
                 if self.position[1]!=0:
+                    if not self.fixedDirection:
+                        self.direction = 'l'
                     self.draw(m, direction='l')
                 return
             if self.direction=='d':
                 if self.position[1]!=m.shape[1]-1:
+                    if not self.fixedDirection:
+                        self.direction = 'r'
                     self.draw(m, direction='r')
                 return
             if self.direction=='l':
                 if self.position[0]!=m.shape[0]-1:
+                    if not self.fixedDirection:
+                        self.direction = 'd'
                     self.draw(m, direction='d')
                 return
             if self.direction=='r':
                 if self.position[0]!=0:
+                    if not self.fixedDirection:
+                        self.direction = 'u'
                     self.draw(m, direction='u')
                 return
             
@@ -927,18 +996,26 @@ class EvolvingLine():
         if self.dealWith[color] == 'r':
             if self.direction=='u':
                 if self.position[1]!=m.shape[1]-1:
+                    if not self.fixedDirection:
+                        self.direction = 'r'
                     self.draw(m, direction='r')
                 return
             if self.direction=='d':
                 if self.position[1]!=0:
+                    if not self.fixedDirection:
+                        self.direction = 'l'
                     self.draw(m, direction='l')
                 return
             if self.direction=='l':
                 if self.position[0]!=0:
+                    if not self.fixedDirection:
+                        self.direction = 'u'
                     self.draw(m, direction='u')
                 return
             if self.direction=='r':
                 if self.position[0]!=m.shape[0]-1:
+                    if not self.fixedDirection:
+                        self.direction = 'd'
                     self.draw(m, direction='d')
                 return            
         
@@ -980,16 +1057,21 @@ def detectEvolvingLineSources(t):
 def getBestEvolvingLines(t):
     sources = detectEvolvingLineSources(t)
     
-    fixedColorsList = list(t.fixedColors)
+    fixedColorsList = list(t.fixedColors2)
     
     bestScore = 1000
     bestFunction = partial(identityM)
     
-    for actions in combinations_with_replacement(["stop", 'l', 'r', 'u', 'd'], len(t.fixedColors)):
+    for actions in combinations_with_replacement(["stop", 'l', 'r', "split", "skip"],\
+                                                 len(t.fixedColors2)):
         rules = []
         for c in range(len(fixedColorsList)):
             rules.append([fixedColorsList[c], actions[c]])
-        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=t.commonChangedInColors)
+        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=t.commonChangedInColors, \
+                    fixedDirection=True)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=t.commonChangedInColors, \
+                    fixedDirection=False)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
@@ -1012,9 +1094,10 @@ def mergeMatrices(matrices, backgroundColor):
             result[i,j] = backgroundColor
     return result
         
-def drawEvolvingLines(matrix, sources, rules, cic):
+def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection):
     if len(sources)==0:
         return matrix.m.copy()
+    fd = fixedDirection
     matrices = []
     for source in sources:
         newM = matrix.m.copy()
@@ -1022,17 +1105,17 @@ def drawEvolvingLines(matrix, sources, rules, cic):
             if matrix.m[i,j]==source[0]:
                 if source[1]=="away":
                     if i==0:
-                        line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules)
+                        line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif i==matrix.m.shape[0]-1:
-                        line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules)
+                        line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif j==0:
-                        line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules)
+                        line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif j==matrix.m.shape[1]-1:
-                        line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules)
+                        line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     else:
                         return matrix.m.copy()
                 else:
-                    line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules)
+                    line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
                 line.draw(newM)
         matrices.append(newM)
     m = mergeMatrices(matrices, next(iter(cic)))
@@ -1586,7 +1669,7 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
 
 # %% Change pixels with features
 
-def zoltanRecolor(t):
+def pixelRecolor(t):
     """
     if t.sameIOShapes
     """
@@ -1671,7 +1754,7 @@ def zoltanRecolor(t):
     else:
         return [Best_Dict, Best_v, Best_Q1, Best_Q2]
     
-def executeZoltanRecolor(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
+def executePixelRecolor(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
     m = np.zeros(matrix.shape, dtype = np.uint8)
     for i,j in np.ndindex(matrix.shape):
         if Best_v == 0 or Best_v ==2:
@@ -4172,8 +4255,8 @@ def getPossibleOperations(t, c):
         # CNNs
         
         #x.append(getBestCNN(candTask))
-        #if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
-        #    x.append(getBestSameNSampleColorsCNN(candTask))
+        if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
+            x.append(getBestSameNSampleColorsCNN(candTask))
 
         """
         if t.backgroundColor != -1:
@@ -4219,9 +4302,9 @@ def getPossibleOperations(t, c):
         # Move shapes
         #x.append(getBestMoveShapes(candTask))
         
-        zp = zoltanRecolor(candTask)
-        if len(zp)!=1:
-            x.append(partial(executeZoltanRecolor, Best_Dict=zp[0], Best_v=zp[1], Best_Q1=zp[2], Best_Q2=zp[3]))
+        pr = pixelRecolor(candTask)
+        if len(pr)!=1:
+            x.append(partial(executePixelRecolor, Best_Dict=pr[0], Best_v=pr[1], Best_Q1=pr[2], Best_Q2=pr[3]))
         
         fun = getPixelChangeCriteria(candTask)
         if fun != 0:

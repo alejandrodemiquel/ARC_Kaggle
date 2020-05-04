@@ -428,7 +428,7 @@ def ignoreGrid(t, task, inMatrix=True, outMatrix=True):
             for i,j in np.ndindex(m.shape):
                 m[i,j] = next(iter(t.testSamples[s].inMatrix.grid.cells[i][j][0].colors))
             task["test"][s]["input"] = m.tolist()
-        if outMatrix:
+        if outMatrix and not t.submission:
             m = np.zeros(t.testSamples[s].outMatrix.grid.shape, dtype=np.uint8)
             for i,j in np.ndindex(m.shape):
                 m[i,j] = next(iter(t.testSamples[s].outMatrix.grid.cells[i][j][0].colors))
@@ -546,6 +546,8 @@ for idx in tqdm(range(800), position=0, leave=True):
         elif t.outGridCellsHaveOneColor:
             ignoreGrid(t, cTask, inMatrix=False)
             t2 = Task.Task(cTask, taskId, submission=False)
+        else:
+            t2 = t
     else:
         t2 = t
 
