@@ -482,6 +482,9 @@ def tryOperations(t, c, firstIt=False):
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
+            if all([np.array_equal(np.array(cTask["train"][s]["input"]), \
+                                   t.trainSamples[s].inMatrix.m) for s in range(t.nTrain)]):
+                continue
             newCandidate.generateTask()
             tryOperations(t, newCandidate)
         #elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
