@@ -3674,49 +3674,65 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
 
 # %% Stuff added by Roderic
 #replicate shape
+def isReplicateTask(t):
+    #First look at shapes that replicate
+    if all(any(sh[2] > 1 for sh in s.commonMulticolorDShapes) for s in t.trainSamples):
+        return [True, True, True]
+    elif all(any(sh[2] > 1 for sh in s.commonMulticolorShapes) for s in t.trainSamples):
+        return [True, True, False]
+    elif all(any(sh[2] > 1 for sh in s.commonShapes) for s in t.trainSamples):
+        return [True, False, False]
+    elif all(any(sh[2] > 1 for sh in s.commonDShapes) for s in t.trainSamples):
+        return [True, False, True]
+    return [False]
+
 def getBestReplicateShapes(t):
     bestScore = 1000
     bestFunction = partial(identityM)
+    multicolor = isReplicateTask(t)[1]
+    diagonal = isReplicateTask(t)[2]
+    
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,\
+                                                            anchorType='subshape', allCombs=False), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,\
+                                                            anchorType='subshape', allCombs=True), bestScore, bestFunction)
+    if bestScore == 0:
+        return bestFunction
+    
     for attributes in [set(['MoCl'])]:
-        for cc in [cc[0] for cc in t.colorChanges]:
-            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=False, multicolor=True, anchorType='all', anchorColor=cc,\
-                                    mirror=None, rotate=0, allCombs=True, scale=1, deleteOriginal=False), bestScore, bestFunction)
-            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=False, multicolor=True, anchorType='all', anchorColor=cc,\
-                                    mirror=None, rotate=0, allCombs=True, scale=1, deleteOriginal=True), bestScore, bestFunction)
-            if bestScore == 0:
-                return bestFunction
-            for mirror in [None, 'lr', 'ud']:
-                for rotate in range(0, 4):
-                    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=False, multicolor=True, anchorType='all', anchorColor=cc,\
-                                    mirror=mirror, rotate=rotate, allCombs=False, scale=1, deleteOriginal=False), bestScore, bestFunction)
-                    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=False, multicolor=True, anchorType='all', anchorColor=cc,\
-                                    mirror=mirror, rotate=rotate, allCombs=False, scale=1, deleteOriginal=True), bestScore, bestFunction)
-                    if bestScore == 0:      
-                        return bestFunction
-                    
+        cch = Counter([cc[0] for cc in t.colorChanges])
+        cc = max(cch, key=cch.get)
+        bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=diagonal, multicolor=multicolor, anchorType='all', anchorColor=cc,\
+                                mirror=None, rotate=0, allCombs=True, scale=False, deleteOriginal=False), bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=diagonal, multicolor=multicolor, anchorType='all', anchorColor=cc,\
+                                mirror=None, rotate=0, allCombs=True, scale=False, deleteOriginal=True), bestScore, bestFunction)
+        if bestScore == 0:
+            return bestFunction
+        for mirror in [None, 'lr', 'ud']:
+            for rotate in range(0, 4):
+                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=diagonal, multicolor=multicolor, anchorType='all', anchorColor=cc,\
+                                mirror=mirror, rotate=rotate, allCombs=False, scale=False, deleteOriginal=False), bestScore, bestFunction)
+                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=diagonal, multicolor=multicolor, anchorType='all', anchorColor=cc,\
+                                mirror=mirror, rotate=rotate, allCombs=False, scale=False, deleteOriginal=True), bestScore, bestFunction)
+                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=diagonal, multicolor=multicolor, anchorType='all', anchorColor=cc,\
+                                mirror=mirror, rotate=rotate, allCombs=False, scale=True, deleteOriginal=False), bestScore, bestFunction)
+                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=diagonal, multicolor=multicolor, anchorType='all', anchorColor=cc,\
+                                mirror=mirror, rotate=rotate, allCombs=False, scale=True, deleteOriginal=True), bestScore, bestFunction)
+                if bestScore == 0:      
+                    return bestFunction
+                
     for attributes in [set(['UnCo'])]:
         for cc in [cc[0] for cc in t.colorChanges]:
                 bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
-                                mirror=None, rotate=0, allCombs=True, scale=1, deleteOriginal=True), bestScore, bestFunction)
+                                mirror=None, rotate=0, allCombs=True, scale=False, deleteOriginal=True), bestScore, bestFunction)
                 bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
-                                mirror=None, rotate=0, allCombs=True, scale=1, deleteOriginal=False), bestScore, bestFunction)
-                """
-                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=False, multicolor=True, anchorType='all', anchorColor=cc,\
-                                mirror=mirror, rotate=rotate, allCombs=True, scale=1, deleteOriginal=True), bestScore, bestFunction)
-                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=True, anchorType='all', anchorColor=cc,\
-                                mirror=mirror, rotate=rotate, allCombs=True, scale=1, deleteOriginal=True), bestScore, bestFunction)
-                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=False, multicolor=True, anchorType='all', anchorColor=cc,\
-                                mirror=mirror, rotate=rotate, allCombs=False, scale=1, deleteOriginal=True), bestScore, bestFunction)
-                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=True, anchorType='all', anchorColor=cc,\
-                                mirror=mirror, rotate=rotate, allCombs=False, scale=1, deleteOriginal=True), bestScore, bestFunction)
-                """
+                                mirror=None, rotate=0, allCombs=True, scale=False, deleteOriginal=False), bestScore, bestFunction)
     return bestFunction
 
-def replicateShapes(matrix, attributes, diagonal=False, multicolor=True, anchorType=None, anchorColor=0,\
-                    mirror=None, rotate=0, allCombs=False, scale=1, deleteOriginal=False):
+def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, anchorType=None, anchorColor=0,\
+                    mirror=None, rotate=0, allCombs=False, scale=False, deleteOriginal=False):
     m = matrix.m.copy()
     score = -1
-    repShape = 0
     #first find the shape or shapes to replicate
     if diagonal:
         if multicolor:
@@ -3728,40 +3744,53 @@ def replicateShapes(matrix, attributes, diagonal=False, multicolor=True, anchorT
             shList = matrix.multicolorShapes
         else:
             shList = matrix.shapes
-            
-    attrList = matrix.getShapeAttributes(matrix.backgroundColor, not multicolor, diagonal)
-    for shi in range(len(shList)):
-        if len(attrList[shi].intersection(attributes)) > score:
-            repShape = shList[shi]
-            score = len(attrList[shi].intersection(attributes))
-    if repShape == 0:
-        return m
-    repList = [repShape] 
-    
-    if allCombs:
+    if attributes != None:
         repList = []
-        for r in range(0,4):
-            mr = np.rot90(repShape.m, r)
+        attrList = matrix.getShapeAttributes(matrix.backgroundColor, not multicolor, diagonal)
+        for shi in range(len(shList)):
+            if len(attrList[shi].intersection(attributes)) > score:
+                repList = [shList[shi]]
+                score = len(attrList[shi].intersection(attributes))
+            elif len(attrList[shi].intersection(attributes)) == score:
+                repList += [shList[shi]]
+        if len(repList) == 0:
+            return m
+    else:
+        if multicolor:
+            repList = [sh for sh in shList]
+        else:
+            repList = [sh for sh in shList if sh.color != matrix.backgroundColor]
+    if allCombs and len(shList) < 10:
+        newList = []
+        for repShape in repList:
+            mr = repShape.m[::-1,::]
             newRep = copy.deepcopy(repShape)
             newRep.m = mr
             newRep.shape = mr.shape
-            repList.append(newRep)
-        for r in range(0,4):
-            mr = np.rot90(repShape.m[::-1,::], r)
-            newRep = copy.deepcopy(repShape)
-            newRep.m = mr
-            newRep.shape = mr.shape
-            repList.append(newRep)
-           
-    elif mirror == 'lr':
-        shList[0].m = shList[0].m[::,::-1]
-    elif mirror == 'ud':
-        shList[0].m = shList[0].m[::,::-1]
-    elif rotate > 0:
-        shList[0].m = np.rot90(shList[0].m,rotate)
-        shList[0].shape = shList[0].m.shape
-    
-    if scale > 1:
+            newList.append(newRep)
+            for r in range(1,4):
+                mr, mrM = np.rot90(repShape.m, r), np.rot90(repShape.m[::-1,::], r)
+                newRep, newRepM = copy.deepcopy(repShape), copy.deepcopy(repShape)
+                newRep.m, newRepM.m = mr, mrM
+                newRep.shape, newRepM.shape = mr.shape, mrM.shape
+                newList.append(newRep)
+                newList.append(newRepM)
+        repList += newList
+    elif mirror == 'lr' and len(repList) == 1:
+        newRep = copy.deepcopy(repList[0])
+        newRep.m = repList[0].m[::,::-1]
+        repList = [newRep]
+    elif mirror == 'ud' and len(repList) == 1:
+        newRep = copy.deepcopy(repList[0])
+        newRep.m = repList[0].m[::-1,::]
+        repList = [newRep]
+    elif rotate > 0 and len(repList) == 1:
+        newRep = copy.deepcopy(repList[0])
+        newRep.m = np.rot90(repList[0].m,rotate)
+        newRep.shape = newRep.m.shape
+        repList = [newRep]
+    #print([sh.m for sh in repList])
+    if scale == True:
         newRepList=[]
         for sc in range(4,1,-1):    
             for repShape in repList:
@@ -3770,7 +3799,6 @@ def replicateShapes(matrix, attributes, diagonal=False, multicolor=True, anchorT
                 newRep.shape = (repShape.shape[0]*sc, repShape.shape[1]*sc)
                 newRepList.append(newRep)
         repList = newRepList
-    
     #then find places to replicate
     if anchorType == 'all':    
         for repSh in repList:
@@ -3780,23 +3808,28 @@ def replicateShapes(matrix, attributes, diagonal=False, multicolor=True, anchorT
                         newInsert = copy.deepcopy(repSh)
                         newInsert.position = (i, j)
                         m = insertShape(m, newInsert)
-       
-    """            
     elif anchorType == 'subshape':
-        for sh1 in repList:
+        for repSh in repList:
             for sh2 in shList:
-                if sh2.isSubshape(sh1,True,True) and len(sh1.pixels) < len(sh2.pixels):
-                    for i in range(sh2.shape[0]-sh2.shape[0]):
-                        if np.all(np.logical_or(sh2.m == 255, sh1.m == s2.m)):
-                            newInsert = 
-                            insertShape()
-                    
+                if sh2.isSubshape(repSh,sameColor=True,rotation=False,mirror=False) and len(sh2.pixels)<len(repSh.pixels):
+                    for x in range((repSh.shape[0]-sh2.shape[0])+1):
+                        for y in range((repSh.shape[1]-sh2.shape[1])+1):
+                            if np.all(np.logical_or(sh2.m == 255, repSh.m[x: x+sh2.shape[0],y:y+sh2.shape[1]] == sh2.m)):
+                                newInsert = copy.deepcopy(repSh)
+                                newInsert.position = (sh2.position[0]-x, sh2.position[1]-y)
+                                if sh2.position[1]-y<0:
+                                    newInsert.position = (sh2.position[0], 0)
+                                    newInsert.m = newInsert.m[::,y-sh2.position[1]:]
+                                    newInsert.shape = newInsert.m.shape
+                                m=insertShape(m, newInsert)
+            
+    """
     elif anchorType == 'pixel':
         continue
     """
-    
     if deleteOriginal:
-        m = deleteShape(m, repShape, matrix.backgroundColor)              
+        for sh in repList:
+            m = deleteShape(m, sh, matrix.backgroundColor)              
     return(m)
         
 #overlapSubmatrices 
@@ -3928,7 +3961,7 @@ def getBestCropShape(t):
         
     return bestFunction
     
-def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True):
+def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True, context=False):
     """
     This function crops the shape out of a matrix with the maximum score according to attributes
     """
@@ -3954,10 +3987,13 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
             bestShapes += [i]
     if len(bestShapes) == 0:
         return matrix
-    bestShape = shapeList[bestShapes[0]].m
-    bestShape[bestShape==255]=backgroundColor
+    if context:
+        bestShape = shapeList[bestShapes[0]]
+        return matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
+    else:
+        bestShape = shapeList[bestShapes[0]].m
+        bestShape[bestShape==255]=backgroundColor
     return bestShape
-#   return matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
     
 #Crop a shape using a reference shape or set of shapes
 def cropShapeReference(matrix, referenceShape, diagonal=True):
@@ -4011,6 +4047,8 @@ def cropShapeReference(matrix, referenceShape, diagonal=True):
 def cropAllBackground(matrix):
     m = matrix.m.copy()
     bC = matrix.backgroundColor
+    if np.all(m == bC):
+        return m
     x1, x2, y1, y2 = 0, m.shape[0]-1, 0, m.shape[1]-1
     while x1 <= x2 and np.all(m[x1,:] == bC):
         x1 += 1
@@ -4049,7 +4087,6 @@ def cropFullFrame(matrix, includeBorder=True, bigOrSmall = None):
     else:
         return m[frame.position[0]+1:frame.position[0]+frame.shape[0]-1, \
                  frame.position[1]+1:frame.position[1]+frame.shape[1]-1]
-        
 
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
@@ -4260,12 +4297,10 @@ def getPossibleOperations(t, c):
                     x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                      bigOrSmall=bs, isBorder=border))
         
-        #Replicate:
-        #if candTask.nCommonInOutMulticolorShapes > 0:
-        """
-        x.append(getBestReplicateShapes(candTask))
-        """
-        
+        if isReplicateTask(candTask)[0]:
+            x.append(getBestReplicateShapes(candTask))
+            #x.append(partial(replicateShapes,diagonal=True, multicolor=True, allCombs=False, anchorType='subshape'))
+            #x.append(partial(replicateShapes,diagonal=True, multicolor=True, allCombs=True, anchorType='subshape')
         # TODO
         """
         if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]) and\
@@ -4482,6 +4517,7 @@ def getPossibleOperations(t, c):
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
         for attrs in [set(['LaSh'])]:
                 x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True)) 
+                x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True, context=True)) 
     
     #x.append(partial(cropAllBackground))
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
