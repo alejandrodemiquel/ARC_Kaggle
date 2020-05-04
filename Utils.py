@@ -505,7 +505,7 @@ def colorDNeighbours(mIn, mOut, i, j):
      
 # if len(t.changedInColors)==1 (the background color, where everything evolves)
 # 311/800 tasks satisfy this condition
-# Do I need inMatrix.nColors+fixedColors to be iqual for every sample?
+# Do I need inMatrix.nColors+fixedColors to be equal for every sample?
 def evolve(t, kernel=3, border=0, includeRotations=False):
     def evolveInputMatrices(mIn, mOut, changeCIC=False):
         reference = [m.copy() for m in mIn]
@@ -799,6 +799,11 @@ def getBestEvolve(t):
 
 # Good examples: 790,749,748,703,679,629,605,585,575,573,457,344,322,
 #                283,236,231,201,198,59,23
+    
+# To be solved: 23,57,59,65,83,93,118,135,140,147,167,189,198,201,231,236,247,
+# 298,322,357,429,449,457,505,577,585,605,693,703,731,748,749,793,797
+    
+# Solved: 46,344,573,629,679,790
 
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
@@ -1058,6 +1063,8 @@ def getBestEvolvingLines(t):
     sources = detectEvolvingLineSources(t)
     
     fixedColorsList = list(t.fixedColors2)
+    #cic=t.commonChangedInColors
+    cic = [color for color in list(range(10)) if color not in fixedColorsList]
     
     bestScore = 1000
     bestFunction = partial(identityM)
@@ -1067,10 +1074,10 @@ def getBestEvolvingLines(t):
         rules = []
         for c in range(len(fixedColorsList)):
             rules.append([fixedColorsList[c], actions[c]])
-        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=t.commonChangedInColors, \
+        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
                     fixedDirection=True)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=t.commonChangedInColors, \
+        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
                     fixedDirection=False)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
@@ -3473,7 +3480,7 @@ def getBestMultiplyMatrix(t, falseColor):
             opCond = (op, cond)
             if score==0:
                 return opCond
-    return (opCond, falseColor)
+    return opCond
 
 def doBestMultiplyMatrix(matrix, opCond, falseColor):
     factor = matrix.shape
@@ -4437,8 +4444,9 @@ def getPossibleOperations(t, c):
     #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
     #    x.append(getBestEvolve(candTask))
     
-    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
-    len(candTask.commonChangedInColors)==1:
+    #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    #len(candTask.commonChangedInColors)==1:
+    if candTask.sameIOShapes:    
         x.append(getBestEvolvingLines(candTask))
         
     ###########################################################################

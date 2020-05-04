@@ -434,7 +434,7 @@ def ignoreGrid(t, task, inMatrix=True, outMatrix=True):
                 m[i,j] = next(iter(t.testSamples[s].outMatrix.grid.cells[i][j][0].colors))
             task["test"][s]["output"] = m.tolist()
 
-def recoverGrid(t, x):
+def recoverGrid(t, x, s):
     realX = t.testSamples[s].inMatrix.m.copy()
     cells = t.testSamples[s].inMatrix.grid.cells
     for cellI in range(len(cells)):
@@ -529,10 +529,9 @@ replicateSubshape = [79, 172, 500, 779, 795]
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[idx]
+for idx in tqdm(evolveTasks, position=0, leave=True):
+    taskId = index[646]
     task = allTasks[taskId]
-    
     originalT = Task.Task(task, taskId, submission=False)
        
     if needsRecoloring(originalT):
@@ -590,7 +589,7 @@ for idx in tqdm(range(800), position=0, leave=True):
                 else:
                     x = newX.copy()
             if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
-                x = recoverGrid(t, x)
+                x = recoverGrid(t, x, s)
             if needsRecoloring(originalT):
                 x = recoverOriginalColors(x, testRels[s])
             plot_sample(originalT.testSamples[s], x)
