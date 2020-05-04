@@ -5939,9 +5939,9 @@ def getPossibleOperations(t, c):
     
     ###########################################################################
     # Evolve
-    #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
-    #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-    #    x.append(getBestEvolve(candTask))
+    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
+        x.append(getBestEvolve(candTask))
     
     if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     len(candTask.commonChangedInColors)==1:
@@ -6107,6 +6107,7 @@ def getPossibleOperations(t, c):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=True))
+    """
     if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropFullFrame))
         x.append(partial(cropFullFrame, includeBorder=False))
@@ -6115,6 +6116,7 @@ def getPossibleOperations(t, c):
         x.append(partial(cropFullFrame, bigOrSmall="small"))
         x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=False))
         x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=False))
+    """
     
     return x
 
@@ -6440,8 +6442,8 @@ for output_id in submission.index:
             for op in c.ops:
                 if x is not None:
                     newX = op(Matrix(x))
-                    if t.sameIOShapes and len(t.unchangedColors) != 0:
-                        x = correctFixedColors(x, newX, t.unchangedColors)
+                    if t2.sameIOShapes and len(t2.fixedColors) != 0:
+                        x = correctFixedColors(x, newX, t2.fixedColors)
                     else:
                         x = newX.copy()
             if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):

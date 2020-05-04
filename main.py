@@ -137,6 +137,8 @@ valid_tasks['aa300dc3']['train'][1]['input'][1][7] = 5
 valid_tasks['aa300dc3']['train'][1]['output'][1][7] = 5
 valid_tasks['aa300dc3']['train'][1]['input'][8][2] = 5
 valid_tasks['aa300dc3']['train'][1]['output'][8][2] = 5
+# ad7e01d0
+valid_tasks['ad7e01d0']['train'][0]['output'][6][7] = 0
 
 
 
@@ -394,6 +396,20 @@ def recoverOriginalColors(matrix, rel):
             m[i,j] = rel[matrix[i,j]][0]
     return m
 
+def hasRepeatedOutputs(t):
+    nonRepeated = []
+    for i in range(t.nTrain):
+        seen = False
+        for j in range(i+1, t.nTrain):
+            if np.array_equal(t.trainSamples[i].outMatrix.m, t.trainSamples[j].outMatrix.m):
+                seen = True
+        if not seen:
+            nonRepeated.append(t.trainSamples[i].outMatrix.m.copy())
+    if len(nonRepeated)==t.nTrain:
+        return False, []
+    else:
+        return True, nonRepeated            
+
 def ignoreGrid(t, task, inMatrix=True, outMatrix=True):
     for s in range(t.nTrain):
         if inMatrix:
@@ -458,7 +474,7 @@ def tryOperations(t, c, firstIt=False):
                 cTask["test"][s]["input"] = Utils.correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
                      np.array(cTask["test"][s]["input"]),\
-                     c.t.fixedColors).tolist()
+                     c.t.fixedColors).tolist()        
         cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         #changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
@@ -512,7 +528,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
-            
+       
     if needsRecoloring(originalT):
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
         t = Task.Task(task, taskId, submission=False)
@@ -562,7 +578,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
                 if t2.sameIOShapes and len(t2.fixedColors) != 0:
-                    x = Utils.correctFixedColors(x, newX, t.fixedColors)
+                    x = Utils.correctFixedColors(x, newX, t2.fixedColors)
                 else:
                     x = newX.copy()
             if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
@@ -570,7 +586,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             if needsRecoloring(originalT):
                 x = recoverOriginalColors(x, testRels[s])
             plot_sample(originalT.testSamples[s], x)
-            if Utils.incorrectPixels(x, t.testSamples[s].outMatrix.m) == 0:
+            if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)
                 plot_task(task)
