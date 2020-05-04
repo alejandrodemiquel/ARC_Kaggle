@@ -287,7 +287,7 @@ class Shape:
         if mirror and rotation:
             for x in range(1, 4):
                 if any([np.array_equal(m1, np.rot90(m2,x))\
-                        or np.array_equal(m1, np.fliplr(np.rot90(m2,x))) for x in range(1,4)]):
+                        or np.array_equal(m1, np.fliplr(np.rot90(m2,x))) for x in range(0,4)]):
                     return True               
                 
         return np.array_equal(m1,m2)
@@ -891,19 +891,23 @@ class Sample():
                 #check if output is the size of a multicolored shape
                 self.outIsInMulticolorShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorShapes)
                 self.outIsInMulticolorDShapeSize = any((sh.shape == self.outMatrix.shape) for sh in self.inMatrix.multicolorDShapes)
-    
-            self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
+            self.commonShapes, self.commonDShapes, self.commonMulticolorShapes, self.commonMulticolorDShapes = [], [], [], []
+            if len(self.inMatrix.shapes) < 15 or len(self.outMatrix.shapes) < 10:
+                self.commonShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
                                                      multicolor=False, rotation=True, scaling=True, mirror=True)
-            self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
+            if len(self.inMatrix.dShapes) < 15 or len(self.outMatrix.dShapes) < 10:
+                self.commonDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
                                                       multicolor=False, rotation=True, scaling=True, mirror=True)
-            #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
+            if len(self.inMatrix.multicolorShapes) < 15 or len(self.outMatrix.multicolorShapes) < 10:
+                self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
+                                                               multicolor=True, rotation=True, scaling=True, mirror=True)
+            if len(self.inMatrix.multicolorDShapes) < 15 or len(self.outMatrix.multicolorDShapes) < 10:
+                self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
+                                                                multicolor=True, rotation=True, scaling=True, mirror=True)
+             #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
             #                                         multicolor=False, rotation=True, scaling=True, mirror=True)
             #self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
             #                                          multicolor=False, rotation=True, scaling=True, mirror=True)
-            self.commonMulticolorShapes = self.getCommonShapes(diagonal=False, sameColor=True,\
-                                                               multicolor=True, rotation=True, scaling=True, mirror=True)
-            self.commonMulticolorDShapes = self.getCommonShapes(diagonal=True, sameColor=True,\
-                                                                multicolor=True, rotation=True, scaling=True, mirror=True)
             #self.commonShapesNoColor = self.getCommonShapes(diagonal=False, sameColor=False,\
             #                                                       multicolor=True, rotation=True, scaling=True, mirror=True)
             #self.commonDShapesNoColor = self.getCommonShapes(diagonal=True, sameColor=False,\
@@ -1031,7 +1035,6 @@ class Sample():
                 for s in self.inMatrix.blanks:
                     if s.shape == self.outMatrix.shape:
                         self.blankToFill = s
-                        
              
             # Does the output matrix follow a pattern?
             self.followsRowPattern = self.outMatrix.followsRowPattern()
@@ -1054,7 +1057,7 @@ class Sample():
             else:
                 ishs = self.inMatrix.multicolorShapes
                 oshs = self.outMatrix.multicolorShapes
-        #Arbitrary: shapes have size < 150.         
+        #Arbitrary: shapes have size < 100.
         for ish in ishs:
             outCount = 0
             if len(ish.pixels) == 1 or len(ish.pixels) > 100:
@@ -1066,7 +1069,8 @@ class Sample():
                                     rotation=rotation, mirror=mirror, scaling=scaling):
                     outCount += 1
             if outCount > 0:
-                comSh.append((ish, outCount))
+                comSh.append((ish, np.count_nonzero([ish.hasSameShape(ish2, sameColor=sameColor, samePosition=samePosition,\
+                                    rotation=rotation, mirror=mirror, scaling=scaling) for ish2 in ishs]), outCount))
         return comSh
 
 # %% Class Task

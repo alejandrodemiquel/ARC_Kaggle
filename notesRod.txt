@@ -1,5 +1,11 @@
- IDEAS:
-- crop only multicolorshape -------> crop all non-background (216)
+q IDEAS:
+
+- only getCommonShapes if the number o shapes is smaller than X
+
+- testInTrain: 55
+
+- can i remove the line to crop the largest shape? i think i can for 133 but what about 28
+
 - still worried about tryOperations score 0 (712)
 - background color issue: 766 (no grids can be backgounrd/???)
 - 774 add cropshape options???
@@ -19,7 +25,7 @@ CropFrame:
 maybe 592?
 add 'all' + context? eg 583
 
-solved: 68, 367, 421, 524, 645
+solved: 68, 75, 367, 421, 524, 645
 
 same:
 - at pixels: 53, 74, 88, 509, 205, 424, 474, 628, 674, 716, 786
@@ -45,7 +51,7 @@ other ref: 153, 158, 208, 223, 229, 389
 
 ------------Crop-------------
 unsolved crop tasks:
-[28,87,204,216,258,318,395,440,445,464,473,509,586,589,624,655,676,689,768,774]
+[28,87,204,318,395,440,445,464,473,509,586,589,624,655,676,689,768,774]
 
 CropShape:
 - Identify if output is shape
@@ -53,9 +59,10 @@ CropShape:
 - Identify characteristic attributes
 - Crop
 
-solves: 13, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 217, 262, 270, 289, 299, 345, 364,  383, 488, 576, 578, 635, 712, 727, 785, 690(sort)
+solves: 13, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217, 258, 262, 270, 289, 299, 345, 364,  383, 488, 576, 578, 635, 712, 727, 785, 690(sort)
+solves too: 28, 395
 
-cropframe: 13, 28, 204, 395
+cropframe: 13, 204
 cropLargestNonbackgroudnFrame = 87, 194, 216, 258, 464
 reference: 318, 690
 cropsomething? 354, 365
