@@ -1289,6 +1289,7 @@ class Task():
             self.gridCellIsInputShape = all([s.gridCellIsInputShape for s in self.trainSamples])
         if self.hasUnchangedGrid:
             self.gridCellsHaveOneColor = all([s.gridCellsHaveOneColor for s in self.trainSamples])
+            self.outGridCellsHaveOneColor = all([s.outMatrix.grid.allCellsHaveOneColor for s in self.trainSamples])
         # Asymmetric grids
         self.inputIsAsymmetricGrid = all([s.inMatrix.isAsymmetricGrid for s in self.trainSamples+self.testSamples])
         self.hasUnchangedAsymmetricGrid = all([s.asymmetricGridIsUnchanged for s in self.trainSamples])
