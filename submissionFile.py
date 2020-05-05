@@ -6489,14 +6489,14 @@ for output_id in submission.index:
     taskNeedsCropping = needsCropping(originalT)
     if taskNeedsCropping:
         cropPositions = cropTask(originalT, cTask)
-        t2 = Task.Task(cTask, task_id, submission=True)
+        t2 = Task(cTask, task_id, submission=True)
     elif t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
             ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
-            t2 = Task.Task(cTask, task_id, submission=True)
+            t2 = Task(cTask, task_id, submission=True)
         elif t.outGridCellsHaveOneColor:
             ignoreGrid(t, cTask, inMatrix=False)
-            t2 = Task.Task(cTask, task_id, submission=True)
+            t2 = Task(cTask, task_id, submission=True)
         else:
             t2 = t
     else:
