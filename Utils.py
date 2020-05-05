@@ -3292,6 +3292,17 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None, \
                 m[i,j] = falseColor
     return m
 
+def colorSubmatricesWithReference(matrix, reference, firstIsRef=True):
+    """
+    The shape of matrix has to be a multiple of the shape of reference.
+    """
+    m = matrix.m.copy()
+    factor = (int(m.shape[0]/reference.shape[0]), int(m.shape[0]/reference.shape[0]))
+    for i,j in np.ndindex(reference.shape):
+        for k,l in np.ndindex(factor):
+            m[i*factor[0]+k, j*factor[1]+l] = reference[i,j]
+    return m
+
 # %% Downsize and Minimize
     
 def getDownsizeFactors(matrix):
