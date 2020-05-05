@@ -5971,9 +5971,9 @@ def getPossibleOperations(t, c):
     
     ###########################################################################
     # Evolve
-    #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
-    #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-    #    x.append(getBestEvolve(candTask))
+    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
+        x.append(getBestEvolve(candTask))
     
     if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     len(candTask.commonChangedInColors)==1:
@@ -6140,11 +6140,13 @@ def getPossibleOperations(t, c):
                 x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True)) 
                 x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True, context=True)) 
     
-    #x.append(partial(cropAllBackground))
+    x.append(partial(cropAllBackground))
+    """
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=True))
+    """
     if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropFullFrame))
         x.append(partial(cropFullFrame, includeBorder=False))
@@ -6243,6 +6245,46 @@ class Best3Candidates():
 
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
+    
+def getCroppingPosition(matrix):
+    bC = matrix.backgroundColor
+    x, xMax, y, yMax = 0, matrix.m.shape[0]-1, 0, matrix.m.shape[1]-1
+    while x <= xMax and np.all(matrix.m[x,:] == bC):
+        x += 1
+    while y <= yMax and np.all(matrix.m[:,y] == bC):
+        y += 1
+    return [x,y]
+    
+def needsCropping(t):
+    # Only to be used if t.sameIOShapes
+    for sample in t.trainSamples:
+        if sample.inMatrix.backgroundColor != sample.outMatrix.backgroundColor:
+            return False
+        if getCroppingPosition(sample.inMatrix) != getCroppingPosition(sample.outMatrix):
+            return False
+        inMatrix = cropAllBackground(sample.inMatrix)
+        outMatrix = cropAllBackground(sample.outMatrix)
+        if inMatrix.shape!=outMatrix.shape or sample.inMatrix.shape==inMatrix.shape:
+            return False
+    return True
+
+def cropTask(t, task):
+    positions = {"train": [], "test": []}
+    for s in range(t.nTrain):
+        task["train"][s]["input"] = cropAllBackground(t.trainSamples[s].inMatrix).tolist()
+        task["train"][s]["output"] = cropAllBackground(t.trainSamples[s].outMatrix).tolist()
+        positions["train"].append(getCroppingPosition(t.trainSamples[s].inMatrix))
+    for s in range(t.nTest):
+        task["test"][s]["input"] = cropAllBackground(t.testSamples[s].inMatrix).tolist()
+        positions["test"].append(getCroppingPosition(t.testSamples[s].inMatrix))
+        if not t.submission:
+            task["test"][s]["output"] = cropAllBackground(t.testSamples[s].outMatrix).tolist()
+    return positions
+
+def recoverCroppedMatrix(matrix, outShape, position, backgroundColor):
+    m = np.full(outShape, backgroundColor, dtype=np.uint8)
+    m[position[0]:position[0]+matrix.shape[0], position[1]:position[1]+matrix.shape[1]] = matrix.copy()
+    return m
     
 def needsRecoloring(t):
     """
@@ -6383,7 +6425,7 @@ def tryOperations(t, c, firstIt=False):
     """
     if c.score==0 or b3c.allPerfect():
         return
-    startOps = ("switchColors", "cropShape", "cropOnlyMulticolorShape", "minimize", \
+    startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
                 "maxColorFromCell")
     #repeatIfPerfect = ("changeShapes")
     possibleOps = getPossibleOperations(t, c)
@@ -6409,6 +6451,9 @@ def tryOperations(t, c, firstIt=False):
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
+            if all([np.array_equal(np.array(cTask["train"][s]["input"]), \
+                    t.trainSamples[s].inMatrix.m) for s in range(t.nTrain)]):
+                continue
             newCandidate.generateTask()
             tryOperations(t, newCandidate)
         #elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
@@ -6429,6 +6474,8 @@ for output_id in submission.index:
     with open(f, 'r') as read_file:
         task = json.load(read_file)
         
+    predictions = []
+        
     originalT = Task(task, task_id, submission=True)
     
     if needsRecoloring(originalT):
@@ -6438,20 +6485,22 @@ for output_id in submission.index:
         t = originalT
     
     cTask = copy.deepcopy(task)
-    """
-    if t.hasUnchangedGrid:
+    
+    taskNeedsCropping = needsCropping(originalT)
+    if taskNeedsCropping:
+        cropPositions = cropTask(originalT, cTask)
+        t2 = Task.Task(cTask, task_id, submission=True)
+    elif t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
             ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
-            t2 = Task(cTask, task_id, submission=True)
+            t2 = Task.Task(cTask, task_id, submission=True)
         elif t.outGridCellsHaveOneColor:
             ignoreGrid(t, cTask, inMatrix=False)
-            t2 = Task(cTask, task_id, submission=True)
+            t2 = Task.Task(cTask, task_id, submission=True)
         else:
             t2 = t
     else:
         t2 = t
-    """
-    t2 = t
         
     c = Candidate([], [task])
     c.t = t2
@@ -6475,7 +6524,6 @@ for output_id in submission.index:
         else:
             prevScore = score
             
-    predictions = []
     for s in range(t.nTest):
         if s != pair_id:
             continue
@@ -6488,10 +6536,13 @@ for output_id in submission.index:
                         x = correctFixedColors(x, newX, t2.fixedColors)
                     else:
                         x = newX.copy()
-            #if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
-            #    x = recoverGrid(t, x, s)
+            if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
+                x = recoverGrid(t, x, s)
             if needsRecoloring(originalT):
                 x = recoverOriginalColors(x, testRels[s])
+            if taskNeedsCropping:
+                x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
+                                         cropPositions["test"][s], originalT.testSamples[s].inMatrix.backgroundColor)
             if x is not None:
                 predictions.append((flattener(x.astype(int).tolist())))
 
