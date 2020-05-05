@@ -303,6 +303,46 @@ class Best3Candidates():
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
     
+def getCroppingPosition(matrix):
+    bC = matrix.backgroundColor
+    x, xMax, y, yMax = 0, matrix.m.shape[0]-1, 0, matrix.m.shape[1]-1
+    while x <= xMax and np.all(matrix.m[x,:] == bC):
+        x += 1
+    while y <= yMax and np.all(matrix.m[:,y] == bC):
+        y += 1
+    return [x,y]
+    
+def needsCropping(t):
+    # Only to be used if t.sameIOShapes
+    for sample in t.trainSamples:
+        if sample.inMatrix.backgroundColor != sample.outMatrix.backgroundColor:
+            return False
+        if getCroppingPosition(sample.inMatrix) != getCroppingPosition(sample.outMatrix):
+            return False
+        inMatrix = Utils.cropAllBackground(sample.inMatrix)
+        outMatrix = Utils.cropAllBackground(sample.outMatrix)
+        if inMatrix.shape!=outMatrix.shape or sample.inMatrix.shape==inMatrix.shape:
+            return False
+    return True
+
+def cropTask(t, task):
+    positions = {"train": [], "test": []}
+    for s in range(t.nTrain):
+        task["train"][s]["input"] = Utils.cropAllBackground(t.trainSamples[s].inMatrix).tolist()
+        task["train"][s]["output"] = Utils.cropAllBackground(t.trainSamples[s].outMatrix).tolist()
+        positions["train"].append(getCroppingPosition(t.trainSamples[s].inMatrix))
+    for s in range(t.nTest):
+        task["test"][s]["input"] = Utils.cropAllBackground(t.testSamples[s].inMatrix).tolist()
+        positions["test"].append(getCroppingPosition(t.testSamples[s].inMatrix))
+        if not t.submission:
+            task["test"][s]["output"] = Utils.cropAllBackground(t.testSamples[s].outMatrix).tolist()
+    return positions
+
+def recoverCroppedMatrix(matrix, outShape, position, backgroundColor):
+    m = np.full(outShape, backgroundColor, dtype=np.uint8)
+    m[position[0]:position[0]+matrix.shape[0], position[1]:position[1]+matrix.shape[1]] = matrix.copy()
+    return m
+    
 def needsRecoloring(t):
     """
     This method determines whether the task t needs recoloring or not.
@@ -525,23 +565,35 @@ cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,262,270
 cropAllBackground = [216, 258]
 replicateTasks = [68, 75, 645, 367, 421, 540]
 replicateSubshape = [79, 172, 500, 779, 795]
+cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
+                  445,456,485,497,530,541,547,564,610,611,625,634,640,657,673,\
+                  678,680,681,682,691,701,702,710,716,722,745,756,758,762,767,\
+                  773,779,780,792,795,798]
+# cropAndRecover solved: 165
+
 #, 190, 367, 421, 431, 524
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(evolveTasks, position=0, leave=True):
-    taskId = index[646]
+for idx in tqdm(range(800), position=0, leave=True):
+    taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
-       
-    if needsRecoloring(originalT):
+        
+    taskNeedsRecoloring = needsRecoloring(originalT)
+    if taskNeedsRecoloring:
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
         t = Task.Task(task, taskId, submission=False)
     else:
         t = originalT
-
+        
     cTask = copy.deepcopy(task)
-    if t.hasUnchangedGrid:
+    
+    taskNeedsCropping = needsCropping(originalT)
+    if taskNeedsCropping:
+        cropPositions = cropTask(originalT, cTask)
+        t2 = Task.Task(cTask, taskId, submission=False)
+    elif t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
             ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
             t2 = Task.Task(cTask, taskId, submission=False)
@@ -580,7 +632,7 @@ for idx in tqdm(evolveTasks, position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -590,13 +642,16 @@ for idx in tqdm(evolveTasks, position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
                 x = recoverGrid(t, x, s)
-            if needsRecoloring(originalT):
+            if taskNeedsRecoloring:
                 x = recoverOriginalColors(x, testRels[s])
-            plot_sample(originalT.testSamples[s], x)
+            if taskNeedsCropping:
+                x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
+                                         cropPositions["test"][s], originalT.testSamples[s].inMatrix.backgroundColor)
+            #plot_sample(originalT.testSamples[s], x)
             if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)
-                plot_task(task)
+                plot_task(idx)
                 count += 1
                 break
                 solved.append(Solution(idx, taskId, c.ops))

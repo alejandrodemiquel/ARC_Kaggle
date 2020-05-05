@@ -1063,8 +1063,8 @@ def getBestEvolvingLines(t):
     sources = detectEvolvingLineSources(t)
     
     fixedColorsList = list(t.fixedColors2)
-    #cic=t.commonChangedInColors
-    cic = [color for color in list(range(10)) if color not in fixedColorsList]
+    cic=t.commonChangedInColors
+    #cic = [color for color in list(range(10)) if color not in fixedColorsList]
     
     bestScore = 1000
     bestFunction = partial(identityM)
@@ -4231,10 +4231,11 @@ def getPossibleOperations(t, c):
                 axis.append("lr")
             if candTask.udSymmetric:
                 axis.append("ud")
-            if candTask.d1Symmetric:
-                axis.append("d1")
-            if candTask.d2Symmetric:
-                axis.append("d2")
+            if all([sample.inMatrix.shape[0]==sample.inMatrix.shape[1] for sample in candTask.testSamples]):              
+                if candTask.d1Symmetric: 
+                    axis.append("d1")
+                if candTask.d2Symmetric:
+                    axis.append("d2")
             x.append(partial(symmetrize, axis=axis, color=color))
             if candTask.totalOutColors==1:
                 for fc in candTask.fixedColors:
@@ -4446,8 +4447,8 @@ def getPossibleOperations(t, c):
     
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1:
-    if candTask.sameIOShapes:    
-        x.append(getBestEvolvingLines(candTask))
+    #if candTask.sameIOShapes:    
+    #    x.append(getBestEvolvingLines(candTask))
         
     ###########################################################################
     # Other cases
