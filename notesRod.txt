@@ -7,7 +7,6 @@ q IDEAS:
 - can i remove the line to crop the largest shape? i think i can for 133 but what about 28
 
 - still worried about tryOperations score 0 (712)
-- background color issue: 766 (no grids can be backgounrd/???)
 - 774 add cropshape options???
 - has full frame
 CropFrame:
@@ -25,14 +24,15 @@ CropFrame:
 maybe 592?
 add 'all' + context? eg 583
 
-solved: 68, 75, 367, 421, 524, 645
+solved: 68,75,79,111,116,172,360,367,421,500,540,645
+howtocall: 524
 
 same:
 - at pixels: 53, 74, 88, 509, 205, 424, 474, 628, 674, 716, 786
 - slots: 68, 645, 367, 421, 524
-- at subshapes: 17, 75, 79, 100, 132, 157, 172, 190, 208, 500, 540, 659, 683, 779, 795
+- at subshapes: 17, 100, 132, 157, 190, 196, 208, 659, 683, 779, 795
 - everywhere: 207, 362, 539, 650
-- symmetrize: 108, 111, 116, 284
+- symmetrize: 108, 284
 
 reference:
 - 626, 636, 742
@@ -97,3 +97,28 @@ DELTED PARTS:
         #    for attrs in:
          #       x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=False, diagonals=True))
 
+
+
+
+                      
+    elif anchorType == 'subshape':
+        for repShs in repList:
+            for repSh in repShs:
+                for sh2 in shList:
+                    if sh2.isSubshape(repSh,sameColor=True,rotation=False,mirror=False) and len(sh2.pixels)<len(repSh.pixels):
+                        for x in range((repSh.shape[0]-sh2.shape[0])+1):
+                            for y in range((repSh.shape[1]-sh2.shape[1])+1):
+                                if np.all(np.logical_or(sh2.m == 255, repSh.m[x: x+sh2.shape[0],y:y+sh2.shape[1]] == sh2.m)):
+                                    #if np.all(np.logical_or(m[max(sh2.position[0]-x,0):min(sh2.position[0]-x+repSh.shape[0],m.shape[0]),\
+                                    #                          max(sh2.position[1]-y,0):min(sh2.position[1]-y+repSh.shape[1],m.shape[1]] == matrix.backgroundColor),\)):
+                                        newInsert = copy.deepcopy(repSh)
+                                        newInsert.position = (sh2.position[0]-x, sh2.position[1]-y)
+                                        if sh2.position[1]-y<0:
+                                            newInsert.position = (sh2.position[0], 0)
+                                            newInsert.m = newInsert.m[::,y-sh2.position[1]:]
+                                            newInsert.shape = newInsert.m.shape
+                                        if sh2.position[0]-x<0:
+                                            newInsert.position = (0, sh2.position[1])
+                                            newInsert.m = newInsert.m[x-sh2.position[0]:,:]
+                                            newInsert.shape = newInsert.m.shape
+                                        m=insertShape(m, newInsert)
