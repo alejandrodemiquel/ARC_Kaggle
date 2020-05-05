@@ -776,6 +776,8 @@ class Matrix():
                 if shapeList[i].color == backgroundColor:
                     attrList[i].append(-1)
                     continue
+                else:
+                    attrList[i].append(shapeList[i].color)
             else:
                 attrList[i].append(shapeList[i].nColors)
                 if shapeList[i].nColors > mcolors:
@@ -1327,7 +1329,7 @@ class Task():
                 continue
             addShape = True
             for s in range(1,self.nTrain):
-                if not any([sh1==sh2 for sh2 in self.trainSamples[s].inMatrix.shapes]):
+                if not any([sh1.pixels == sh2.pixels for sh2 in self.trainSamples[s].inMatrix.shapes]):
                     addShape = False
                     break
             if addShape:
@@ -1339,7 +1341,7 @@ class Task():
                 continue
             addShape = True
             for s in range(1,self.nTrain):
-                if not any([sh1==sh2 for sh2 in self.trainSamples[s].inMatrix.dShapes]):
+                if not any([sh1.pixels == sh2.pixels for sh2 in self.trainSamples[s].inMatrix.dShapes]):
                     addShape = False
                     break
             if addShape:
