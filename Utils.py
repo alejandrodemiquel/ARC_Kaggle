@@ -4542,8 +4542,8 @@ def getPossibleOperations(t, c):
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1:
 
-    #if candTask.sameIOShapes:    
-    #    x.append(getBestEvolvingLines(candTask))
+    if candTask.sameIOShapes:    
+        x.append(getBestEvolvingLines(candTask))
 
     ###########################################################################
     # Other cases

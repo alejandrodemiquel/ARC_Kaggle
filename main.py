@@ -518,7 +518,8 @@ def tryOperations(t, c, firstIt=False):
         cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         #changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
-        #                                           np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
+        #                                          np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
+        #print(op, cScore)
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
@@ -579,6 +580,7 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
+    print(idx)
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
@@ -592,9 +594,9 @@ for idx in tqdm(range(800), position=0, leave=True):
         
     cTask = copy.deepcopy(task)
     
-    taskNeedsCropping = needsCropping(originalT)
+    taskNeedsCropping = needsCropping(t)
     if taskNeedsCropping:
-        cropPositions = cropTask(originalT, cTask)
+        cropPositions = cropTask(t, cTask)
         t2 = Task.Task(cTask, taskId, submission=False)
     elif t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
@@ -607,7 +609,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             t2 = t
     else:
         t2 = t
-
+        
     cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                          t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
     c = Candidate([], [task], score=cScore)
@@ -635,7 +637,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -650,7 +652,7 @@ for idx in tqdm(range(800), position=0, leave=True):
             if taskNeedsCropping:
                 x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
                                          cropPositions["test"][s], originalT.testSamples[s].inMatrix.backgroundColor)
-            #plot_sample(originalT.testSamples[s], x)
+            plot_sample(originalT.testSamples[s], x)
             if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)
