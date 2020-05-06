@@ -1,19 +1,15 @@
 q IDEAS:
 
-- only getCommonShapes if the number o shapes is smaller than X
+- cropShape backgroundColor issue
+- replicateShape + scaling, changing color
+- 
 
-- testInTrain: 55
 
 - can i remove the line to crop the largest shape? i think i can for 133 but what about 28
-
 - still worried about tryOperations score 0 (712)
 - 774 add cropshape options???
-- has full frame
-CropFrame:
-- Identify if output is in input
-- Identify characteristic attributes
-- Crop
-- 
+
+
 - 194, 28
 
 ------------Replicate--------
