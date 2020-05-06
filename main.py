@@ -485,6 +485,38 @@ def recoverGrid(t, x, s):
                 realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
     return realX
 
+def ignoreAsymmetricGrid(t, task):
+    for s in range(t.nTrain):
+        m = np.zeros(t.trainSamples[s].inMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.trainSamples[s].inMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["train"][s]["input"] = m.tolist()
+        m = np.zeros(t.trainSamples[s].outMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.trainSamples[s].outMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["train"][s]["output"] = m.tolist()
+    for s in range(t.nTest):
+        m = np.zeros(t.testSamples[s].inMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.testSamples[s].inMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["test"][s]["input"] = m.tolist()
+        if not t.submission:
+            m = np.zeros(t.testSamples[s].outMatrix.asymmetricGrid.shape, dtype=np.uint8)
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = next(iter(t.testSamples[s].outMatrix.asymmetricGrid.cells[i][j][0].colors))
+            task["test"][s]["output"] = m.tolist()
+
+def recoverAsymmetricGrid(t, x, s):
+    realX = t.testSamples[s].inMatrix.m.copy()
+    cells = t.testSamples[s].inMatrix.asymmetricGrid.cells
+    for cellI in range(len(cells)):
+        for cellJ in range(len(cells[0])):
+            cellShape = cells[cellI][cellJ][0].shape
+            position = cells[cellI][cellJ][1]
+            for k,l in np.ndindex(cellShape):
+                realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
+    return realX
+
 def tryOperations(t, c, firstIt=False):
     """
     Given a Task.Task t and a Candidate c, this function applies all the
@@ -580,11 +612,10 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
-    print(idx)
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
-        
+            
     taskNeedsRecoloring = needsRecoloring(originalT)
     if taskNeedsRecoloring:
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
@@ -607,6 +638,9 @@ for idx in tqdm(range(800), position=0, leave=True):
             t2 = Task.Task(cTask, taskId, submission=False)
         else:
             t2 = t
+    elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
+        ignoreAsymmetricGrid(t, cTask)
+        t2 = Task.Task(cTask, taskId, submission=False)
     else:
         t2 = t
         
@@ -647,6 +681,8 @@ for idx in tqdm(range(800), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
                 x = recoverGrid(t, x, s)
+            elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
+                x = recoverAsymmetricGrid(t, x, s)
             if taskNeedsRecoloring:
                 x = recoverOriginalColors(x, testRels[s])
             if taskNeedsCropping:

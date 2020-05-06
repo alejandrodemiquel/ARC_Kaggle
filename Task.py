@@ -1030,6 +1030,9 @@ class Sample():
             # Asymmetric grids
             self.asymmetricGridIsUnchanged = self.inMatrix.isAsymmetricGrid and self.outMatrix.isAsymmetricGrid \
             and self.inMatrix.asymmetricGrid == self.outMatrix.asymmetricGrid
+            if self.asymmetricGridIsUnchanged:
+                self.asymmetricGridCellsHaveOneColor = self.inMatrix.asymmetricGrid.allCellsHaveOneColor and\
+                self.outMatrix.asymmetricGrid.allCellsHaveOneColor
             
             # Is there a blank to fill?
             self.inputHasBlank = len(self.inMatrix.blanks)>0
@@ -1297,6 +1300,8 @@ class Task():
         # Asymmetric grids
         self.inputIsAsymmetricGrid = all([s.inMatrix.isAsymmetricGrid for s in self.trainSamples+self.testSamples])
         self.hasUnchangedAsymmetricGrid = all([s.asymmetricGridIsUnchanged for s in self.trainSamples])
+        if self.hasUnchangedAsymmetricGrid:
+            self.assymmetricGridCellsHaveOneColor = all([s.asymmetricGridCellsHaveOneColor for s in self.trainSamples])
         
         # Shapes:
         # Does the task ONLY involve changing colors of shapes?
