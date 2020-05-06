@@ -4130,12 +4130,12 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
                 newInsert.position = (bestX, bestY)
                 newInsert.shape = newInsert.m.shape
                 m=insertShape(m, newInsert)
-        #repList = [sh for sh in newRepList]
-        
+            
     if deleteOriginal:
         for shs in delList:
             for sh in shs:
-                m = deleteShape(m, sh, matrix.backgroundColor)              
+                m = deleteShape(m, sh, matrix.backgroundColor)
+    #if deleteAnchor
     return(m)
         
 #overlapSubmatrices 
@@ -4160,10 +4160,7 @@ def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
 
 #Cropshape
 def getCropAttributes(t, diagonal, multicolor, sameColor=True):
-    if hasattr(t,'backgroundColor'):
-        bC = t.backgroundColor
-    else:
-        bC = 0
+    bC = max(0, t.backgroundColor)
     if diagonal and not multicolor:
         if t.nCommonInOutDShapes == 0:
             return set()
@@ -4235,10 +4232,7 @@ def getCropAttributes(t, diagonal, multicolor, sameColor=True):
 def getBestCropShape(t):
     bestScore = 1000
     bestFunction = partial(identityM)
-    if hasattr(t,'backgroundColor'):
-        bC = t.backgroundColor
-    else:
-        bC = 0
+    bC = max(0, t.backgroundColor)
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,True, False),\
                                                            backgroundColor=bC, singleColor=True, diagonals=True), bestScore, bestFunction)
     if bestScore==0:
@@ -4618,7 +4612,6 @@ def getPossibleOperations(t, c):
         x.append(partial(replicateShapes,diagonal=True, multicolor=True, allCombs=False,anchorType='subframe', scale=False))
         x.append(partial(replicateShapes,diagonal=True, multicolor=True, allCombs=True,anchorType='subframe', scale=False, deleteOriginal=True))
         if isReplicateTask(candTask)[0]:
-            print(getBestReplicateShapes(candTask))
             x.append(getBestReplicateShapes(candTask))
         #if len(candTask.colorChanges) == 1:
         #    x.append(partial(replicateShapes,diagonal=True, multicolor=False, allCombs=True,\
@@ -4681,8 +4674,8 @@ def getPossibleOperations(t, c):
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1:
 
-    if candTask.sameIOShapes and len(candTask.commonChangedInColors)==1:   
-        x.append(getBestEvolvingLines(candTask))
+    #if candTask.sameIOShapes and len(candTask.commonChangedInColors)==1:   
+    #    x.append(getBestEvolvingLines(candTask))
 
     ###########################################################################
     # Other cases
@@ -4846,8 +4839,8 @@ def getPossibleOperations(t, c):
         if len(candTask.commonInShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
         for attrs in [set(['LaSh'])]:
-                x.append(partial(cropShape, attributes=attrs, backgroundColor=candTask.backgroundColor, singleColor=True, diagonals=True)) 
-                x.append(partial(cropShape, attributes=attrs, backgroundColor=candTask.backgroundColor,\
+            x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor), singleColor=True, diagonals=True)) 
+            x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
                                  singleColor=True, diagonals=True, context=True)) 
     
     x.append(partial(cropAllBackground))
