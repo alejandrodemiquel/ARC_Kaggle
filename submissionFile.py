@@ -12,8 +12,11 @@ from collections import Counter
 import copy
 from itertools import product, permutations, combinations, combinations_with_replacement
 from functools import partial
+import matplotlib.pyplot as plt
+from matplotlib import colors
 
 data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
+#data_path = Path('data')
 train_path = data_path / 'training'
 eval_path = data_path / 'evaluation'
 test_path = data_path / 'test'
@@ -21,6 +24,56 @@ test_path = data_path / 'test'
 train_tasks = { task.stem: json.load(task.open()) for task in train_path.iterdir() } 
 valid_tasks = { task.stem: json.load(task.open()) for task in eval_path.iterdir() }
 eval_tasks = { task.stem: json.load(task.open()) for task in eval_path.iterdir() }
+
+cmap = colors.ListedColormap(
+        ['#000000', '#0074D9','#FF4136','#2ECC40','#FFDC00',
+         '#AAAAAA', '#F012BE', '#FF851B', '#7FDBFF', '#870C25'])
+norm = colors.Normalize(vmin=0, vmax=9)
+
+def plot_pictures(pictures, labels):
+    fig, axs = plt.subplots(1, len(pictures), figsize=(2*len(pictures),32))
+    for i, (pict, label) in enumerate(zip(pictures, labels)):
+        axs[i].imshow(np.array(pict), cmap=cmap, norm=norm)
+        axs[i].set_title(label)
+    plt.show()
+
+def plot_sample(sample, predict=None):
+    """
+    This function plots a sample. sample is an object of the class Task.Sample.
+    predict is any matrix (numpy ndarray).
+    """
+    if predict is None:
+        plot_pictures([sample.inMatrix.m, sample.outMatrix.m], ['Input', 'Output'])
+    else:
+        plot_pictures([sample.inMatrix.m, sample.outMatrix.m, predict], ['Input', 'Output', 'Predict'])
+
+def plot_task(task):
+    """
+    Given a task (in its original format), this function plots all of its
+    matrices.
+    """
+    len_train = len(task['train'])
+    len_test  = len(task['test'])
+    len_max   = max(len_train, len_test)
+    length    = {'train': len_train, 'test': len_test}
+    fig, axs  = plt.subplots(len_max, 4, figsize=(15, 15*len_max//4))
+    for col, mode in enumerate(['train', 'test']):
+        for idx in range(length[mode]):
+            axs[idx][2*col+0].axis('off')
+            axs[idx][2*col+0].imshow(task[mode][idx]['input'], cmap=cmap, norm=norm)
+            axs[idx][2*col+0].set_title(f"Input {mode}, {np.array(task[mode][idx]['input']).shape}")
+            try:
+                axs[idx][2*col+1].axis('off')
+                axs[idx][2*col+1].imshow(task[mode][idx]['output'], cmap=cmap, norm=norm)
+                axs[idx][2*col+1].set_title(f"Output {mode}, {np.array(task[mode][idx]['output']).shape}")
+            except:
+                pass
+        for idx in range(length[mode], len_max):
+            axs[idx][2*col+0].axis('off')
+            axs[idx][2*col+1].axis('off')
+    plt.tight_layout()
+    plt.axis('off')
+    plt.show()
 
 def flattener(pred):
     str_pred = str([row for row in pred])
@@ -1061,7 +1114,10 @@ class Sample():
             # Asymmetric grids
             self.asymmetricGridIsUnchanged = self.inMatrix.isAsymmetricGrid and self.outMatrix.isAsymmetricGrid \
             and self.inMatrix.asymmetricGrid == self.outMatrix.asymmetricGrid
-            
+            if self.asymmetricGridIsUnchanged:
+                self.asymmetricGridCellsHaveOneColor = self.inMatrix.asymmetricGrid.allCellsHaveOneColor and\
+                self.outMatrix.asymmetricGrid.allCellsHaveOneColor
+                
             # Is there a blank to fill?
             self.inputHasBlank = len(self.inMatrix.blanks)>0
             if self.inputHasBlank:
@@ -1328,6 +1384,8 @@ class Task():
         # Asymmetric grids
         self.inputIsAsymmetricGrid = all([s.inMatrix.isAsymmetricGrid for s in self.trainSamples+self.testSamples])
         self.hasUnchangedAsymmetricGrid = all([s.asymmetricGridIsUnchanged for s in self.trainSamples])
+        if self.hasUnchangedAsymmetricGrid:
+            self.assymmetricGridCellsHaveOneColor = all([s.asymmetricGridCellsHaveOneColor for s in self.trainSamples])
         
         # Shapes:
         # Does the task ONLY involve changing colors of shapes?
@@ -2561,43 +2619,144 @@ class EvolvingLine():
         
 def detectEvolvingLineSources(t):
     sources = set()
+    if len(t.commonChangedOutColors)==1:
+        coc = next(iter(t.commonChangedOutColors))
+    else:
+        coc = None
     possibleSourceColors = set.intersection(t.commonChangedOutColors, t.commonInColors)
+    if len(possibleSourceColors) == 0:
+        possibleSourceColors = set(t.fixedColors)
     if len(possibleSourceColors) != 0:
         firstIt = True
         for sample in t.trainSamples:
             sampleSources = set()
             for color in possibleSourceColors:
+                if coc==None:
+                    targetColor=color
+                else:
+                    targetColor=coc
                 for shape in sample.inMatrix.shapes:
                     if shape.color==color and shape.nPixels==1:                        
-                        if shape.isBorder:
-                            sampleSources.add((color, "away"))
-                            if shape.position[0] in [0, sample.inMatrix.shape[0]-1]:
-                                sampleSources.add((color, 'u'))
+                        # First special case: Corners
+                        if shape.position==(0,0):
+                            if sample.outMatrix.m[1][0]==targetColor and sample.outMatrix.m[0][1]==targetColor:
+                                sampleSources.add((color, "away"))
+                                sampleSources.add((color,'u'))
                                 sampleSources.add((color, 'd'))
-                            if shape.position[1] in [0, sample.inMatrix.shape[1]-1]:
                                 sampleSources.add((color, 'l'))
                                 sampleSources.add((color, 'r'))
-                        else:
-                            if sample.outMatrix.m[shape.position[0]+1, shape.position[1]]==color:
+                            elif sample.outMatrix.m[1][0]==targetColor:
+                                sampleSources.add((color,'u'))
                                 sampleSources.add((color, 'd'))
-                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==color:
-                                sampleSources.add((color, 'u'))
-                            if sample.outMatrix.m[shape.position[0], shape.position[1]+1]==color:
+                            elif sample.outMatrix.m[0][1]==targetColor:
+                                sampleSources.add((color, 'l'))
                                 sampleSources.add((color, 'r'))
-                            if sample.outMatrix.m[shape.position[0], shape.position[1]-1]==color:
+                        elif shape.position==(0,sample.inMatrix.shape[1]-1):
+                            if sample.outMatrix.m[1][sample.outMatrix.shape[1]-1]==targetColor and sample.outMatrix.m[0][sample.outMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color, "away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                            elif sample.outMatrix.m[1][sample.outMatrix.shape[1]-1]==targetColor:
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            elif sample.outMatrix.m[0][sample.outMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                        elif shape.position==(sample.inMatrix.shape[0]-1,0):
+                            if sample.outMatrix.m[sample.outMatrix.shape[0]-2][0]==targetColor and sample.outMatrix.m[sample.outMatrix.shape[0]-1][1]==targetColor:
+                                sampleSources.add((color, "away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                            elif sample.outMatrix.m[sample.outMatrix.shape[0]-2][0]==targetColor:
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            elif sample.outMatrix.m[sample.outMatrix.shape[0]-1][1]==targetColor:
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                        elif shape.position==(sample.inMatrix.shape[0]-1,sample.inMatrix.shape[1]-1):
+                            if sample.outMatrix.m[sample.outMatrix.shape[0]-2][sample.outMatrix.shape[1]-1]==targetColor and sample.outMatrix.m[sample.outMatrix.shape[0]-1][sample.outMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color, "away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                            elif sample.outMatrix.m[sample.outMatrix.shape[0]-2][sample.outMatrix.shape[1]-1]==targetColor:
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            elif sample.outMatrix.m[sample.outMatrix.shape[0]-1][sample.outMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                        
+                        # Second special case: Border but not corner
+                        elif shape.position[0]== 0:
+                            if sample.outMatrix.m[1,shape.position[1]]==targetColor:
+                                sampleSources.add((color,"away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[0,shape.position[1]-1]==targetColor:
+                                sampleSources.add((color, 'l'))
+                            if sample.outMatrix.m[0,shape.position[1]+1]==targetColor:
+                                sampleSources.add((color, 'r'))
+                        elif shape.position[0]== sample.inMatrix.shape[0]-1:
+                            if sample.outMatrix.m[sample.inMatrix.shape[0]-2,shape.position[1]]==targetColor:
+                                sampleSources.add((color,"away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[sample.inMatrix.shape[0]-1,shape.position[1]-1]==targetColor:
+                                sampleSources.add((color, 'l'))
+                            if sample.outMatrix.m[sample.inMatrix.shape[0]-1,shape.position[1]+1]==targetColor:
+                                sampleSources.add((color, 'r'))
+                        elif shape.position[1]== 0:
+                            if sample.outMatrix.m[shape.position[0],1]==targetColor:
+                                sampleSources.add((color,"away"))
+                                sampleSources.add((color,'r'))
+                                sampleSources.add((color, 'l'))
+                            if sample.outMatrix.m[shape.position[0]-1,0]==targetColor:
+                                sampleSources.add((color, 'u'))
+                            if sample.outMatrix.m[shape.position[0]+1,0]==targetColor:
+                                sampleSources.add((color, 'd'))
+                        elif shape.position[1]== sample.inMatrix.shape[1]-1:
+                            if sample.outMatrix.m[shape.position[0],sample.inMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color,"away"))
+                                sampleSources.add((color,'r'))
+                                sampleSources.add((color, 'l'))
+                            if sample.outMatrix.m[shape.position[0]-1,sample.inMatrix.shape[1]-1]==targetColor:
+                                sampleSources.add((color, 'u'))
+                            if sample.outMatrix.m[shape.position[0]+1,sample.inMatrix.shape[1]-1]==targetColor:
+                                sampleSources.add((color, 'd'))
+                                
+                        # Third case: Not border
+                        else:
+                            if sample.outMatrix.m[shape.position[0]+1, shape.position[1]]==targetColor:
+                                sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==targetColor:
+                                sampleSources.add((color, 'u'))
+                            if sample.outMatrix.m[shape.position[0], shape.position[1]+1]==targetColor:
+                                sampleSources.add((color, 'r'))
+                            if sample.outMatrix.m[shape.position[0], shape.position[1]-1]==targetColor:
                                 sampleSources.add((color, 'l'))
             if firstIt:
                 sources = sampleSources
                 firstIt = False
             else:
-                sources = set.intersection(sources, sampleSources)
-
+                sources = set.intersection(sources, sampleSources) 
+                
     return sources
 
 def getBestEvolvingLines(t):
     sources = detectEvolvingLineSources(t)
     
     fixedColorsList = list(t.fixedColors2)
+    cic=t.commonChangedInColors
+    #cic = [color for color in list(range(10)) if color not in fixedColorsList]
+    if len(t.commonChangedOutColors)==1:
+        coc = next(iter(t.commonChangedOutColors))
+    else:
+        coc = None
     
     bestScore = 1000
     bestFunction = partial(identityM)
@@ -2607,11 +2766,11 @@ def getBestEvolvingLines(t):
         rules = []
         for c in range(len(fixedColorsList)):
             rules.append([fixedColorsList[c], actions[c]])
-        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=t.commonChangedInColors, \
-                    fixedDirection=True)
+        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
+                    fixedDirection=True, coc=coc)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=t.commonChangedInColors, \
-                    fixedDirection=False)
+        f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
+                    fixedDirection=False, coc=coc)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
@@ -2634,7 +2793,7 @@ def mergeMatrices(matrices, backgroundColor):
             result[i,j] = backgroundColor
     return result
         
-def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection):
+def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None):
     if len(sources)==0:
         return matrix.m.copy()
     fd = fixedDirection
@@ -2645,17 +2804,32 @@ def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection):
             if matrix.m[i,j]==source[0]:
                 if source[1]=="away":
                     if i==0:
-                        line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        if coc==None:
+                            line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        else:
+                            line = EvolvingLine(coc, 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif i==matrix.m.shape[0]-1:
-                        line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        if coc==None:
+                            line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        else:
+                            line = EvolvingLine(coc, 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif j==0:
-                        line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        if coc==None:
+                            line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        else:
+                            line = EvolvingLine(coc, 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif j==matrix.m.shape[1]-1:
-                        line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        if coc==None:
+                            line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        else:
+                            line = EvolvingLine(coc, 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     else:
                         return matrix.m.copy()
                 else:
-                    line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
+                    if coc==None:
+                        line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
+                    else:
+                        line = EvolvingLine(coc, source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
                 line.draw(newM)
         matrices.append(newM)
     m = mergeMatrices(matrices, next(iter(cic)))
@@ -5330,6 +5504,14 @@ def maxColorFromCell(matrix):
         color = max(matrix.grid.cells[i][j][0].colorCount.items(), key=operator.itemgetter(1))[0]
         m[i,j] = color
     return m
+
+def colorAppearingXTimes(matrix, times):
+    m = np.zeros(matrix.grid.shape, dtype=np.uint8)
+    for i,j in np.ndindex(matrix.grid.shape):
+        for k,v in matrix.grid.cells[i][j][0].colorCount.items():
+            if v==times:
+                m[i,j] = k
+    return m
         
 def pixelwiseAndInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
     matrices = getSubmatrices(matrix.m.copy(), factor)
@@ -5820,7 +6002,8 @@ def getPossibleOperations(t, c):
         
         
     # minimize
-    x.append(partial(minimize))
+    if not candTask.sameIOShapes:
+        x.append(partial(minimize))
         
     
     ###########################################################################
@@ -6155,6 +6338,8 @@ def getPossibleOperations(t, c):
     if candTask.inputIsGrid:
         if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
             x.append(partial(maxColorFromCell))
+            for times in range(1, 6):
+                x.append(partial(colorAppearingXTimes, times=times))
     
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         if outputIsSubmatrix(candTask, isGrid=True):
@@ -6502,6 +6687,38 @@ def recoverGrid(t, x, s):
                 realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
     return realX
 
+def ignoreAsymmetricGrid(t, task):
+    for s in range(t.nTrain):
+        m = np.zeros(t.trainSamples[s].inMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.trainSamples[s].inMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["train"][s]["input"] = m.tolist()
+        m = np.zeros(t.trainSamples[s].outMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.trainSamples[s].outMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["train"][s]["output"] = m.tolist()
+    for s in range(t.nTest):
+        m = np.zeros(t.testSamples[s].inMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.testSamples[s].inMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["test"][s]["input"] = m.tolist()
+        if not t.submission:
+            m = np.zeros(t.testSamples[s].outMatrix.asymmetricGrid.shape, dtype=np.uint8)
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = next(iter(t.testSamples[s].outMatrix.asymmetricGrid.cells[i][j][0].colors))
+            task["test"][s]["output"] = m.tolist()
+
+def recoverAsymmetricGrid(t, x, s):
+    realX = t.testSamples[s].inMatrix.m.copy()
+    cells = t.testSamples[s].inMatrix.asymmetricGrid.cells
+    for cellI in range(len(cells)):
+        for cellJ in range(len(cells[0])):
+            cellShape = cells[cellI][cellJ][0].shape
+            position = cells[cellI][cellJ][1]
+            for k,l in np.ndindex(cellShape):
+                realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
+    return realX
+
 def tryOperations(t, c, firstIt=False):
     """
     Given a Task.Task t and a Candidate c, this function applies all the
@@ -6563,9 +6780,9 @@ for output_id in submission.index:
         task = json.load(read_file)
         
     predictions = []
-        
+            
     originalT = Task(task, task_id, submission=True)
-    
+        
     if needsRecoloring(originalT):
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
         t = Task(task, task_id, submission=True)
@@ -6573,13 +6790,15 @@ for output_id in submission.index:
         t = originalT
     
     cTask = copy.deepcopy(task)
-    
-    #taskNeedsCropping = needsCropping(originalT)
-    #if taskNeedsCropping:
-    #    cropPositions = cropTask(originalT, cTask)
-    #    t2 = Task(cTask, task_id, submission=True)
-    #elif t.hasUnchangedGrid:
-    if t.hasUnchangedGrid:
+        
+    if t.sameIOShapes:
+        taskNeedsCropping = needsCropping(t)
+    else:
+        taskNeedsCropping = False
+    if taskNeedsCropping:
+        cropPositions = cropTask(t, cTask)
+        t2 = Task(cTask, task_id, submission=True)
+    elif t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
             ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
             t2 = Task(cTask, task_id, submission=True)
@@ -6588,13 +6807,16 @@ for output_id in submission.index:
             t2 = Task(cTask, task_id, submission=True)
         else:
             t2 = t
+    elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
+        ignoreAsymmetricGrid(t, cTask)
+        t2 = Task(cTask, task_id, submission=True)
     else:
         t2 = t
-        
+                
     c = Candidate([], [task])
     c.t = t2
     b3c = Best3Candidates(c, c, c)
-    
+        
     # Generate the three candidates with best possible score
     prevScore = sum([c.score for c in b3c.candidates])
     firstIt = True
@@ -6617,7 +6839,7 @@ for output_id in submission.index:
         if s != pair_id:
             continue
         for c in b3c.candidates:
-            x = t.testSamples[s].inMatrix.m.copy()
+            x = t2.testSamples[s].inMatrix.m.copy()
             for op in c.ops:
                 if x is not None:
                     newX = op(Matrix(x))
@@ -6625,13 +6847,15 @@ for output_id in submission.index:
                         x = correctFixedColors(x, newX, t2.fixedColors)
                     else:
                         x = newX.copy()
-            if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
+            if taskNeedsCropping:
+                x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
+                                         cropPositions["test"][s], t.testSamples[s].inMatrix.backgroundColor)
+            elif t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
                 x = recoverGrid(t, x, s)
+            elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
+                x = recoverAsymmetricGrid(t, x, s)
             if needsRecoloring(originalT):
                 x = recoverOriginalColors(x, testRels[s])
-            #if taskNeedsCropping:
-            #    x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
-            #                             cropPositions["test"][s], originalT.testSamples[s].inMatrix.backgroundColor)
             if x is not None:
                 predictions.append((flattener(x.astype(int).tolist())))
 
