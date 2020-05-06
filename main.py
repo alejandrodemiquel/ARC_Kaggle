@@ -605,7 +605,6 @@ cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
                   445,456,485,497,530,541,547,564,610,611,625,634,640,657,673,\
                   678,680,681,682,691,701,702,710,716,722,745,756,758,762,767,\
                   773,779,780,792,795,798]
-# cropAndRecover solved: 165
 
 #, 190, 367, 421, 431, 524
 count=0
@@ -625,7 +624,10 @@ for idx in tqdm(range(800), position=0, leave=True):
         
     cTask = copy.deepcopy(task)
     
-    taskNeedsCropping = needsCropping(t)
+    if t.sameIOShapes:
+        taskNeedsCropping = needsCropping(t)
+    else:
+        taskNeedsCropping = False
     if taskNeedsCropping:
         cropPositions = cropTask(t, cTask)
         t2 = Task.Task(cTask, taskId, submission=False)
@@ -671,7 +673,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -679,16 +681,16 @@ for idx in tqdm(range(800), position=0, leave=True):
                     x = Utils.correctFixedColors(x, newX, t2.fixedColors)
                 else:
                     x = newX.copy()
-            if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
+            if taskNeedsCropping:
+                x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
+                                         cropPositions["test"][s], t.testSamples[s].inMatrix.backgroundColor)
+            elif t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
                 x = recoverGrid(t, x, s)
             elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
                 x = recoverAsymmetricGrid(t, x, s)
             if taskNeedsRecoloring:
                 x = recoverOriginalColors(x, testRels[s])
-            if taskNeedsCropping:
-                x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
-                                         cropPositions["test"][s], originalT.testSamples[s].inMatrix.backgroundColor)
-            plot_sample(originalT.testSamples[s], x)
+            #plot_sample(originalT.testSamples[s], x)
             if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)

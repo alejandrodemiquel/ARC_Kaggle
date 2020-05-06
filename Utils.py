@@ -1026,37 +1026,132 @@ class EvolvingLine():
         
 def detectEvolvingLineSources(t):
     sources = set()
+    if len(t.commonChangedOutColors)==1:
+        coc = next(iter(t.commonChangedOutColors))
+    else:
+        coc = None
     possibleSourceColors = set.intersection(t.commonChangedOutColors, t.commonInColors)
+    if len(possibleSourceColors) == 0:
+        possibleSourceColors = set(t.fixedColors)
     if len(possibleSourceColors) != 0:
         firstIt = True
         for sample in t.trainSamples:
             sampleSources = set()
             for color in possibleSourceColors:
+                if coc==None:
+                    targetColor=color
+                else:
+                    targetColor=coc
                 for shape in sample.inMatrix.shapes:
                     if shape.color==color and shape.nPixels==1:                        
-                        if shape.isBorder:
-                            sampleSources.add((color, "away"))
-                            if shape.position[0] in [0, sample.inMatrix.shape[0]-1]:
-                                sampleSources.add((color, 'u'))
+                        # First special case: Corners
+                        if shape.position==(0,0):
+                            if sample.outMatrix.m[1][0]==targetColor and sample.outMatrix.m[0][1]==targetColor:
+                                sampleSources.add((color, "away"))
+                                sampleSources.add((color,'u'))
                                 sampleSources.add((color, 'd'))
-                            if shape.position[1] in [0, sample.inMatrix.shape[1]-1]:
                                 sampleSources.add((color, 'l'))
                                 sampleSources.add((color, 'r'))
-                        else:
-                            if sample.outMatrix.m[shape.position[0]+1, shape.position[1]]==color:
+                            elif sample.outMatrix.m[1][0]==targetColor:
+                                sampleSources.add((color,'u'))
                                 sampleSources.add((color, 'd'))
-                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==color:
-                                sampleSources.add((color, 'u'))
-                            if sample.outMatrix.m[shape.position[0], shape.position[1]+1]==color:
+                            elif sample.outMatrix.m[0][1]==targetColor:
+                                sampleSources.add((color, 'l'))
                                 sampleSources.add((color, 'r'))
-                            if sample.outMatrix.m[shape.position[0], shape.position[1]-1]==color:
+                        elif shape.position==(0,sample.inMatrix.shape[1]-1):
+                            if sample.outMatrix.m[1][sample.outMatrix.shape[1]-1]==targetColor and sample.outMatrix.m[0][sample.outMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color, "away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                            elif sample.outMatrix.m[1][sample.outMatrix.shape[1]-1]==targetColor:
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            elif sample.outMatrix.m[0][sample.outMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                        elif shape.position==(sample.inMatrix.shape[0]-1,0):
+                            if sample.outMatrix.m[sample.outMatrix.shape[0]-2][0]==targetColor and sample.outMatrix.m[sample.outMatrix.shape[0]-1][1]==targetColor:
+                                sampleSources.add((color, "away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                            elif sample.outMatrix.m[sample.outMatrix.shape[0]-2][0]==targetColor:
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            elif sample.outMatrix.m[sample.outMatrix.shape[0]-1][1]==targetColor:
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                        elif shape.position==(sample.inMatrix.shape[0]-1,sample.inMatrix.shape[1]-1):
+                            if sample.outMatrix.m[sample.outMatrix.shape[0]-2][sample.outMatrix.shape[1]-1]==targetColor and sample.outMatrix.m[sample.outMatrix.shape[0]-1][sample.outMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color, "away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                            elif sample.outMatrix.m[sample.outMatrix.shape[0]-2][sample.outMatrix.shape[1]-1]==targetColor:
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            elif sample.outMatrix.m[sample.outMatrix.shape[0]-1][sample.outMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color, 'l'))
+                                sampleSources.add((color, 'r'))
+                        
+                        # Second special case: Border but not corner
+                        elif shape.position[0]== 0:
+                            if sample.outMatrix.m[1,shape.position[1]]==targetColor:
+                                sampleSources.add((color,"away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[0,shape.position[1]-1]==targetColor:
+                                sampleSources.add((color, 'l'))
+                            if sample.outMatrix.m[0,shape.position[1]+1]==targetColor:
+                                sampleSources.add((color, 'r'))
+                        elif shape.position[0]== sample.inMatrix.shape[0]-1:
+                            if sample.outMatrix.m[sample.inMatrix.shape[0]-2,shape.position[1]]==targetColor:
+                                sampleSources.add((color,"away"))
+                                sampleSources.add((color,'u'))
+                                sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[sample.inMatrix.shape[0]-1,shape.position[1]-1]==targetColor:
+                                sampleSources.add((color, 'l'))
+                            if sample.outMatrix.m[sample.inMatrix.shape[0]-1,shape.position[1]+1]==targetColor:
+                                sampleSources.add((color, 'r'))
+                        elif shape.position[1]== 0:
+                            if sample.outMatrix.m[shape.position[0],1]==targetColor:
+                                sampleSources.add((color,"away"))
+                                sampleSources.add((color,'r'))
+                                sampleSources.add((color, 'l'))
+                            if sample.outMatrix.m[shape.position[0]-1,0]==targetColor:
+                                sampleSources.add((color, 'u'))
+                            if sample.outMatrix.m[shape.position[0]+1,0]==targetColor:
+                                sampleSources.add((color, 'd'))
+                        elif shape.position[1]== sample.inMatrix.shape[1]-1:
+                            if sample.outMatrix.m[shape.position[0],sample.inMatrix.shape[1]-2]==targetColor:
+                                sampleSources.add((color,"away"))
+                                sampleSources.add((color,'r'))
+                                sampleSources.add((color, 'l'))
+                            if sample.outMatrix.m[shape.position[0]-1,sample.inMatrix.shape[1]-1]==targetColor:
+                                sampleSources.add((color, 'u'))
+                            if sample.outMatrix.m[shape.position[0]+1,sample.inMatrix.shape[1]-1]==targetColor:
+                                sampleSources.add((color, 'd'))
+                                
+                        # Third case: Not border
+                        else:
+                            if sample.outMatrix.m[shape.position[0]+1, shape.position[1]]==targetColor:
+                                sampleSources.add((color, 'd'))
+                            if sample.outMatrix.m[shape.position[0]-1, shape.position[1]]==targetColor:
+                                sampleSources.add((color, 'u'))
+                            if sample.outMatrix.m[shape.position[0], shape.position[1]+1]==targetColor:
+                                sampleSources.add((color, 'r'))
+                            if sample.outMatrix.m[shape.position[0], shape.position[1]-1]==targetColor:
                                 sampleSources.add((color, 'l'))
             if firstIt:
                 sources = sampleSources
                 firstIt = False
             else:
-                sources = set.intersection(sources, sampleSources)
-
+                sources = set.intersection(sources, sampleSources) 
+                
     return sources
 
 def getBestEvolvingLines(t):
@@ -1065,6 +1160,10 @@ def getBestEvolvingLines(t):
     fixedColorsList = list(t.fixedColors2)
     cic=t.commonChangedInColors
     #cic = [color for color in list(range(10)) if color not in fixedColorsList]
+    if len(t.commonChangedOutColors)==1:
+        coc = next(iter(t.commonChangedOutColors))
+    else:
+        coc = None
     
     bestScore = 1000
     bestFunction = partial(identityM)
@@ -1075,10 +1174,10 @@ def getBestEvolvingLines(t):
         for c in range(len(fixedColorsList)):
             rules.append([fixedColorsList[c], actions[c]])
         f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                    fixedDirection=True)
+                    fixedDirection=True, coc=coc)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                    fixedDirection=False)
+                    fixedDirection=False, coc=coc)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
@@ -1101,7 +1200,7 @@ def mergeMatrices(matrices, backgroundColor):
             result[i,j] = backgroundColor
     return result
         
-def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection):
+def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None):
     if len(sources)==0:
         return matrix.m.copy()
     fd = fixedDirection
@@ -1112,17 +1211,32 @@ def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection):
             if matrix.m[i,j]==source[0]:
                 if source[1]=="away":
                     if i==0:
-                        line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        if coc==None:
+                            line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        else:
+                            line = EvolvingLine(coc, 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif i==matrix.m.shape[0]-1:
-                        line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        if coc==None:
+                            line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        else:
+                            line = EvolvingLine(coc, 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif j==0:
-                        line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        if coc==None:
+                            line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        else:
+                            line = EvolvingLine(coc, 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     elif j==matrix.m.shape[1]-1:
-                        line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        if coc==None:
+                            line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        else:
+                            line = EvolvingLine(coc, 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
                     else:
                         return matrix.m.copy()
                 else:
-                    line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
+                    if coc==None:
+                        line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
+                    else:
+                        line = EvolvingLine(coc, source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
                 line.draw(newM)
         matrices.append(newM)
     m = mergeMatrices(matrices, next(iter(cic)))
@@ -3803,9 +3917,17 @@ def maxColorFromCell(matrix):
     color that appears the most in the corresponding cell of the grid.
     """
     m = np.zeros(matrix.grid.shape, dtype=np.uint8)
-    for i,j  in np.ndindex(matrix.grid.shape):
+    for i,j in np.ndindex(matrix.grid.shape):
         color = max(matrix.grid.cells[i][j][0].colorCount.items(), key=operator.itemgetter(1))[0]
         m[i,j] = color
+    return m
+
+def colorAppearingXTimes(matrix, times):
+    m = np.zeros(matrix.grid.shape, dtype=np.uint8)
+    for i,j in np.ndindex(matrix.grid.shape):
+        for k,v in matrix.grid.cells[i][j][0].colorCount.items():
+            if v==times:
+                m[i,j] = k
     return m
         
 def pixelwiseAndInSubmatrices(matrix, factor, falseColor, targetColor=None, trueColor=None):
@@ -4297,7 +4419,8 @@ def getPossibleOperations(t, c):
         
         
     # minimize
-    x.append(partial(minimize))
+    if not candTask.sameIOShapes:
+        x.append(partial(minimize))
         
     
     ###########################################################################
@@ -4542,7 +4665,7 @@ def getPossibleOperations(t, c):
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1:
 
-    if candTask.sameIOShapes:    
+    if candTask.sameIOShapes and len(candTask.commonChangedInColors)==1:   
         x.append(getBestEvolvingLines(candTask))
 
     ###########################################################################
@@ -4635,6 +4758,8 @@ def getPossibleOperations(t, c):
     if candTask.inputIsGrid:
         if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
             x.append(partial(maxColorFromCell))
+            for times in range(1, 6):
+                x.append(partial(colorAppearingXTimes, times=times))
     
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         if outputIsSubmatrix(candTask, isGrid=True):
