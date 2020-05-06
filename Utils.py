@@ -3292,6 +3292,17 @@ def pixelwiseXor(m1, m2, falseColor, targetColor=None, trueColor=None, \
                 m[i,j] = falseColor
     return m
 
+def colorSubmatricesWithReference(matrix, reference, firstIsRef=True):
+    """
+    The shape of matrix has to be a multiple of the shape of reference.
+    """
+    m = matrix.m.copy()
+    factor = (int(m.shape[0]/reference.shape[0]), int(m.shape[0]/reference.shape[0]))
+    for i,j in np.ndindex(reference.shape):
+        for k,l in np.ndindex(factor):
+            m[i*factor[0]+k, j*factor[1]+l] = reference[i,j]
+    return m
+
 # %% Downsize and Minimize
     
 def getDownsizeFactors(matrix):
@@ -4092,37 +4103,42 @@ def getCropAttributes(t, diagonal, multicolor, sameColor=True):
 def getBestCropShape(t):
     bestScore = 1000
     bestFunction = partial(identityM)
+    #if hasattr(t,'backgroundColor'):
+    #    bC = t.backgroundColor
+    #else:
+    #    bC = 0
+    bC=0    
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,True, False),\
-                                                           backgroundColor=0, singleColor=True, diagonals=True), bestScore, bestFunction)
+                                                           backgroundColor=bC, singleColor=True, diagonals=True), bestScore, bestFunction)
     if bestScore==0:
         return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,False, False),\
-                                                           backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+                                                           backgroundColor=bC, singleColor=True, diagonals=False), bestScore, bestFunction)
     if bestScore==0:
         return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,True, True),\
-                                                           backgroundColor=0, singleColor=False, diagonals=True), bestScore, bestFunction)
+                                                           backgroundColor=bC, singleColor=False, diagonals=True), bestScore, bestFunction)
     if bestScore==0:
         return bestFunction
     bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=getCropAttributes(t,False, True),\
-                                                           backgroundColor=0, singleColor=False, diagonals=False), bestScore, bestFunction)
+                                                           backgroundColor=bC, singleColor=False, diagonals=False), bestScore, bestFunction)
     if bestScore==0:
         return bestFunction
     for attr in ['LaSh', 'MoCo', 'MoCl', 'UnSh', 'UnSi']:
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
-                                                           backgroundColor=0, singleColor=True, diagonals=True), bestScore, bestFunction)
+                                                           backgroundColor=bC, singleColor=True, diagonals=True), bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
-                                                           backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+                                                           backgroundColor=bC, singleColor=True, diagonals=False), bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
-                                                           backgroundColor=0, singleColor=False, diagonals=True), bestScore, bestFunction)
+                                                           backgroundColor=bC, singleColor=False, diagonals=True), bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
         bestFunction, bestScore = updateBestFunction(t, partial(cropShape, attributes=set([attr]),\
-                                                           backgroundColor=0, singleColor=True, diagonals=False), bestScore, bestFunction)
+                                                           backgroundColor=bC, singleColor=True, diagonals=False), bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
         
@@ -4474,6 +4490,7 @@ def getPossibleOperations(t, c):
         #if len(candTask.colorChanges) == 1:
         #    x.append(partial(replicateShapes,diagonal=True, multicolor=False, allCombs=True,\
         #                     anchorColor = list(candTask.colorChanges)[0][0], anchorType='all', attributes=set(['UnCo'])))
+        #        x.append(partial(replicateShapes,diagonal=True, multicolor=False,anchorType='all', anchorColor=0))
 
         # TODO
         """
@@ -4531,8 +4548,8 @@ def getPossibleOperations(t, c):
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1:
 
-    #if candTask.sameIOShapes:    
-    #    x.append(getBestEvolvingLines(candTask))
+    if candTask.sameIOShapes:    
+        x.append(getBestEvolvingLines(candTask))
 
     ###########################################################################
     # Other cases
@@ -4694,8 +4711,9 @@ def getPossibleOperations(t, c):
         if len(candTask.commonInShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
         for attrs in [set(['LaSh'])]:
-                x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True)) 
-                x.append(partial(cropShape, attributes=attrs, backgroundColor=0, singleColor=True, diagonals=True, context=True)) 
+                x.append(partial(cropShape, attributes=attrs, backgroundColor=candTask.backgroundColor, singleColor=True, diagonals=True)) 
+                x.append(partial(cropShape, attributes=attrs, backgroundColor=candTask.backgroundColor,\
+                                 singleColor=True, diagonals=True, context=True)) 
     
     x.append(partial(cropAllBackground))
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):

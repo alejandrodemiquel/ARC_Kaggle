@@ -2,31 +2,31 @@ q IDEAS:
 
 - cropShape backgroundColor issue
 - replicateShape + scaling, changing color
-- 
-
+- 194: crop, minimize, 
+- 108: symmetrize, colormap, deleteshape
 
 - can i remove the line to crop the largest shape? i think i can for 133 but what about 28
 - still worried about tryOperations score 0 (712)
 - 774 add cropshape options???
 
 
-- 194, 28
+
 
 ------------Replicate--------
-- 4, 17, 53, 68, 74, 75, 79, 88, 100, 108, 111, 116, 132, 157, 172, 190, 205, 207, 208, 274, 284, 326, 362, 365, 367, 369, 421, 424, 431, 464, 467, 472, 474, 475, 494, 497, 498, 500, 509, 514, 523, 524,539, 540, 583, 592, 626, 628, 636, 650, 659, 674, 683, 716, 742, 779, 786, 795
+- 74, 88, 100, 108, 111, 116, 132, 157, 172, 190, 205, 207, 208, 274, 284, 326, 362, 365, 367, 369, 421, 424, 431, 464, 467, 472, 474, 475, 494, 497, 498, 500, 509, 514, 523, 524,539, 540, 583, 592, 626, 628, 636, 650, 659, 674, 683, 716, 742, 779, 786, 795
 
 140, 
 
 maybe 592?
 add 'all' + context? eg 583
 
-solved: 68,75,79,111,116,172,360,367,421,500,540,645
+solved: 17,68,75,79,111,116,172,360,367,421,500,540,645
 howtocall: 524
 
 same:
 - at pixels: 53, 74, 88, 509, 205, 424, 474, 628, 674, 716, 786
 - slots: 68, 645, 367, 421, 524
-- at subshapes: 17, 100, 132, 157, 190, 196, 208, 659, 683, 779, 795
+- at subshapes: 100, 132, 157, 190, 196, 208, 659, 683, 779, 795
 - everywhere: 207, 362, 539, 650
 - symmetrize: 108, 284
 
@@ -36,7 +36,7 @@ reference:
 other cases:
 - 4, 583
 
----------Subshape----------
+---------Difference Matrix----------
 453
 
 ------------References---------
@@ -59,7 +59,7 @@ solves: 13, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217,
 solves too: 28, 395
 
 cropframe: 13, 204
-cropLargestNonbackgroudnFrame = 87, 194, 216, 258, 464
+cropLargestNonbackgroudnFrame = 87, 194, 464
 reference: 318, 690
 cropsomething? 354, 365
 
@@ -73,12 +73,6 @@ OTHER: 589
 
 
 --------overlapSubmatrices--------
-
-
-
-
-
-
 
 DELTED PARTS:
 

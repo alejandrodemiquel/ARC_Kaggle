@@ -485,6 +485,38 @@ def recoverGrid(t, x, s):
                 realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
     return realX
 
+def ignoreAsymmetricGrid(t, task):
+    for s in range(t.nTrain):
+        m = np.zeros(t.trainSamples[s].inMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.trainSamples[s].inMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["train"][s]["input"] = m.tolist()
+        m = np.zeros(t.trainSamples[s].outMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.trainSamples[s].outMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["train"][s]["output"] = m.tolist()
+    for s in range(t.nTest):
+        m = np.zeros(t.testSamples[s].inMatrix.asymmetricGrid.shape, dtype=np.uint8)
+        for i,j in np.ndindex(m.shape):
+            m[i,j] = next(iter(t.testSamples[s].inMatrix.asymmetricGrid.cells[i][j][0].colors))
+        task["test"][s]["input"] = m.tolist()
+        if not t.submission:
+            m = np.zeros(t.testSamples[s].outMatrix.asymmetricGrid.shape, dtype=np.uint8)
+            for i,j in np.ndindex(m.shape):
+                m[i,j] = next(iter(t.testSamples[s].outMatrix.asymmetricGrid.cells[i][j][0].colors))
+            task["test"][s]["output"] = m.tolist()
+
+def recoverAsymmetricGrid(t, x, s):
+    realX = t.testSamples[s].inMatrix.m.copy()
+    cells = t.testSamples[s].inMatrix.asymmetricGrid.cells
+    for cellI in range(len(cells)):
+        for cellJ in range(len(cells[0])):
+            cellShape = cells[cellI][cellJ][0].shape
+            position = cells[cellI][cellJ][1]
+            for k,l in np.ndindex(cellShape):
+                realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
+    return realX
+
 def tryOperations(t, c, firstIt=False):
     """
     Given a Task.Task t and a Candidate c, this function applies all the
@@ -518,7 +550,8 @@ def tryOperations(t, c, firstIt=False):
         cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         #changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
-        #                                           np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
+        #                                          np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
+        #print(op, cScore)
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
@@ -561,7 +594,7 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
                    672, 677, 678, 690, 699, 704, 710, 722, 726, 737, 742, 745, 758,\
                    760, 768, 779]
 
-cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,262,270,289,\
+cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
              299,345,364,383,395,488,576,578,635,712,727,785]
 cropAllBackground = [216, 258]
 replicateTasks = [17,68,75,79,111,116,172,360,367,421,500,540,645]
@@ -576,11 +609,12 @@ cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(800), position=0, leave=True):
+for idx in tqdm([30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
+             299,345,364,383,395,488,576,578,635,712,727,785], position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
-        
+            
     taskNeedsRecoloring = needsRecoloring(originalT)
     if taskNeedsRecoloring:
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
@@ -590,9 +624,9 @@ for idx in tqdm(range(800), position=0, leave=True):
         
     cTask = copy.deepcopy(task)
     
-    taskNeedsCropping = needsCropping(originalT)
+    taskNeedsCropping = needsCropping(t)
     if taskNeedsCropping:
-        cropPositions = cropTask(originalT, cTask)
+        cropPositions = cropTask(t, cTask)
         t2 = Task.Task(cTask, taskId, submission=False)
     elif t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
@@ -603,9 +637,12 @@ for idx in tqdm(range(800), position=0, leave=True):
             t2 = Task.Task(cTask, taskId, submission=False)
         else:
             t2 = t
+    elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
+        ignoreAsymmetricGrid(t, cTask)
+        t2 = Task.Task(cTask, taskId, submission=False)
     else:
         t2 = t
-
+        
     cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                          t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
     c = Candidate([], [task], score=cScore)
@@ -633,7 +670,7 @@ for idx in tqdm(range(800), position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -643,12 +680,14 @@ for idx in tqdm(range(800), position=0, leave=True):
                     x = newX.copy()
             if t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
                 x = recoverGrid(t, x, s)
+            elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
+                x = recoverAsymmetricGrid(t, x, s)
             if taskNeedsRecoloring:
                 x = recoverOriginalColors(x, testRels[s])
             if taskNeedsCropping:
                 x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
                                          cropPositions["test"][s], originalT.testSamples[s].inMatrix.backgroundColor)
-            #plot_sample(originalT.testSamples[s], x)
+            plot_sample(originalT.testSamples[s], x)
             if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)
