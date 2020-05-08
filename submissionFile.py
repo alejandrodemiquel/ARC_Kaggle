@@ -3877,38 +3877,138 @@ def getPixelChangeCriteria(t):
 
 # %% Surround Shape
 
-# TODO
-def surroundShape(matrix, shape, color, nSteps = False, untilColor = False):
-    def addPixel(i,j):
-        if matrix[tuple(map(operator.add, c, shape.position))] == untilColor:
-            return False
-        else:
-            matrix[tuple(map(operator.add, c, shape.position))] = color
-            pixels.add((i, j))
+def surroundShape(matrix, shape, color, fixedColors, nSteps = None, forceFull=False, \
+                  stepIsShape=False):
 
-    x = matrix.copy()
-    pixels = shape.pixels.copy()
-    while True:
-        y = x.copy()
-        for c in shape.pixels:
-            addPixel(c[0]+1, c[1])
-            addPixel(c[0]-1, c[1])
-            addPixel(c[0]+1, c[1]+1)
-            addPixel(c[0]+1, c[1]-1)
-            addPixel(c[0]-1, c[1]+1)
-            addPixel(c[0]-1, c[1]-1)
-            addPixel(c[0], c[1]+1)
-            addPixel(c[0], c[1]-1)
-        x = y.copy()
-    return x
+    m = matrix.copy()
+    shapeMatrix = shape.m.copy()
     
-# TODO
-def surroundAllShapes(m, shape, shapeColor, surroundColor, nSteps = False, untilColor = False):
-    x = m.m.copy()
-    shapesToSurround = [s for s in m.shapes if s.color == shapeColor]
+    if nSteps==None:
+        if stepIsShape:
+            nSteps = int(shape.shape[0]/2)
+        else:
+            nSteps = 15
+    
+    step = 0
+    
+    while step<nSteps:
+        step += 1
+        if forceFull:
+            if shape.position[0]-step<0 or shape.position[0]+shape.shape[0]+step>matrix.shape[0] or\
+            shape.position[1]-step<0 or shape.position[1]+shape.shape[1]+step>matrix.shape[1]:
+                step -= 1
+                break
+            
+            done = False
+            for i in range(shape.position[0]-step, shape.position[0]+shape.shape[0]+step):
+                if matrix[i, shape.position[1]-step] in fixedColors:
+                    step -= 1
+                    done = True
+                    break
+                if matrix[i, shape.position[1]+shape.shape[1]+step-1] in fixedColors:
+                    step -= 1
+                    done = True
+                    break
+            if done:
+                break
+            for j in range(shape.position[1]-step, shape.position[1]+shape.shape[1]+step):
+                if matrix[shape.position[0]-step, j] in fixedColors:
+                    step -= 1
+                    done = True
+                    break
+                if matrix[shape.position[0]+shape.shape[0]+step-1, j] in fixedColors:
+                    step -= 1
+                    done = True
+                    break
+            if done:
+                break
+        
+        row = np.full(shapeMatrix.shape[1], -1, dtype=np.uint8)
+        col = np.full(shapeMatrix.shape[0]+2, -1, dtype=np.uint8)
+        newM = shapeMatrix.copy() 
+        newM = np.vstack([row,newM,row])
+        newM = np.column_stack([col,newM,col])
+        
+        for i in range(newM.shape[0]):
+            for j in range(newM.shape[1]):
+                if newM[i,j] != 255:
+                    newM[i, j-1] = color
+                    break
+            for j in reversed(range(newM.shape[1])):
+                if newM[i,j] != 255:
+                    newM[i, j+1] = color
+                    break
+                    
+        for j in range(newM.shape[1]):
+            for i in range(newM.shape[0]):
+                if newM[i,j] != 255:
+                    newM[i-1, j] = color
+                    break
+            for i in reversed(range(newM.shape[0])):
+                if newM[i,j] != 255:
+                    newM[i+1, j] = color
+                    break
+                    
+        shapeMatrix = newM.copy()
+                    
+    for i,j in np.ndindex(shapeMatrix.shape):
+        if shape.position[0]-step+i<0 or shape.position[0]-step+i>=matrix.shape[0] or \
+        shape.position[1]-step+j<0 or shape.position[1]-step+j>=matrix.shape[1]:
+            continue
+        if shapeMatrix[i,j] != 255:
+            m[shape.position[0]-step+i, shape.position[1]-step+j] = shapeMatrix[i,j]
+        
+    return m
+    
+def surroundAllShapes(matrix, shapeColor, surroundColor, fixedColors, nSteps=None,\
+                      forceFull=False, stepIsShape=False):
+    m = matrix.m.copy()
+    shapesToSurround = [s for s in matrix.shapes if s.color == shapeColor]
+    if stepIsShape:
+        shapesToSurround = [s for s in shapesToSurround if s.isSquare]
     for s in shapesToSurround:
-        x = surroundShape(x, s, outColor, untilColor)
-    return x
+        m = surroundShape(m, s, surroundColor, fixedColors, nSteps=nSteps,\
+                          forceFull=forceFull, stepIsShape=stepIsShape)
+    return m
+
+def getBestSurroundShapes(t):    
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    for fc in t.fixedColors:
+        for coc in t.commonChangedOutColors:
+            f = partial(surroundAllShapes, shapeColor=fc, surroundColor=coc, \
+                        fixedColors=t.fixedColors, forceFull=True)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            
+            f = partial(surroundAllShapes, shapeColor=fc, surroundColor=coc, \
+                            fixedColors=t.fixedColors, stepIsShape=True)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            
+            f = partial(surroundAllShapes, shapeColor=fc, surroundColor=coc, \
+                            fixedColors=t.fixedColors, forceFull=True, stepIsShape=True)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            
+            for nSteps in range(1,4):
+                f = partial(surroundAllShapes, shapeColor=fc, surroundColor=coc, \
+                            fixedColors=t.fixedColors, nSteps=nSteps)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                
+                f = partial(surroundAllShapes, shapeColor=fc, surroundColor=coc, \
+                            fixedColors=t.fixedColors, nSteps=nSteps, forceFull=True)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+            
+    return bestFunction
 
 def extendColor(matrix, color, direction, cic, sourceColor=None):
     m = matrix.m.copy()
@@ -6190,6 +6290,9 @@ def getPossibleOperations(t, c):
             
         # extendColor
         x.append(getBestExtendColor(candTask))
+        
+        # surround shapes
+        x.append(getBestSurroundShapes(candTask))
             
         # fillRectangleInside
         for cic in candTask.commonChangedInColors:
@@ -6784,7 +6887,7 @@ def tryOperations(t, c, firstIt=False):
         return
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
                 "maxColorFromCell")
-    #repeatIfPerfect = ("changeShapes")
+    repeatIfPerfect = ("extendColor")
     possibleOps = getPossibleOperations(t, c)
     for op in possibleOps:
         for s in range(t.nTrain):
