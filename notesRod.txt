@@ -1,16 +1,27 @@
 q IDEAS:
 
+add function to startOps + Crop: 624, 588
+
 - replicateShape + scaling, changing color
 - 194: crop, minimize, 
 - 108: symmetrize, colormap, deleteshape
+- 424, 475, 498, 624: replicate + crop
 
 - can i remove the line to crop the largest shape? i think i can for 133 but what about 28
 - still worried about tryOperations score 0 (712)
 - 774 add cropshape options???
 
-- delete shapes: 41
-
+- delete shapes: 254, 96, 129 (holes)
+- symmetrize: 61
+- arrange: 558, 440, 438, 414
 should be solved: 30 cropshape, 36 connect all pixekls,
+
+------------ArrangeShapes---------
+solves: 440, 558
+
+
+------------DeleteShapes-----------
+Get attributes betters
 
 
 ------------Replicate--------
@@ -54,16 +65,15 @@ CropShape:
 - Identify if output is shape
 - Identify if shape is in input
 - Identify characteristic attributes
-- Crop
+- Crop holes: 586, 354
 
 solves: 13, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217, 258, 262, 270, 289, 299, 345, 364,  383, 488, 576, 578, 635, 712, 727, 785, 690(sort)
 solves too: 28, 395
 
-cropframe: 13, 204
+cropframe: 13, 204, 443
 cropLargestNonbackgroudnFrame = 87, 194, 464
 reference: 318, 690
 cropsomething? 354, 365
-
 color count in multicolor shapes: 473, 586(count holes?)	
 
 something + cropshape: 424 (replicate), 440 (sort), 455 (overlap), 676 (encaixar)
