@@ -530,7 +530,7 @@ def tryOperations(t, c, firstIt=False):
         return
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
                 "maxColorFromCell")
-    #repeatIfPerfect = ("changeShapes")
+    repeatIfPerfect = ("extendColor")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
         for s in range(t.nTrain):
@@ -549,8 +549,8 @@ def tryOperations(t, c, firstIt=False):
                      c.t.fixedColors).tolist()        
         cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
-        #changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
-        #                                          np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
+        changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
+                                                  np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
         #print(op, cScore)
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
         b3c.addCandidate(newCandidate)
@@ -560,9 +560,9 @@ def tryOperations(t, c, firstIt=False):
                 continue
             newCandidate.generateTask()
             tryOperations(t, newCandidate)
-        #elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
-        #    newCandidate.generateTask()
-        #    tryOperations(t, newCandidate)
+        elif str(op)[28:60].startswith(repeatIfPerfect) and c.score - changedPixels == cScore and changedPixels != 0:
+            newCandidate.generateTask()
+            tryOperations(t, newCandidate)
 
 class Solution():
     def __init__(self, index, taskId, ops):
@@ -609,7 +609,7 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm([], position=0, leave=True):
-    taskId = index[idx]
+    taskId = index[119]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
             
@@ -671,7 +671,7 @@ for idx in tqdm([], position=0, leave=True):
     # Once the best 3 candidates have been found, make the predictions
     for s in range(t.nTest):
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -688,7 +688,7 @@ for idx in tqdm([], position=0, leave=True):
                 x = recoverAsymmetricGrid(t, x, s)
             if taskNeedsRecoloring:
                 x = recoverOriginalColors(x, testRels[s])
-            #plot_sample(originalT.testSamples[s], x)
+            plot_sample(originalT.testSamples[s], x)
             if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)

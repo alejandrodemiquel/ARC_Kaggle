@@ -610,6 +610,7 @@ def evolve(t, kernel=3, border=0, includeRotations=False):
     
     return [colorFromNeighboursK2, colorFromNeighboursK3,\
             colorFromNeighboursK5, colorfromNeighboursK3Background]
+        
 
 def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),\
                 changedInColors=set(), referenceIsFixed=False, commonColors=set(),\
@@ -2309,56 +2310,88 @@ def surroundShape(matrix, shape, color, nSteps = False, untilColor = False):
     return x
     
 # TODO
-def surroundAllShapes(m, shape, shapeColor, surroundColor, nSteps = False, untilColor = False):
-    x = m.m.copy()
+def surroundAllShapes(matrix, shape, shapeColor, surroundColor, nSteps = False, untilColor = False):
+    x = matrix.m.copy()
     shapesToSurround = [s for s in m.shapes if s.color == shapeColor]
     for s in shapesToSurround:
         x = surroundShape(x, s, outColor, untilColor)
     return x
 
-# TODO
-def extendColorAcross(matrix, color, direction, until, untilBorder = True):
-    m = matrix.copy()
+def extendColor(matrix, color, direction, cic, sourceColor=None):
+    m = matrix.m.copy()
     
-    if direction == "v" or direction == "u":
+    if sourceColor==None:
+        sourceColor=color
+    
+    # Vertical
+    if direction=='v' or direction=='u':
         for j in range(m.shape[1]):
-            colorCells = False
+            colorCells=False
             for i in reversed(range(m.shape[0])):
-                if not colorCells:
-                    if matrix[i,j] == color:
-                        colorCells = True
-                else:
-                    if matrix[i,j] == until:
-                        colorCells = False
-                    else:
-                        m[i,j] = color
-            if colorCells and not untilBorder:
-                for i in range(m.shape[0]):
-                    if matrix[i,j] == color:
-                        break
-                    m[i,j] = matrix[i,j]
-                
-    if direction == "v" or direction == "d":
+                if matrix.m[i,j]==sourceColor:
+                    colorCells=True
+                if colorCells and matrix.m[i,j] in cic:
+                    m[i,j] = color
+    if direction=='v' or direction=='d':
         for j in range(m.shape[1]):
-            colorCells = False
+            colorCells=False
             for i in range(m.shape[0]):
-                if not colorCells:
-                    if matrix[i,j] == color:
-                        colorCells = True
-                else:
-                    if matrix[i,j] == until:
-                        colorCells = False
-                    else:
-                        m[i,j] = color
-            if colorCells and not untilBorder:
-                for i in reversed(range(m.shape[0])):
-                    if matrix[i,j] == color:
-                        break
-                    m[i,j] = matrix[i,j]
-                    
-    #if direction == "h" or direction == "l":
-    #if direction == "h" or direction == "r":
+                if matrix.m[i,j]==sourceColor:
+                    colorCells=True
+                if colorCells and matrix.m[i,j] in cic:
+                    m[i,j] = color
+             
+    # Horizontal
+    if direction=='h' or direction=='l':
+        for i in range(m.shape[0]):
+            colorCells=False
+            for j in reversed(range(m.shape[1])):
+                if matrix.m[i,j]==sourceColor:
+                    colorCells=True
+                if colorCells and matrix.m[i,j] in cic:
+                    m[i,j] = color
+    if direction=='h' or direction=='r':
+        for i in range(m.shape[0]):
+            colorCells=False
+            for j in range(m.shape[1]):
+                if matrix.m[i,j]==sourceColor:
+                    colorCells=True
+                if colorCells and matrix.m[i,j] in cic:
+                    m[i,j] = color
+
     return m
+
+def getBestExtendColor(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    cic = t.commonChangedInColors
+    for coc in t.commonChangedOutColors:
+        for d in ['r', 'l', 'h', 'u', 'd', 'v']:
+            f = partial(extendColor, color=coc, direction=d, cic=cic)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            for fc in t.fixedColors:
+                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                
+    return bestFunction
+
+# %% Fill rectangleInside (task 525)
+    
+def fillRectangleInside(matrix, rectangleColor, fillColor):
+    m = matrix.m.copy()
+    for shape in matrix.shapes:
+        if shape.isRectangle and shape.color==rectangleColor:
+            if shape.shape[0] > 2 and shape.shape[1] > 2:
+                rect = np.full((shape.shape[0]-2, shape.shape[1]-2), fillColor, dtype=np.uint8)
+                m[shape.position[0]+1:shape.position[0]+shape.shape[0]-1,\
+                  shape.position[1]+1:shape.position[1]+shape.shape[1]-1] = rect
+    return m
+            
 
 # %% Color longest line
 def colorLongestLines(matrix, cic, coc, direction):
@@ -4425,11 +4458,6 @@ def getPossibleOperations(t, c):
         if t.backgroundColor!=-1:
             x.append(partial(downsize, newShape=outShape, falseColor=t.backgroundColor))
         
-        
-    # minimize
-    if not candTask.sameIOShapes:
-        x.append(partial(minimize))
-        
     
     ###########################################################################
     # sameIOShapes
@@ -4573,6 +4601,14 @@ def getPossibleOperations(t, c):
         fun = getPixelChangeCriteria(candTask)
         if fun != 0:
             x.append(fun)
+            
+        # extendColor
+        x.append(getBestExtendColor(candTask))
+            
+        # fillRectangleInside
+        for cic in candTask.commonChangedInColors:
+            for coc in candTask.commonChangedOutColors:
+                x.append(partial(fillRectangleInside, rectangleColor=cic, fillColor=coc))
         
         # Color longest lines
         if len(candTask.colorChanges)==1:
@@ -4674,8 +4710,8 @@ def getPossibleOperations(t, c):
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1:
 
-    #if candTask.sameIOShapes and len(candTask.commonChangedInColors)==1:   
-    #    x.append(getBestEvolvingLines(candTask))
+    if candTask.sameIOShapes and len(candTask.commonChangedInColors)==1:   
+        x.append(getBestEvolvingLines(candTask))
 
     ###########################################################################
     # Other cases
@@ -4857,5 +4893,8 @@ def getPossibleOperations(t, c):
         x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=False))
         x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=False))
     
+    # minimize
+    if not candTask.sameIOShapes:
+        x.append(partial(minimize))
         
     return x
