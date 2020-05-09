@@ -3281,7 +3281,7 @@ def paintShapesInHalf(matrix, shapeColor, color, half, diagonal=True):
             if half=='u':
                 for i,j in np.ndindex((int(shape.shape[0]/2), shape.shape[1])):
                     if shape.m[i,j]==shape.color:
-                        m[shape.position[0]+i, shape.position[0]+j] = color
+                        m[shape.position[0]+i, shape.position[1]+j] = color
             if half=='d':
                 for i,j in np.ndindex((int(shape.shape[0]/2), shape.shape[1])):
                     x = int(shape.shape[0]/2)
@@ -3291,7 +3291,7 @@ def paintShapesInHalf(matrix, shapeColor, color, half, diagonal=True):
             if half=='l':
                 for i,j in np.ndindex((shape.shape[0], int(shape.shape[1]/2))):
                     if shape.m[i,j]==shape.color:
-                        m[shape.position[0]+i, shape.position[0]+j] = color
+                        m[shape.position[0]+i, shape.position[1]+j] = color
             if half=='r':
                 for i,j in np.ndindex((shape.shape[0], int(shape.shape[1]/2))):
                     x = int(shape.shape[1]/2)

@@ -608,7 +608,7 @@ cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(replicateTasks, position=0, leave=True):
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
