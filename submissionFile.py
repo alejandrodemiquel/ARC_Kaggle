@@ -3266,6 +3266,58 @@ def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
     """
     return changeColorShapes(m.m.copy(), m.getShapes(inColor, bigOrSmall, isBorder), outColor)
 
+def paintShapesInHalf(matrix, shapeColor, color, half, diagonal=True):
+    """
+    Half can be 'u', 'd', 'l' or 'r'.
+    """
+    m = matrix.m.copy()
+    if diagonal:
+        shapesToPaint = [shape for shape in matrix.dShapes if shape.color==shapeColor]
+    else:
+        shapesToPaint = [shape for shape in matrix.shapes if shape.color==shapeColor]
+    
+    for shape in shapesToPaint:
+        if (shape.shape[0]%2)==0:
+            if half=='u':
+                for i,j in np.ndindex((int(shape.shape[0]/2), shape.shape[1])):
+                    if shape.m[i,j]==shape.color:
+                        m[shape.position[0]+i, shape.position[0]+j] = color
+            if half=='d':
+                for i,j in np.ndindex((int(shape.shape[0]/2), shape.shape[1])):
+                    x = int(shape.shape[0]/2)
+                    if shape.m[i+x,j]==shape.color:
+                        m[shape.position[0]+x+i, shape.position[1]+j] = color
+        if (shape.shape[1]%2)==0:
+            if half=='l':
+                for i,j in np.ndindex((shape.shape[0], int(shape.shape[1]/2))):
+                    if shape.m[i,j]==shape.color:
+                        m[shape.position[0]+i, shape.position[0]+j] = color
+            if half=='r':
+                for i,j in np.ndindex((shape.shape[0], int(shape.shape[1]/2))):
+                    x = int(shape.shape[1]/2)
+                    if shape.m[i,j+x]==shape.color:
+                        m[shape.position[0]+i, shape.position[1]+x+j] = color
+            
+    return m
+
+def getBestPaintShapesInHalf(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    for half in ['u', 'd', 'l', 'r']:
+        for cic in t.commonChangedInColors:
+            for coc in t.commonChangedOutColors:
+                f = partial(paintShapesInHalf, shapeColor=cic, color=coc,\
+                            half=half, diagonal=True)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                f = partial(paintShapesInHalf, shapeColor=cic, color=coc,\
+                            half=half, diagonal=False)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction     
+    return bestFunction
+
 # %% Things with features
 def isFixedShape(shape, fixedShapeFeatures):
     return shape.hasFeatures(fixedShapeFeatures)
@@ -6424,6 +6476,9 @@ def getPossibleOperations(t, c):
         
         # surround shapes
         x.append(getBestSurroundShapes(candTask))
+        
+        # Paint shapes in half
+        x.append(getBestPaintShapesInHalf(candTask))
             
         # fillRectangleInside
         for cic in candTask.commonChangedInColors:
