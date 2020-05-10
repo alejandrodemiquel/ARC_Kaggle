@@ -5769,6 +5769,37 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
     m2 = matrix.grid.cellList[1][0].m.copy()
     return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor, firstTrue, secondTrue)
 
+# %% crop all shapes
+    
+def cropAllShapes(matrix, background, diagonal=False):
+    if diagonal:
+        shapes = [shape for shape in matrix.dShapes if shape.color!=background]
+    else:
+        shapes = [shape for shape in matrix.shapes if shape.color!=background]
+    shapes = sorted(shapes, key=lambda x: x.nPixels, reverse=True)
+    
+    if len(shapes)==0:
+        return matrix.m.copy()
+    
+    m = shapes[0].m.copy()
+    for i,j in np.ndindex(m.shape):
+        if m[i,j]==255:
+            m[i,j] = background
+    
+    outMatrix = Task.Matrix(m)
+    if diagonal:
+        outShapes = [shape for shape in outMatrix.dShapes if shape.color==background]
+    else:
+        outShapes = [shape for shape in outMatrix.shapes if shape.color==background]
+    
+    for s in outShapes:
+        if s.color==background:
+            for shape in shapes:
+                if shape.hasSameShape(s):
+                    m = changeColorShapes(m, [s], shape.color)
+                    break
+    return m
+
 # %% Stuff added by Roderic
 #replicate shape
 def isReplicateTask(t):
@@ -6640,6 +6671,10 @@ def getPossibleOperations(t, c):
                       
     # Cropshape
     if candTask.outSmallerThanIn:
+        if candTask.backgroundColor!=-1:
+            x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=True))
+            x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=False))
+        
         bestCrop = getBestCropShape(candTask)
         if 'attributes' in bestCrop.keywords.keys():
             for attr in bestCrop.keywords['attributes']:

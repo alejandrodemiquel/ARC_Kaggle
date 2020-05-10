@@ -551,7 +551,6 @@ def tryOperations(t, c, firstIt=False):
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
                                                   np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
-        #print(op, cScore)
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
@@ -609,10 +608,10 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[702]
+    taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
-            
+                
     taskNeedsRecoloring = needsRecoloring(originalT)
     if taskNeedsRecoloring:
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
