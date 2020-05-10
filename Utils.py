@@ -204,6 +204,103 @@ def symmetrize(matrix, axis, color=None, outColor=None, refColor=None):
             
     return m
 
+# %% Color symmetric pixels (task 653)
+
+def colorSymmetricPixels(matrix, inColor, outColor, axis, includeAxis=False):
+    m = matrix.m.copy()
+    if axis=="lr":
+        for i,j in np.ndindex((m.shape[0], int(m.shape[1]/2))):
+            if m[i,j]==inColor and m[i,m.shape[1]-1-j]==inColor:
+                m[i,j] = outColor
+                m[i,m.shape[1]-1-j] = outColor
+        if includeAxis and ((m.shape[1]%2)==1):
+            j = int(m.shape[1]/2)
+            for i in range(m.shape[0]):
+                if m[i,j]==inColor:
+                    m[i,j] = outColor
+    if axis=="ud":
+        for i,j in np.ndindex((int(m.shape[0]/2), m.shape[1])):
+            if m[i,j]==inColor and m[m.shape[0]-1-i,j]==inColor:
+                m[i,j] = outColor
+                m[m.shape[0]-1-i,j] = outColor
+        if includeAxis and ((m.shape[0]%2)==1):
+            i = int(m.shape[0]/2)
+            for j in range(m.shape[1]):
+                if m[i,j]==inColor:
+                    m[i,j] = outColor
+    if axis=="d1":
+        for i in range(m.shape[0]):
+            for j in range(i):
+                if m[i,j]==inColor and m[j,i]==inColor:
+                    m[i,j] = outColor
+                    m[j,i] = outColor
+        if includeAxis:
+            for i in range(m.shape[0]):
+                if m[i,i]==inColor:
+                    m[i,i] = outColor
+    if axis=="d2":
+        for i in range(m.shape[0]):
+            for j in range(m.shape[0]-i-1):
+                if m[i,j]==inColor and m[m.shape[1]-j-1,m.shape[0]-i-1]==inColor:
+                    m[i,j] = outColor
+                    m[m.shape[1]-j-1,m.shape[0]-i-1] = outColor
+        if includeAxis:
+            for i in range(m.shape[0]):
+                if m[i, m.shape[0]-i-1]==inColor:
+                   m[i, m.shape[0]-i-1] = outColor
+                
+    return m
+
+def getBestColorSymmetricPixels(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    for cic in t.commonChangedInColors:
+        for coc in t.commonChangedOutColors:
+            f = partial(colorSymmetricPixels, inColor=cic, outColor=coc, \
+                        axis="lr", includeAxis=True)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            f = partial(colorSymmetricPixels, inColor=cic, outColor=coc, \
+                        axis="lr", includeAxis=False)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            f = partial(colorSymmetricPixels, inColor=cic, outColor=coc, \
+                        axis="ud", includeAxis=True)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            f = partial(colorSymmetricPixels, inColor=cic, outColor=coc, \
+                        axis="ud", includeAxis=False)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            if all([s.inMatrix.shape[0]==s.inMatrix.shape[1] for s in t.trainSamples+t.testSamples]):
+                f = partial(colorSymmetricPixels, inColor=cic, outColor=coc, \
+                            axis="d1", includeAxis=True)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                f = partial(colorSymmetricPixels, inColor=cic, outColor=coc, \
+                            axis="d1", includeAxis=False)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                f = partial(colorSymmetricPixels, inColor=cic, outColor=coc, \
+                            axis="d2", includeAxis=True)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                f = partial(colorSymmetricPixels, inColor=cic, outColor=coc, \
+                            axis="d2", includeAxis=False)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                
+    return bestFunction
+
 # %% Train and predict models  
 """
 def trainCNNDummyCommonColors(t, commonColors, k, pad):
@@ -4836,6 +4933,9 @@ def getPossibleOperations(t, c):
                     x.append(partial(symmetrize, axis=axis, refColor=fc,\
                                      outColor=next(iter(candTask.totalOutColors))))
     
+        # Color symmetric pixels
+        x.append(getBestColorSymmetricPixels(candTask))
+        
         # Complete rectangles
         if candTask.backgroundColor!=-1 and len(candTask.fixedColors)==1 and \
         len(candTask.colorChanges)==1:

@@ -139,6 +139,11 @@ valid_tasks['aa300dc3']['train'][1]['input'][8][2] = 5
 valid_tasks['aa300dc3']['train'][1]['output'][8][2] = 5
 # ad7e01d0
 valid_tasks['ad7e01d0']['train'][0]['output'][6][7] = 0
+# a8610ef7
+valid_tasks['a8610ef7']['train'][3]['input'][0][1] = 0
+valid_tasks['a8610ef7']['train'][3]['input'][5][1] = 0
+valid_tasks['a8610ef7']['train'][3]['output'][0][1] = 0
+valid_tasks['a8610ef7']['train'][3]['output'][5][1] = 0
 
 
 
