@@ -2472,7 +2472,7 @@ def getBestSurroundShapes(t):
         
 # %% Extend Color
 
-def extendColor(matrix, color, direction, cic, sourceColor=None):
+def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=None):
     m = matrix.m.copy()
     
     if sourceColor==None:
@@ -2483,36 +2483,68 @@ def extendColor(matrix, color, direction, cic, sourceColor=None):
         for j in range(m.shape[1]):
             colorCells=False
             for i in reversed(range(m.shape[0])):
+                if color==None:
+                    if matrix.m[i,j] not in (fixedColors|cic):
+                        sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
                 if colorCells and matrix.m[i,j] in cic:
-                    m[i,j] = color
+                    if color==None:
+                        m[i,j] = sourceColor
+                    else:
+                        m[i,j] = color
+            if color==None:
+                sourceColor=None
     if direction=='v' or direction=='d':
         for j in range(m.shape[1]):
             colorCells=False
             for i in range(m.shape[0]):
+                if color==None:
+                    if matrix.m[i,j] not in (fixedColors|cic):
+                        sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
                 if colorCells and matrix.m[i,j] in cic:
-                    m[i,j] = color
+                    if color==None:
+                        m[i,j] = sourceColor
+                    else:
+                        m[i,j] = color
+            if color==None:
+                sourceColor=None
              
     # Horizontal
     if direction=='h' or direction=='l':
         for i in range(m.shape[0]):
             colorCells=False
             for j in reversed(range(m.shape[1])):
+                if color==None:
+                    if matrix.m[i,j] not in (fixedColors|cic):
+                        sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
                 if colorCells and matrix.m[i,j] in cic:
-                    m[i,j] = color
+                    if color==None:
+                        m[i,j] = sourceColor
+                    else:
+                        m[i,j] = color
+            if color==None:
+                sourceColor=None
     if direction=='h' or direction=='r':
         for i in range(m.shape[0]):
             colorCells=False
             for j in range(m.shape[1]):
+                if color==None:
+                    if matrix.m[i,j] not in (fixedColors|cic):
+                        sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
                 if colorCells and matrix.m[i,j] in cic:
-                    m[i,j] = color
+                    if color==None:
+                        m[i,j] = sourceColor
+                    else:
+                        m[i,j] = color
+            if color==None:
+                sourceColor=None
 
     return m
 
@@ -2521,14 +2553,19 @@ def getBestExtendColor(t):
     bestFunction = partial(identityM)
     
     cic = t.commonChangedInColors
-    for coc in t.commonChangedOutColors:
-        for d in ['r', 'l', 'h', 'u', 'd', 'v']:
-            f = partial(extendColor, color=coc, direction=d, cic=cic)
+    fixedColors = t.fixedColors
+    for d in ['r', 'l', 'h', 'u', 'd', 'v']:
+        f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        for coc in t.commonChangedOutColors:    
+            f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             if bestScore==0:
                 return bestFunction
             for fc in t.fixedColors:
-                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc)
+                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, fixedColors=fixedColors)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
