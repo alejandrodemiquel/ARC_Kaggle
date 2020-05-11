@@ -5396,9 +5396,9 @@ def getPossibleOperations(t, c):
                         
     # Cropshape
     if candTask.outSmallerThanIn:
+        x.append(getBestArrangeShapes(candTask))
         if candTask.backgroundColor!=-1:
             #arrangeShapes                    
-            x.append(getBestArrangeShapes(candTask))
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=True))
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=False))
         
