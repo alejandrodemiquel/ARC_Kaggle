@@ -556,6 +556,8 @@ def tryOperations(t, c, firstIt=False):
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
                                                   np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
+        #print(op, cScore)
+        #plot_task(cTask)
         newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
@@ -601,7 +603,9 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
              299,345,364,383,395,488,576,578,635,712,727,785]
 cropAllBackground = [216, 258]
-replicateTasks = [17,68,75,79,100,111,116,157,172,360,367,421,500,540,645]
+arrangeTasks = [21,45,95,125,152,158,200,232,237,252,263,295,365,414,440,475,498,523,535,558,\
+                588,589,622,624,652,676,699,759,760]
+replicateTasks = [17,68,75,79,100,111,116,157,172,360,367,421,500,524,540,645]
 replicateToDoTasks = [4,100,132,157,196,208,779,795]
 cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
                   445,456,485,497,530,541,547,564,610,611,625,634,640,657,673,\
@@ -612,8 +616,8 @@ cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[319]
+for idx in tqdm(range(100), position=0, leave=True):
+    taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
                 
