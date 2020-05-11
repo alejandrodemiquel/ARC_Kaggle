@@ -3876,6 +3876,89 @@ def minimize(matrix):
 
 # %% Operations to extend matrices
     
+def extendMatrix(matrix, color, position="tl", xShape=None, yShape=None, isSquare=False, goodDimension=None):
+    """
+    Given a matrix, xShape(>matrix.shape[0]), yShape(>matrix.shape[1]) and a color,
+    this function extends the matrix using the dimensions given by xShape and
+    yShape by coloring the extra pixels with the given color.
+    If xShape or yShape are not given, then they will be equal to matrix.shape[0]
+    of matrix.shape[1], respectively.
+    The position of the input matrix in the output matrix can be given by
+    specifying "tl", "tr", "bl" or "br" (top-left/top-right/bot-left/bot-right).
+    The default is top-left.
+    """
+    if isSquare:
+        if goodDimension=='x':
+            xShape = matrix.shape[0]
+            yShape = matrix.shape[0]
+        if goodDimension=='y':
+            xShape = matrix.shape[1]
+            yShape = matrix.shape[1]
+    if xShape==None:
+        xShape = matrix.shape[0]
+    if yShape==None:
+        yShape = matrix.shape[1]
+    m = np.full((xShape, yShape), color, dtype=np.uint8)
+    if position=="tl":
+        m[0:matrix.shape[0], 0:matrix.shape[1]] = matrix.m.copy()
+    elif position=="tr":
+        m[0:matrix.shape[0], yShape-matrix.shape[1]:yShape] = matrix.m.copy()
+    elif position=="bl":
+        m[xShape-matrix.shape[0]:xShape, 0:matrix.shape[1]] = matrix.m.copy()
+    else:
+        m[xShape-matrix.shape[0]:xShape, yShape-matrix.shape[1]:yShape] = matrix.m.copy()
+    
+    return m
+
+def getBestExtendMatrix(t):
+    """
+    If t.backgroundColor!=-1 and if it makes sense.
+    """
+    if t.backgroundColor==-1:
+        totalColorCount = Counter()
+        for s in t.trainSamples:
+            totalColorCount += s.inMatrix.colorCount
+        background = max(totalColorCount.items(), key=operator.itemgetter(1))[0]
+    else:
+        background=t.backgroundColor
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    # Define xShape and yShape:
+    xShape = None
+    yShape = None
+    isSquare=False
+    goodDimension=None
+    
+    # If the outShape is given, easy
+    if t.sameOutShape:
+        xShape=t.outShape[0]
+        yShape=t.outShape[1]
+    # If the output xShape is always the same and the yShape keeps constant, pass the common xShape
+    elif len(set([s.outMatrix.shape[0] for s in t.trainSamples]))==1:
+        if all([s.outMatrix.shape[1]==s.inMatrix.shape[1] for s in t.trainSamples]):
+            xShape=t.trainSamples[0].outMatrix.shape[0]  
+    # If the output yShape is always the same and the xShape keeps constant, pass the common yShape
+    elif len(set([s.outMatrix.shape[1] for s in t.trainSamples]))==1:
+        if all([s.outMatrix.shape[0]==s.inMatrix.shape[0] for s in t.trainSamples]):
+            yShape=t.trainSamples[0].outMatrix.shape[1] 
+    # If the matrix is always squared, and one dimension (x or y) is fixed, do this:
+    elif all([s.outMatrix.shape[0]==s.outMatrix.shape[1] for s in t.trainSamples]):
+        isSquare=True
+        if all([s.outMatrix.shape[1]==s.inMatrix.shape[1] for s in t.trainSamples]):
+            goodDimension='y'     
+        elif all([s.outMatrix.shape[0]==s.inMatrix.shape[0] for s in t.trainSamples]):
+            goodDimension='x'      
+    
+    for position in ["tl", "tr", "bl", "br"]:
+        f = partial(extendMatrix, color=background, xShape=xShape, yShape=yShape,\
+                    position=position, isSquare=isSquare, goodDimension=goodDimension)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        
+    return bestFunction
+    
 def getFactor(matrix, factor):
     """
     Given a Task.Task.inShapeFactor (that can be a string), this function
@@ -4378,7 +4461,7 @@ def cropAllShapes(matrix, background, diagonal=False):
 # %% Stuff added by Roderic
 #delete shape with x properties
 def isDeleteTask(t):    
-    if hasattr(t, 'colorChanges') and t.backgroundColor in [c[1] for c in t.colorChanges]:
+    if hasattr(t, 'colorChanges') and all(t.backgroundColor == c[1] for c in t.colorChanges):
         return True
     return False
 
@@ -5274,15 +5357,15 @@ def getPossibleOperations(t, c):
     
     ###########################################################################
     # Evolve
-    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
-    len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-        cfn = evolve(candTask)
+    #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
+        #cfn = evolve(candTask)
         #x.append(getBestEvolve(candTask, cfn))
-        x.append(partial(applyEvolve, cfn=cfn, nColors=candTask.trainSamples[0].nColors,\
-                         kernel=5, nIterations=1, fixedColors=candTask.fixedColors,\
-                         changedInColors=candTask.commonChangedInColors,\
-                         changedOutColors=candTask.commonChangedOutColors, \
-                         referenceIsFixed=True))
+        #x.append(partial(applyEvolve, cfn=cfn, nColors=candTask.trainSamples[0].nColors,\
+        #                 kernel=5, nIterations=1, fixedColors=candTask.fixedColors,\
+        #                 changedInColors=candTask.commonChangedInColors,\
+        #                 changedOutColors=candTask.commonChangedOutColors, \
+        #                 referenceIsFixed=True))
     
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1:
@@ -5293,6 +5376,9 @@ def getPossibleOperations(t, c):
     ###########################################################################
     # Other cases
     
+    if candTask.inSmallerThanOut:
+        x.append(getBestExtendMatrix(candTask))
+
     if hasattr(candTask, 'inShapeFactor'):
         x.append(partial(multiplyPixels, factor=candTask.inShapeFactor))
         x.append(partial(multiplyMatrix, factor=candTask.inShapeFactor))
@@ -5464,10 +5550,10 @@ def getPossibleOperations(t, c):
             x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
                                  singleColor=True, diagonals=True, context=True)) 
     x.append(partial(cropAllBackground))   
-    #if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
-    #    x.append(partial(cropOnlyMulticolorShape, diagonals=False))
-    #if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
-    #    x.append(partial(cropOnlyMulticolorShape, diagonals=True))
+    if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
+        x.append(partial(cropOnlyMulticolorShape, diagonals=False))
+    if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
+        x.append(partial(cropOnlyMulticolorShape, diagonals=True))
     if all([len(sample.inMatrix.fullFrames)==1 for sample in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropFullFrame))
         x.append(partial(cropFullFrame, includeBorder=False))
