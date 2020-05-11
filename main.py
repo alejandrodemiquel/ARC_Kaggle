@@ -139,6 +139,11 @@ valid_tasks['aa300dc3']['train'][1]['input'][8][2] = 5
 valid_tasks['aa300dc3']['train'][1]['output'][8][2] = 5
 # ad7e01d0
 valid_tasks['ad7e01d0']['train'][0]['output'][6][7] = 0
+# a8610ef7
+valid_tasks['a8610ef7']['train'][3]['input'][0][1] = 0
+valid_tasks['a8610ef7']['train'][3]['input'][5][1] = 0
+valid_tasks['a8610ef7']['train'][3]['output'][0][1] = 0
+valid_tasks['a8610ef7']['train'][3]['output'][5][1] = 0
 
 
 
@@ -529,7 +534,7 @@ def tryOperations(t, c, firstIt=False):
     if c.score==0 or b3c.allPerfect():
         return
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
-                "maxColorFromCell")
+                "maxColorFromCell") # applyEvolve?
     repeatIfPerfect = ("extendColor")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
@@ -600,7 +605,7 @@ cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262
 cropAllBackground = [216, 258]
 arrangeTasks = [21,45,95,125,152,158,200,232,237,252,263,295,365,414,440,475,498,523,535,558,\
                 588,589,622,624,652,676,699,759,760]
-replicateTasks = [17,68,75,79,100,111,116,157,172,360,367,421,500,540,645]
+replicateTasks = [17,68,75,79,100,111,116,157,172,360,367,421,500,524,540,645]
 replicateToDoTasks = [4,100,132,157,196,208,779,795]
 cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
                   445,456,485,497,530,541,547,564,610,611,625,634,640,657,673,\
@@ -615,7 +620,7 @@ for idx in tqdm(range(100), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
-            
+                
     taskNeedsRecoloring = needsRecoloring(originalT)
     if taskNeedsRecoloring:
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
