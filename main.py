@@ -307,7 +307,7 @@ class Best3Candidates():
 
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
-    
+
 def getCroppingPosition(matrix):
     bC = matrix.backgroundColor
     x, xMax, y, yMax = 0, matrix.m.shape[0]-1, 0, matrix.m.shape[1]-1
@@ -316,7 +316,7 @@ def getCroppingPosition(matrix):
     while y <= yMax and np.all(matrix.m[:,y] == bC):
         y += 1
     return [x,y]
-    
+
 def needsCropping(t):
     # Only to be used if t.sameIOShapes
     for sample in t.trainSamples:
@@ -347,7 +347,7 @@ def recoverCroppedMatrix(matrix, outShape, position, backgroundColor):
     m = np.full(outShape, backgroundColor, dtype=np.uint8)
     m[position[0]:position[0]+matrix.shape[0], position[1]:position[1]+matrix.shape[1]] = matrix.copy()
     return m
-    
+
 def needsRecoloring(t):
     """
     This method determines whether the task t needs recoloring or not.
@@ -375,7 +375,7 @@ def orderTaskColors(t):
         2. Colors that appear both in the input and the output
         3. Colors that only appear in the input
         4. Colors that only appear in the output
-    In steps 2-4, if there is more that one color satisfying that condition, 
+    In steps 2-4, if there is more that one color satisfying that condition,
     the ordering will happen according to the colorCount.
     """
     def orderColors(trainOrTest):
@@ -394,7 +394,7 @@ def orderTaskColors(t):
                 for c in sortedColors:
                     if c not in sampleColors:
                         sampleColors.append(c)
-                    
+
             rel, invRel = Utils.relDicts(sampleColors)
             if trainOrTest=="train":
                 trainRels.append(rel)
@@ -402,7 +402,7 @@ def orderTaskColors(t):
             else:
                 testRels.append(rel)
                 testInvRels.append(invRel)
-                
+
             inMatrix = np.zeros(sample.inMatrix.shape, dtype=np.uint8)
             for c in sample.inMatrix.colors:
                 inMatrix[sample.inMatrix.m==c] = invRel[c]
@@ -416,16 +416,16 @@ def orderTaskColors(t):
                     task['test'].append({'input': inMatrix.tolist(), 'output': outMatrix.tolist()})
             else:
                 task['test'].append({'input': inMatrix.tolist()})
-        
+
     task = {'train': [], 'test': []}
     trainRels = []
     trainInvRels = []
     testRels = []
     testInvRels = []
-    
+
     orderColors("train")
     orderColors("test")
-    
+
     return task, trainRels, trainInvRels, testRels, testInvRels
 
 def recoverOriginalColors(matrix, rel):
@@ -453,7 +453,7 @@ def hasRepeatedOutputs(t):
     if len(nonRepeated)==t.nTrain:
         return False, []
     else:
-        return True, nonRepeated            
+        return True, nonRepeated
 
 def ignoreGrid(t, task, inMatrix=True, outMatrix=True):
     for s in range(t.nTrain):
@@ -551,7 +551,7 @@ def tryOperations(t, c, firstIt=False):
                 cTask["test"][s]["input"] = Utils.correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
                      np.array(cTask["test"][s]["input"]),\
-                     c.t.fixedColors).tolist()        
+                     c.t.fixedColors).tolist()
         cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
@@ -616,11 +616,11 @@ cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(100), position=0, leave=True):
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
-                
+
     taskNeedsRecoloring = needsRecoloring(originalT)
     if taskNeedsRecoloring:
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
@@ -629,7 +629,7 @@ for idx in tqdm(range(100), position=0, leave=True):
         t = originalT
         
     cTask = copy.deepcopy(task)
-    
+
     if t.sameIOShapes:
         taskNeedsCropping = needsCropping(t)
     else:
@@ -651,7 +651,7 @@ for idx in tqdm(range(100), position=0, leave=True):
         t2 = Task.Task(cTask, taskId, submission=False)
     else:
         t2 = t
-        
+
     cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                          t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
     c = Candidate([], [task], score=cScore)
