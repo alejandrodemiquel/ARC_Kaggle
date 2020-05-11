@@ -6147,7 +6147,7 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
             if len(shList) == 4:
                 shSorted = [sorted(shList[:2],key=lambda x: x.position[1]), sorted(shList[2:],key=lambda x: x.position[1])]
                 arrFound = True
-        if arrFound:
+        if arrFound and len(shSorted)>0 and len(shSorted[0])>0 and len(shSorted[0][0].shape)>0:
             shX, shY = shSorted[0][0].shape[0], shSorted[0][0].shape[1]
             vCount = 0
             for vShs in shSorted:
@@ -6201,7 +6201,7 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
                             if sh.m[i,j] != 255:
                                 m[bestX+i,bestY+j] = sh.m[i,j]
                 return m
-    return matrix.m
+    return matrix.m.copy()
 
 #replicate shape
 def isReplicateTask(t):
