@@ -1812,6 +1812,44 @@ def getBestPaintShapesInHalf(t):
                         return bestFunction
     return bestFunction
 
+# %% Paint shape from border color (506,753,754)
+
+def paintShapeFromBorderColor(matrix, shapeColors, fixedColors, diagonals=False):
+    m = matrix.m.copy()
+    shapesToChange = [shape for shape in matrix.shapes if shape.color in shapeColors]
+    
+    for shape in shapesToChange:
+        neighbourColors = Counter()
+        for i,j in np.ndindex(shape.shape):
+            if shape.m[i,j]!=255:
+                if diagonals:
+                    neighbourColors += Counter(getAllNeighbourColors(matrix.m,\
+                                               shape.position[0]+i, shape.position[1]+j,\
+                                               kernel=3, border=-1))
+                else:
+                    neighbourColors += Counter(getNeighbourColors(matrix.m,\
+                                               shape.position[0]+i, shape.position[1]+j,\
+                                               border=-1))
+        for color in fixedColors|shapeColors|set([-1]):
+            neighbourColors.pop(color, None)
+        if len(neighbourColors)>0:
+            newColor = max(neighbourColors.items(), key=operator.itemgetter(1))[0]
+            m = changeColorShapes(m, [shape], newColor)
+    return m
+
+def getBestPaintShapeFromBorderColor(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    shapeColors = t.commonChangedInColors
+    fixedColors = t.fixedColors
+    for diagonals in [True, False]:
+        f = partial(paintShapeFromBorderColor, shapeColors=shapeColors,\
+                    fixedColors=fixedColors, diagonals=diagonals)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+    return bestFunction
+
 # %% Things with features
 def isFixedShape(shape, fixedShapeFeatures):
     return shape.hasFeatures(fixedShapeFeatures)
@@ -5078,6 +5116,9 @@ def getPossibleOperations(t, c):
         
         # Paint shapes in half
         x.append(getBestPaintShapesInHalf(candTask))
+        
+        # Paint shapes from border color
+        x.append(getBestPaintShapeFromBorderColor(candTask))
             
         # fillRectangleInside
         for cic in candTask.commonChangedInColors:
