@@ -711,7 +711,7 @@ def evolve(t, kernel=3, border=0, includeRotations=False):
 
 def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),\
                 changedInColors=set(), referenceIsFixed=False, commonColors=set(),\
-                kernel=None, border=0):
+                kernel=None, border=0, nIterations=1000):
         
     def colorPixel(m,newM,i,j):
         if newM[i,j] not in cic and colorAroundCIC==False:
@@ -789,7 +789,7 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
     
     it = 0
     colorAroundCIC=False
-    while True:
+    while it<nIterations:
         it += 1
         newM = m.copy()
         #seen = np.zeros(m.shape, dtype=np.bool)
@@ -820,7 +820,7 @@ def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),
         
     return m
     
-def getBestEvolve(t):
+def getBestEvolve(t, cfn):
     nColors = t.trainSamples[0].nColors
     fc = t.fixedColors
     cic = t.commonChangedInColors
@@ -830,7 +830,6 @@ def getBestEvolve(t):
     bestScore = 1000
     bestFunction = None
     
-    cfn = evolve(t)
     if t.allEqual(t.sampleColors):
         f = partial(applyEvolve, cfn=cfn, nColors=nColors, changedOutColors=coc,\
                     fixedColors=fc, changedInColors=cic, referenceIsFixed=refIsFixed,\
@@ -893,10 +892,6 @@ def getBestEvolve(t):
             return bestFunction
         
     return bestFunction
-
-
-# Good examples: 790,749,748,703,679,629,605,585,575,573,457,344,322,
-#                283,236,231,201,198,59,23
     
 # To be solved: 23,57,59,65,83,93,118,135,140,147,167,189,198,201,231,236,247,
 # 298,322,357,429,449,457,505,577,585,605,693,703,731,748,749,793,797
@@ -1763,7 +1758,7 @@ def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
     """
     return changeColorShapes(m.m.copy(), m.getShapes(inColor, bigOrSmall, isBorder), outColor)
 
-def paintShapesInHalf(matrix, shapeColor, color, half, diagonal=True):
+def paintShapesInHalf(matrix, shapeColor, color, half, diagonal=False, middle=None):
     """
     Half can be 'u', 'd', 'l' or 'r'.
     """
@@ -1774,26 +1769,32 @@ def paintShapesInHalf(matrix, shapeColor, color, half, diagonal=True):
         shapesToPaint = [shape for shape in matrix.shapes if shape.color==shapeColor]
     
     for shape in shapesToPaint:
-        if (shape.shape[0]%2)==0:
+        if (shape.shape[0]%2)==0 or middle!=None:
+            if middle==True:
+                iLimit=int((shape.shape[0]+1)/2)
+            else:
+                iLimit=int(shape.shape[0]/2)
             if half=='u':
-                for i,j in np.ndindex((int(shape.shape[0]/2), shape.shape[1])):
+                for i,j in np.ndindex((iLimit, shape.shape[1])):
                     if shape.m[i,j]==shape.color:
                         m[shape.position[0]+i, shape.position[1]+j] = color
             if half=='d':
-                for i,j in np.ndindex((int(shape.shape[0]/2), shape.shape[1])):
-                    x = int(shape.shape[0]/2)
-                    if shape.m[i+x,j]==shape.color:
-                        m[shape.position[0]+x+i, shape.position[1]+j] = color
-        if (shape.shape[1]%2)==0:
+                for i,j in np.ndindex((iLimit, shape.shape[1])):
+                    if shape.m[shape.shape[0]-1-i,j]==shape.color:
+                        m[shape.position[0]+shape.shape[0]-1-i, shape.position[1]+j] = color
+        if (shape.shape[1]%2)==0 or middle!=None:
+            if middle==True:
+                jLimit=int((shape.shape[1]+1)/2)
+            else:
+                jLimit=int(shape.shape[1]/2)
             if half=='l':
-                for i,j in np.ndindex((shape.shape[0], int(shape.shape[1]/2))):
+                for i,j in np.ndindex((shape.shape[0], jLimit)):
                     if shape.m[i,j]==shape.color:
                         m[shape.position[0]+i, shape.position[1]+j] = color
             if half=='r':
-                for i,j in np.ndindex((shape.shape[0], int(shape.shape[1]/2))):
-                    x = int(shape.shape[1]/2)
-                    if shape.m[i,j+x]==shape.color:
-                        m[shape.position[0]+i, shape.position[1]+x+j] = color
+                for i,j in np.ndindex((shape.shape[0], jLimit)):
+                    if shape.m[i,shape.shape[1]-1-j]==shape.color:
+                        m[shape.position[0]+i, shape.position[1]+shape.shape[1]-1-j] = color
             
     return m
 
@@ -1803,16 +1804,12 @@ def getBestPaintShapesInHalf(t):
     for half in ['u', 'd', 'l', 'r']:
         for cic in t.commonChangedInColors:
             for coc in t.commonChangedOutColors:
-                f = partial(paintShapesInHalf, shapeColor=cic, color=coc,\
-                            half=half, diagonal=True)
-                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-                if bestScore==0:
-                    return bestFunction
-                f = partial(paintShapesInHalf, shapeColor=cic, color=coc,\
-                            half=half, diagonal=False)
-                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-                if bestScore==0:
-                    return bestFunction     
+                for middle, diagonal in product([None, True, False], [True, False]):
+                    f = partial(paintShapesInHalf, shapeColor=cic, color=coc,\
+                                half=half, diagonal=diagonal, middle=middle)
+                    bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                    if bestScore==0:
+                        return bestFunction
     return bestFunction
 
 # %% Things with features
@@ -2435,7 +2432,7 @@ def getPixelChangeCriteria(t):
 # %% Surround Shape
 
 def surroundShape(matrix, shape, color, fixedColors, nSteps = None, forceFull=False, \
-                  stepIsShape=False):
+                  stepIsShape=False, stepIsNHoles=False):
 
     m = matrix.copy()
     shapeMatrix = shape.m.copy()
@@ -2443,6 +2440,8 @@ def surroundShape(matrix, shape, color, fixedColors, nSteps = None, forceFull=Fa
     if nSteps==None:
         if stepIsShape:
             nSteps = int(shape.shape[0]/2)
+        elif stepIsNHoles:
+            nSteps = shape.nHoles
         else:
             nSteps = 15
     
@@ -2518,14 +2517,15 @@ def surroundShape(matrix, shape, color, fixedColors, nSteps = None, forceFull=Fa
     return m
     
 def surroundAllShapes(matrix, shapeColor, surroundColor, fixedColors, nSteps=None,\
-                      forceFull=False, stepIsShape=False):
+                      forceFull=False, stepIsShape=False, stepIsNHoles=False):
     m = matrix.m.copy()
     shapesToSurround = [s for s in matrix.shapes if s.color == shapeColor]
     if stepIsShape:
         shapesToSurround = [s for s in shapesToSurround if s.isSquare]
     for s in shapesToSurround:
         m = surroundShape(m, s, surroundColor, fixedColors, nSteps=nSteps,\
-                          forceFull=forceFull, stepIsShape=stepIsShape)
+                          forceFull=forceFull, stepIsShape=stepIsShape,\
+                          stepIsNHoles=stepIsNHoles)
     return m
 
 def getBestSurroundShapes(t):    
@@ -2548,6 +2548,18 @@ def getBestSurroundShapes(t):
             
             f = partial(surroundAllShapes, shapeColor=fc, surroundColor=coc, \
                             fixedColors=t.fixedColors, forceFull=True, stepIsShape=True)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            
+            f = partial(surroundAllShapes, shapeColor=fc, surroundColor=coc, \
+                            fixedColors=t.fixedColors, forceFull=False, stepIsNHoles=True)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
+            
+            f = partial(surroundAllShapes, shapeColor=fc, surroundColor=coc, \
+                            fixedColors=t.fixedColors, forceFull=True, stepIsNHoles=True)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             if bestScore==0:
                 return bestFunction
@@ -3227,7 +3239,7 @@ def deletePixels(matrix, diagonals=False):
 # %% Connect Pixels
 
 def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
-                  allowedChanges={}, lineExclusive=False):
+                  allowedChanges={}, lineExclusive=False, diagonal=False):
     """
     Given a matrix, this function connects all the pixels that have the same
     color. This means that, for example, all the pixels between two red pixels
@@ -3287,6 +3299,15 @@ def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
                 else:
                     if matrix[i,j] in allowedChanges.keys():
                         m[i,j] = allowedChanges[matrix[i,j]]
+    
+    # Diagonal (slightly different concept; algorithm doesn't do exactly the same)         
+    """
+    if diagonal:
+        # d1
+        for i in range(m.shape[0]-2):
+            coloring = False
+    """
+            
  
     return m
 
@@ -5101,8 +5122,8 @@ def getPossibleOperations(t, c):
         x.append(getBestReplicateShapes(candTask))
         
         #delete shapes
-        if isDeleteTask(candTask):
-            x.append(getBestDeleteShapes(candTask, True, True))
+        #if isDeleteTask(candTask):
+        #    x.append(getBestDeleteShapes(candTask, True, True))
         
         # TODO
         """
@@ -5147,15 +5168,21 @@ def getPossibleOperations(t, c):
                     else:
                         x.append(partial(overlapSubmatrices, colorHierarchy=ch))
         
-        pixelMap = Models.pixelCorrespondence(candTask)
-        if len(pixelMap) != 0:
-            x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
+        #pixelMap = Models.pixelCorrespondence(candTask)
+        #if len(pixelMap) != 0:
+        #    x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
     
     ###########################################################################
     # Evolve
-    #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
-    #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-    #    x.append(getBestEvolve(candTask))
+    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
+        cfn = evolve(candTask)
+        #x.append(getBestEvolve(candTask, cfn))
+        x.append(partial(applyEvolve, cfn=cfn, nColors=candTask.trainSamples[0].nColors,\
+                         kernel=5, nIterations=1, fixedColors=candTask.fixedColors,\
+                         changedInColors=candTask.commonChangedInColors,\
+                         changedOutColors=candTask.commonChangedOutColors, \
+                         referenceIsFixed=True))
     
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1:
