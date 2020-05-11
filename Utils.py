@@ -1611,7 +1611,8 @@ def symmetrizeNonbackgroundSubmatrix(matrix, ud=False, lr=False, rotation=False,
                     m[x1+i,2*y+y1+d-j-1] = subMat[i,j]
                     m[2*x+x1+d-i-1,2*y+y1+d-j-1] = subMat[i,j]
     elif rotate:
-        if x1+y+subMat.shape[0] > m.shape[0] or y1+x+subMat.shape[1] > m.shape[1]:
+        if x1+y+subMat.shape[0]> m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
+            or y1+y-x+subMat.shape[0]> m.shape[0] or x1+x-y+subMat.shape[1]>m.shape[1]:
             return m
         for i in range(subMat.shape[0]):
             for j in range(subMat.shape[1]):
@@ -4101,9 +4102,10 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
 # %% Stuff added by Roderic
 #delete shape with x properties
 def isDeleteTask(t):    
-    if hasattr(t, 'colorChanges') and t.backgroundColor in [c[1] for c in t.colorChanges]:
+    if hasattr(t, 'colorChanges') and all(t.backgroundColor == c[1] for c in t.colorChanges):
         return True
     return False
+
 def getBestDeleteShapes(t, multicolor, diagonal):
     attrs = set(['LaSh','SmSh','MoCl','MoCo'])
     bestScore = 1000
@@ -4145,8 +4147,51 @@ def deleteShapes(matrix, attributes, diagonal, multicolor):
             m = deleteShape(m, shList[shi], matrix.backgroundColor)
     return m
 
-def arrangeShapes (matrix, overlap=0, fit=False, multicolor=True, diagonal=True):
-    m = matrix.m.copy()
+def getBestArrangeShapes(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    #if len(set(len(s.inMatrix.multicolorDShapes) for s in t.trainSamples)) == 1:
+    if all(len(set([sh.shape for sh in s.inMatrix.multicolorDShapes])) == 1 for s in t.trainSamples):
+        if len(set([s.outMatrix.shape for s in t.trainSamples])) == 1:
+            bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='lay',outShape=t.trainSamples[0].outMatrix.shape,\
+                                                        diagonal=True, multicolor=False, overlap=0), bestScore, bestFunction)
+            bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='lay',outShape=t.trainSamples[0].outMatrix.shape,\
+                                                        diagonal=True, multicolor=False, overlap=-1), bestScore, bestFunction)
+            print(bestScore)
+    bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='lay',\
+                                                        diagonal=True, multicolor=False), bestScore, bestFunction)
+    if len(set([s.outMatrix.shape for s in t.trainSamples])) == 1:
+        bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='fit', outShape=t.trainSamples[0].outMatrix.shape,\
+                                                                diagonal=True, multicolor=False), bestScore, bestFunction)
+    elif t.outIsInMulticolorShapeSize:
+        bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='fit',\
+                                                                diagonal=True, multicolor=True), bestScore, bestFunction)
+    print(bestScore)
+    return bestFunction
+
+def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True):
+    
+    def tessellateShapes (mat, shL, n, bC):
+        m = mat.copy()
+        """
+        Attempts to tessellate matrix mat with background color bC shapes is list sh.
+        """
+
+        for i, j in np.ndindex(tuple(mat.shape[k] - shL[n].shape[k] + 1 for k in (0,1))):
+            if np.all(np.logical_or(m[i: i+shL[n].shape[0], j: j+shL[n].shape[1]] == bC, shL[n].m == 255)):
+                for k, l in np.ndindex(shL[n].shape):
+                    if shL[n].m[k,l] != 255:
+                        m[i+k,j+l] = shL[n].m[k,l]
+                if n == len(shL) - 1:
+                    return m, True
+                m, arrFound = tessellateShapes(m, shL, n+1, bC)
+                if arrFound:
+                    return m, arrFound
+                else:
+                    for k, l in np.ndindex(shL[n].shape):
+                        m[i+k,j+l] = bC
+        return m, False
+    
     if not multicolor: 
         if diagonal:   
             shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
@@ -4157,50 +4202,86 @@ def arrangeShapes (matrix, overlap=0, fit=False, multicolor=True, diagonal=True)
             shList = [sh for sh in matrix.multicolorDShapes]
         else:
             shList = [sh for sh in matrix.multicolorShapes]
-    #sort list l-r u-d 
+    
     if len(shList) == 0:
-        return m
-    if fit:
-        shList.sort(key=lambda x: len(x.pixels))
-        #for sh in shList[1:]:
-        #   find best spot to     
-        #then copy smaller at larger
-        return m
-    else:
-        arrFound = False
+        return matrix.m
+    
+    if arrange=='lay':
+        if outShape == None:
+            m = matrix.m.copy()
+            for sh in shList:
+                m = deleteShape(m, sh, matrix.backgroundColor)           
+        else:
+            shList = [sh for sh in shList if all(sh.shape[i]<= outShape[i] for i in [0,1])]
+            m = np.full(outShape, fill_value=matrix.backgroundColor)
         shList.sort(key=lambda x: x.position[1])
-        if all(shList[i].position[1]+shList[i].shape[1] < shList[i+1].position[1] for i in range(len(shList)-1)):
+        arrFound = False
+        if all(shList[i].position[1]+shList[i].shape[1] <= shList[i+1].position[1] for i in range(len(shList)-1)):
             shSorted = [[sh for sh in shList]]
             arrFound = True
         shList.sort(key=lambda x: x.position[0])
-        if not arrFound and all(shList[i].position[0]+shList[i].shape[0] < shList[i+1].position[0] for i in range(len(shList)-1)):
+        if not arrFound and all(shList[i].position[0]+shList[i].shape[0] <= shList[i+1].position[0] for i in range(len(shList)-1)):
             shSorted = [[sh] for sh in shList]
             arrFound = True
         if not arrFound:  
-            shSorted = [sorted(shList[:2],key=lambda x: x.position[1]), sorted(shList[2:],key=lambda x: x.position[1])]
-            arrFound = True
-        #print([[sh.m for sh in bla] for bla in shSorted])
-        shX, shY = shSorted[0][0].shape[0], shSorted[0][0].shape[1]
-        vCount = 0
-        for vShs in shSorted:
-            hCount = 0 
-            for hSh in vShs:
-                if overlap < 1:
-                    m = deleteShape(m, hSh, matrix.backgroundColor)
+            if len(shList) == 4:
+                shSorted = [sorted(shList[:2],key=lambda x: x.position[1]), sorted(shList[2:],key=lambda x: x.position[1])]
+                arrFound = True
+        if arrFound:
+            shX, shY = shSorted[0][0].shape[0], shSorted[0][0].shape[1]
+            vCount = 0
+            for vShs in shSorted:
+                hCount = 0 
+                for hSh in vShs:
                     newInsert = copy.deepcopy(hSh)
                     newInsert.position = (vCount*(shX-overlap), hCount*(shY-overlap))
                     m = insertShape(m, newInsert)
-                else:
-                    m = deleteShape(m,hSh,matrix.backgroundColor)
-                    for i,j in np.ndindex(hSh.m.shape):
-                        if hSh.m[i,j] != 255:
-                            if m[i,j] == matrix.backgroundColor:
-                                m[i,j] = hSh.m[i,j]
-                            else:
-                                m[i,j] = max(hSh.m[i,j], m[i,j])
-                hCount += 1
-            vCount += 1
-    return m
+                    hCount += 1
+                vCount += 1
+            if outShape == None:
+                return m[:(vCount)*(shX-overlap),\
+                         :(hCount)*(shY-overlap)]
+            else:
+                return m
+        
+    elif arrange=='fit':
+        shList.sort(key=lambda x: len(x.pixels), reverse=True)
+        if outShape == None:
+            outShape = shList[0].shape
+        if all(sh.shape == outShape for sh in shList):
+            m = np.full(outShape, fill_value=0)
+            for sh in shList:
+                for i, j in np.ndindex(m.shape):
+                    if sh.m[i,j]!= 255:
+                        m[i,j] = max(m[i,j],sh.m[i,j])
+            return m
+        
+        elif all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
+            m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,0,matrix.backgroundColor)
+            if tessellate:
+                return m
+            else:
+                m = np.full(outShape, fill_value=matrix.backgroundColor)
+                for i, j in np.ndindex(shList[0].shape):
+                    if shList[0].m[i,j]!=255:
+                        m[i,j]=shList[0].m[i,j]
+                mSeen = np.zeros(m.shape)
+                for sh in shList[1:]:
+                    score = 0
+                    bestX, bestY = 0, 0
+                    for i,j in np.ndindex(tuple(np.add(np.subtract(m.shape,sh.shape),(1,1)))):
+                        if np.all (mSeen[i: i+sh.shape[0], j:j+sh.shape[1]] == 0):
+                            newScore = np.count_nonzero(m[i: i+sh.shape[0], j:j+sh.shape[1]] == sh.m)
+                            if newScore > score:
+                                bestX, bestY = i, j
+                                score = newScore
+                    if score > 0:
+                        for i,j in np.ndindex(sh.shape):
+                            mSeen[bestX+i,bestY+j] = 1
+                            if sh.m[i,j] != 255:
+                                m[bestX+i,bestY+j] = sh.m[i,j]
+                return m
+    return matrix.m
 
 #replicate shape
 def isReplicateTask(t):
@@ -4227,21 +4308,22 @@ def getBestReplicateShapes(t):
     if isDeleteTask(t):
         deleteOriginal = True
     
-    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,deleteOriginal=deleteOriginal,\
-                                                            anchorType='subframe', allCombs=False,scale=False), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,deleteOriginal=deleteOriginal,\
-                                                            anchorType='subframe', allCombs=False,scale=True), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,deleteOriginal=deleteOriginal,\
-                                                            anchorType='subframe', allCombs=True,scale=False), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,deleteOriginal=deleteOriginal,\
-                                                            anchorType='subframe', allCombs=True,scale=True), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,deleteOriginal=deleteOriginal,\
+    #bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
+    #                                                        anchorType='subframe', allCombs=False,scale=False), bestScore, bestFunction)
+    #bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
+    #                                                        anchorType='subframe', allCombs=False,scale=True), bestScore, bestFunction)
+    #bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
+    #                                                        anchorType='subframe', allCombs=True,scale=False), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
+                                                            anchorType='subframe'), bestScore, bestFunction)
+    
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
                                                             anchorType='subframe', allCombs=False,attributes=set(['MoCl'])), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,deleteOriginal=deleteOriginal,\
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
                                                             anchorType='subframe', allCombs=True,scale=True,attributes=set(['MoCl'])), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,deleteOriginal=deleteOriginal,\
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
                                                             anchorType='subframe', allCombs=False,scale=True,attributes=set(['MoCl'])), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=True, multicolor=True,deleteOriginal=deleteOriginal,\
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
                                                             anchorType='subframe', allCombs=True,attributes=set(['MoCl'])), bestScore, bestFunction)
     if bestScore == 0:
         return bestFunction
@@ -4266,16 +4348,16 @@ def getBestReplicateShapes(t):
                                     mirror=mirror, rotate=rotate, allCombs=False, scale=True, deleteOriginal=deleteOriginal), bestScore, bestFunction)
                     if bestScore == 0:      
                         return bestFunction
-    #for attributes in [set(['UnCo'])]:
-    #    for cc in [cc[0] for cc in t.colorChanges]:
-    #            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
-    #                            mirror=None, rotate=0, allCombs=True, scale=False, deleteOriginal=True), bestScore, bestFunction)
-    #            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
-    #                            mirror=None, rotate=0, allCombs=True, scale=False, deleteOriginal=False), bestScore, bestFunction)
+    for attributes in [set(['UnCo'])]:
+        for cc in [cc[0] for cc in t.colorChanges]:
+                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
+                                mirror=None, rotate=0, allCombs=True, scale=False, deleteOriginal=True), bestScore, bestFunction)
+                bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
+                                mirror=None, rotate=0, allCombs=True, scale=False, deleteOriginal=False), bestScore, bestFunction)
     return bestFunction
 
 def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, anchorType=None, anchorColor=0,\
-                    mirror=None, rotate=0, allCombs=False, scale=False, deleteOriginal=False, adoptAnchorColor=False):
+                    mirror=None, rotate=0, allCombs=False, scale=False, deleteOriginal=False):
     m = matrix.m.copy()
     score = -1
     #first find the shape or shapes to replicate
@@ -4371,13 +4453,7 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
                             mAux = m[max(sh2.position[0]-x, 0):min(sh2.position[0]-x+repSh.shape[0], m.shape[0]), max(sh2.position[1]-y, 0):min(sh2.position[1]-y+repSh.shape[1], m.shape[1])]
                             shAux = repSh.m[max(0, x-sh2.position[0]):min(repSh.shape[0],m.shape[0]+x-sh2.position[0]),max(0, y-sh2.position[1]):min(repSh.shape[1],m.shape[1]+y-sh2.position[1])]
                             seenAux = seenM[max(sh2.position[0]-x, 0):min(sh2.position[0]-x+repSh.shape[0], m.shape[0]), max(sh2.position[1]-y, 0):min(sh2.position[1]-y+repSh.shape[1], m.shape[1])]
-                            #if adoptAnchorColor and np.all(np.logical_or(shAux!=255, mAux == matrix.backgroundColor)):
-                            #    score = np.count_nonzero(np.logical_and(mAux!=matrix.backgrounfColor,shAux!=255))
-                            #    if score > bestScore:
-                            #        bestScore = score
-                            #        bestX, bestY = sh2.position[0]-x, sh2.position[1]-y
-                            #        bestSh = copy.deepcopy(repSh)
-                            if (not adoptAnchorColor) and np.all(np.logical_or(mAux==shAux, mAux == matrix.backgroundColor)) and np.all(seenAux==0):
+                            if np.all(np.logical_or(mAux==shAux, mAux == matrix.backgroundColor)) and np.all(seenAux==0):
                                 score = np.count_nonzero(mAux==shAux)
                                 if score > bestScore:
                                     bestScore = score
@@ -4395,7 +4471,6 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
     if deleteOriginal:
         for sh in delList:
             m = deleteShape(m, sh, matrix.backgroundColor)
-    #if deleteAnchor
     return(m)
         
 #overlapSubmatrices 
@@ -5084,9 +5159,12 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
-                        
-    # Cropshape
-    if candTask.outSmallerThanIn:
+    
+    if candTask.outSmallerThanIn:        
+        #arrangeShapes                    
+        x.append(getBestArrangeShapes(candTask))
+        
+        # Cropshape    
         bestCrop = getBestCropShape(candTask)
         if 'attributes' in bestCrop.keywords.keys():
             for attr in bestCrop.keywords['attributes']:
@@ -5095,18 +5173,19 @@ def getPossibleOperations(t, c):
                 newCrop = copy.deepcopy(bestCrop)
                 newCrop.keywords['attributes'] = set([attr])
                 x.append(newCrop)
-                
+               
         #this next part is artificial
         if len(candTask.commonInDShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInDShapes, diagonal=True))
         if len(candTask.commonInShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
+        
         for attrs in [set(['LaSh'])]:
-            x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor), singleColor=True, diagonals=True)) 
+            x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
+                                 singleColor=True, diagonals=True)) 
             x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
                                  singleColor=True, diagonals=True, context=True)) 
-    
-    x.append(partial(cropAllBackground))
+        
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
@@ -5123,5 +5202,5 @@ def getPossibleOperations(t, c):
     # minimize
     if not candTask.sameIOShapes:
         x.append(partial(minimize))
-        
+    
     return x
