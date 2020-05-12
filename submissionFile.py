@@ -7664,8 +7664,8 @@ def needsSeparationByShapes(t):
                     # Generate the new input and output matrices
                     inM = np.full(t.trainSamples[s].inMatrix.shape, t.backgroundColor ,dtype=np.uint8)
                     outM = inM.copy()
-                    inM = Utils.insertShape(inM, inShape)
-                    outM = Utils.insertShape(outM, outShapes[s][bestIndex])
+                    inM = insertShape(inM, inShape)
+                    outM = insertShape(outM, outShapes[s][bestIndex])
                     task['train'].append({'input': inM.tolist(), 'output': outM.tolist()})
             # If we haven't dealt with all the shapes successfully, then return
             if len(seenIndices) != len(inShapes[s]):
@@ -7675,7 +7675,7 @@ def needsSeparationByShapes(t):
         for s in range(t.nTest):
             for testShape in testShapes[s]:
                 inM = np.full(t.testSamples[s].inMatrix.shape, t.backgroundColor ,dtype=np.uint8)
-                inM = Utils.insertShape(inM, testShape)
+                inM = insertShape(inM, testShape)
                 if t.submission:
                     task['test'].append({'input': inM.tolist()})
                 else:
