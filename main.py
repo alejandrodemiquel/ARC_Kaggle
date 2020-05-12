@@ -307,15 +307,15 @@ class Best3Candidates():
 
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
-    
+
 # Separate task by shapes
 class TaskSeparatedByShapes():
     def __init__(self, diagonal):
         self.task = None
-        
+
     def recover(self):
         return self.task
-    
+
 def needsSeparationByShapes(t):
     def getOverlap(inShape, inPos, outShape, outPos):
         x1a, y1a, x1b, y1b = inPos[0], inPos[1], outPos[0], outPos[1]
@@ -337,16 +337,16 @@ def needsSeparationByShapes(t):
             if y2b<=y1a:
                 return 0
             y = y2b-y1a+1
-            
+
         return x*y
-    
+
     # I need to have a background color to generate the new task object
     if t.backgroundColor==-1 or not t.sameIOShapes:
         return False
     # Only consider tasks without small matrices
     if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<50 for s in t.trainSamples+t.testSamples]):
         return False
-    
+
     # First, consider normal shapes (not background, not diagonal, not multicolor)
     inShapes = [[shape for shape in s.inMatrix.shapes if shape.color!=t.backgroundColor] for s in t.trainSamples]
     outShapes = [[shape for shape in s.outMatrix.shapes if shape.color!=t.backgroundColor] for s in t.trainSamples]
@@ -367,8 +367,8 @@ def needsSeparationByShapes(t):
                     shapeIndex += 1
                 if bestIndex!=-1 and bestIndex not in seenIndices:
                     seenIndices.add(bestIndex)
-                        
-    return True    
+
+    return True
 
 # Crop task if necessary
 
@@ -598,7 +598,7 @@ def tryOperations(t, c, firstIt=False):
     if c.score==0 or b3c.allPerfect():
         return
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
-                "maxColorFromCell") # applyEvolve?
+                "maxColorFromCell", "deleteShapes", "replicateShapes") # applyEvolve?
     repeatIfPerfect = ("extendColor")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
@@ -667,7 +667,7 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
              299,345,364,383,395,488,576,578,635,712,727,785]
 cropAllBackground = [216, 258]
-arrangeTasks = [21,45,95,125,152,158,200,232,237,252,263,295,365,414,440,475,498,523,535,558,\
+arrangeTasks = [21,29,45,95,125,152,158,200,232,237,252,263,295,365,414,440,475,498,523,535,558,\
                 588,589,622,624,652,676,699,759,760]
 replicateTasks = [17,68,75,79,100,111,116,157,172,360,367,421,500,524,540,645]
 replicateToDoTasks = [4,100,132,157,196,208,779,795]
@@ -693,7 +693,7 @@ for idx in tqdm(separateByShapes, position=0, leave=True):
         t = Task.Task(task, taskId, submission=False)
     else:
         t = originalT
-        
+
     cTask = copy.deepcopy(task)
 
     if t.sameIOShapes:

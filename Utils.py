@@ -1703,8 +1703,9 @@ def symmetrizeNonbackgroundSubmatrix(matrix, ud=False, lr=False, rotation=False,
                     m[x1+i,2*y+y1+d-j-1] = subMat[i,j]
                     m[2*x+x1+d-i-1,2*y+y1+d-j-1] = subMat[i,j]
     elif rotate:
-        if x1+y+subMat.shape[0]> m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
-            or y1+y-x+subMat.shape[0]> m.shape[0] or x1+x-y+subMat.shape[1]>m.shape[1]:
+        #if x1+y+subMat.shape[0]> m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
+        if x1+y+subMat.shape[0] > m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
+            or y1+y-x+subMat.shape[0]>= m.shape[0] or x1+x-y+subMat.shape[1]>=m.shape[1]:
             return m
         for i in range(subMat.shape[0]):
             for j in range(subMat.shape[1]):
@@ -4463,17 +4464,61 @@ def cropAllShapes(matrix, background, diagonal=False):
 # %% Stuff added by Roderic
 #delete shape with x properties
 def isDeleteTask(t):    
-    if hasattr(t, 'colorChanges') and all(t.backgroundColor == c[1] for c in t.colorChanges):
+    if hasattr(t, 'colorChanges') and t.backgroundColor in [c[1] for c in t.colorChanges]:
         return True
     return False
 
-def getBestDeleteShapes(t, multicolor, diagonal):
-    attrs = set(['LaSh','SmSh','MoCl','MoCo'])
+def getBestDeleteShapes(t, multicolor=False, diagonal=True):
+    attrs = set(['LaSh','SmSh','MoCl','MoCo','PiXl'])
     bestScore = 1000
     bestFunction = partial(identityM)
     for attr in attrs:
-        bestFunction, bestScore = updateBestFunction(t, partial(deleteShapes, diagonal=True, multicolor=True,attributes=set([attr])), bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, partial(deleteShapes, diagonal=diagonal, multicolor=multicolor,attributes=set([attr])), bestScore, bestFunction)
     return bestFunction
+
+def getDeleteAttributes(t, diagonal=True):
+    bC = max(0, t.backgroundColor)
+    if diagonal:
+        if t.nCommonInOutDShapes == 0:
+            return set()
+        attrs = set.union(*[s.inMatrix.getShapeAttributes(backgroundColor=bC,\
+                    singleColor=True, diagonals=True)[s.inMatrix.dShapes.index(sh[0])]\
+                    for s in t.trainSamples for sh in s.commonDShapes])
+        nonAttrs = set()
+        c = 0
+        for s in t.trainSamples:
+            shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=bC, singleColor=True, diagonals=True)
+            for shi in range(len(s.inMatrix.shapes)):
+                if any(s.inMatrix.dShapes[shi] == sh2[0] for sh2 in s.commonDShapes) or s.inMatrix.dShapes[shi].color == bC:
+                    continue
+                else:
+                    if c == 0:
+                        nonAttrs = shAttrs[shi]
+                        c += 1
+                    else:
+                        nonAttrs = nonAttrs.intersection(shAttrs[shi])
+                        c += 1
+    else:
+        if t.nCommonInOutShapes == 0:
+            return set()
+        attrs = set.union(*[s.inMatrix.getShapeAttributes(backgroundColor=bC,\
+                    singleColor=True, diagonals=False)[s.inMatrix.shapes.index(sh[0])]\
+                    for s in t.trainSamples for sh in s.commonShapes])
+        nonAttrs = set()
+        c = 0
+        for s in t.trainSamples:
+            shAttrs = s.inMatrix.getShapeAttributes(backgroundColor=bC, singleColor=True, diagonals=False)
+            for shi in range(len(s.inMatrix.shapes)):
+                if any(s.inMatrix.shapes[shi] == sh2[0] for sh2 in s.commonShapes) or s.inMatrix.shapes[shi].color == bC:
+                    continue
+                else:
+                    if c == 0:
+                        nonAttrs = shAttrs[shi]
+                        c += 1
+                    else:
+                        nonAttrs = nonAttrs.intersection(shAttrs[shi])
+                        c += 1
+    return set(nonAttrs - attrs)
 
 def deleteShapes(matrix, attributes, diagonal, multicolor):
     m = matrix.m.copy()
@@ -4548,7 +4593,7 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
             shList = [sh for sh in matrix.multicolorShapes]
     
     if len(shList) < 2:
-        return matrix.m
+        return matrix.m.copy()
     
     if arrange=='lay':
         if outShape == None:
@@ -5307,8 +5352,8 @@ def getPossibleOperations(t, c):
         x.append(getBestReplicateShapes(candTask))
         
         #delete shapes
-        #if isDeleteTask(candTask):
-        #    x.append(getBestDeleteShapes(candTask, True, True))
+        if isDeleteTask(candTask) and all(t.backgroundColor == c[1] for c in candTask.colorChanges):
+            x.append(getBestDeleteShapes(candTask, True, True))
         
         # TODO
         """
@@ -5524,10 +5569,14 @@ def getPossibleOperations(t, c):
                                          targetColor=target, trueColor=c[1]))
                         
     # Cropshape
+    
     if candTask.outSmallerThanIn:
+        x.append(partial(deleteShapes, attributes = getDeleteAttributes(candTask, diagonal = False), diagonal = False, multicolor=False))
+        x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
+        x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
+        x.append(getBestArrangeShapes(candTask))
         if candTask.backgroundColor!=-1:
             #arrangeShapes                    
-            x.append(getBestArrangeShapes(candTask))
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=True))
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=False))
         
