@@ -3899,6 +3899,8 @@ def extendMatrix(matrix, color, position="tl", xShape=None, yShape=None, isSquar
     if yShape==None:
         yShape = matrix.shape[1]
     m = np.full((xShape, yShape), color, dtype=np.uint8)
+    print(matrix.m)
+    print(xShape, yShape)
     if position=="tl":
         m[0:matrix.shape[0], 0:matrix.shape[1]] = matrix.m.copy()
     elif position=="tr":
@@ -3949,7 +3951,7 @@ def getBestExtendMatrix(t):
             goodDimension='y'     
         elif all([s.outMatrix.shape[0]==s.inMatrix.shape[0] for s in t.trainSamples]):
             goodDimension='x'      
-    
+
     for position in ["tl", "tr", "bl", "br"]:
         f = partial(extendMatrix, color=background, xShape=xShape, yShape=yShape,\
                     position=position, isSquare=isSquare, goodDimension=goodDimension)
@@ -4569,7 +4571,7 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
             if len(shList) == 4:
                 shSorted = [sorted(shList[:2],key=lambda x: x.position[1]), sorted(shList[2:],key=lambda x: x.position[1])]
                 arrFound = True
-        if arrFound:
+        if arrFound and len(shSorted)>0 and len(shSorted[0])>0 and len(shSorted[0][0].shape)>0:
             shX, shY = shSorted[0][0].shape[0], shSorted[0][0].shape[1]
             vCount = 0
             for vShs in shSorted:
@@ -5376,7 +5378,7 @@ def getPossibleOperations(t, c):
     ###########################################################################
     # Other cases
     
-    if candTask.inSmallerThanOut:
+    if candTask.inSmallerThanOut and t.inSmallerThanOut:
         x.append(getBestExtendMatrix(candTask))
 
     if hasattr(candTask, 'inShapeFactor'):

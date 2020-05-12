@@ -307,6 +307,70 @@ class Best3Candidates():
 
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
+    
+# Separate task by shapes
+class TaskSeparatedByShapes():
+    def __init__(self, diagonal):
+        self.task = None
+        
+    def recover(self):
+        return self.task
+    
+def needsSeparationByShapes(t):
+    def getOverlap(inShape, inPos, outShape, outPos):
+        x1a, y1a, x1b, y1b = inPos[0], inPos[1], outPos[0], outPos[1]
+        x2a, y2a = inPos[0]+inShape[0]-1, inPos[1]+inShape[1]-1
+        x2b, y2b = outPos[0]+outShape[0]-1, outPos[1]+outShape[1]-1
+        if x1a<=x1b:
+            if x2a<=x1b:
+                return 0
+            x = x2a-x1b+1
+        elif x1b<=x1a:
+            if x2b<=x1a:
+                return 0
+            x = x2b-x1a+1
+        if y1a<=y1b:
+            if y2a<=y1b:
+                return 0
+            y = y2a-y1b+1
+        elif y1b<=y1a:
+            if y2b<=y1a:
+                return 0
+            y = y2b-y1a+1
+            
+        return x*y
+    
+    # I need to have a background color to generate the new task object
+    if t.backgroundColor==-1 or not t.sameIOShapes:
+        return False
+    # Only consider tasks without small matrices
+    if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<50 for s in t.trainSamples+t.testSamples]):
+        return False
+    
+    # First, consider normal shapes (not background, not diagonal, not multicolor)
+    inShapes = [[shape for shape in s.inMatrix.shapes if shape.color!=t.backgroundColor] for s in t.trainSamples]
+    outShapes = [[shape for shape in s.outMatrix.shapes if shape.color!=t.backgroundColor] for s in t.trainSamples]
+    if all([len(inShapes[s])<=7 and len(inShapes[s])==len(outShapes[s]) for s in range(t.nTrain)]):
+        # Assign every input shape to the output shape with maximum overlap
+        task = {'train': [], 'test': []}
+        for s in range(t.nTrain):
+            seenIndices = set()
+            for inShape in inShapes[s]:
+                shapeIndex = 0
+                maxOverlap = 0
+                bestIndex = -1
+                for outShape in outShapes[s]:
+                    overlap = getOverlap(inShape.shape, inShape.position, outShape.shape, outShape.position)
+                    if overlap > maxOverlap:
+                        maxOverlap = overlap
+                        bestIndex = shapeIndex
+                    shapeIndex += 1
+                if bestIndex!=-1 and bestIndex not in seenIndices:
+                    seenIndices.add(bestIndex)
+                        
+    return True    
+
+# Crop task if necessary
 
 def getCroppingPosition(matrix):
     bC = matrix.backgroundColor
@@ -607,16 +671,18 @@ arrangeTasks = [21,45,95,125,152,158,200,232,237,252,263,295,365,414,440,475,498
                 588,589,622,624,652,676,699,759,760]
 replicateTasks = [17,68,75,79,100,111,116,157,172,360,367,421,500,524,540,645]
 replicateToDoTasks = [4,100,132,157,196,208,779,795]
-cropAndRecover = [22,84,91,104,131,165,223,245,334,341,407,419,422,432,437,\
-                  445,456,485,497,530,541,547,564,610,611,625,634,640,657,673,\
-                  678,680,681,682,691,701,702,710,716,722,745,756,758,762,767,\
-                  773,779,780,792,795,798]
+
+separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,429,\
+                    432,455,469,496,497,502,504,513,517,525,528,531,552,599,602,\
+                    610,611,613,640,650,654,657,673,681,697,729,750,777]
+separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,754,\
+                    769,780,781]
 
 #, 190, 367, 421, 431, 524
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(800), position=0, leave=True):
+for idx in tqdm(separateByShapes, position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
