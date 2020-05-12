@@ -1703,8 +1703,9 @@ def symmetrizeNonbackgroundSubmatrix(matrix, ud=False, lr=False, rotation=False,
                     m[x1+i,2*y+y1+d-j-1] = subMat[i,j]
                     m[2*x+x1+d-i-1,2*y+y1+d-j-1] = subMat[i,j]
     elif rotate:
-        if x1+y+subMat.shape[0]> m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
-            or y1+y-x+subMat.shape[0]> m.shape[0] or x1+x-y+subMat.shape[1]>m.shape[1]:
+        #if x1+y+subMat.shape[0]> m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
+        if x1+y+subMat.shape[0] > m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
+            or y1+y-x+subMat.shape[0]>= m.shape[0] or x1+x-y+subMat.shape[1]>=m.shape[1]:
             return m
         for i in range(subMat.shape[0]):
             for j in range(subMat.shape[1]):
@@ -5420,8 +5421,8 @@ def getPossibleOperations(t, c):
     ###########################################################################
     # Other cases
     
-    #if candTask.inSmallerThanOut:
-    #    x.append(getBestExtendMatrix(candTask))
+    if candTask.inSmallerThanOut:
+        x.append(getBestExtendMatrix(candTask))
 
     if hasattr(candTask, 'inShapeFactor'):
         x.append(partial(multiplyPixels, factor=candTask.inShapeFactor))
