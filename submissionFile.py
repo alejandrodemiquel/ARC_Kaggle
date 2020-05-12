@@ -8102,7 +8102,6 @@ for output_id in submission.index:
             for cand in range(3):
                 pred = mergeMatrices(matrices[cand], originalT.backgroundColor)
                 mergedPredictions[cand] = pred
-                plot_sample(originalT.testSamples[s], pred)
         
         bestSepIndex = 0
         if sepB3c.candidates[1].score < sepB3c.candidates[bestSepIndex].score:
