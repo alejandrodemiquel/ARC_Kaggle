@@ -756,14 +756,16 @@ class Matrix():
                 shapeList = [sh for sh in self.dShapes]
             else:   
                 shapeList = [sh for sh in self.shapes]
+            if len([sh for sh in shapeList if sh.color != backgroundColor]) == 0:
+                return [set() for sh in shapeList]
         else:
             if diagonals: 
                 shapeList = [sh for sh in self.multicolorDShapes]
             else:
                 shapeList = [sh for sh in self.multicolorShapes]
+            if len(shapeList) == 0:
+                return [set()]
         attrList =[[] for i in range(len(shapeList))]
-        if len(shapeList) == 0:
-            return [[]]
         if singleColor:
             cc = Counter([sh.color for sh in shapeList])
         if singleColor:
@@ -771,7 +773,9 @@ class Matrix():
         else:
             sc = Counter([sh.nPixels for sh in shapeList])
         largest, smallest, mcopies, mcolors = -1, 1000, 0, 0
-        maxH, minH = max([sh.nHoles for sh in shapeList]), min([sh.nHoles for sh in shapeList])
+        if singleColor:
+            maxH, minH = max([sh.nHoles for sh in shapeList if sh.color != backgroundColor]),\
+                            min([sh.nHoles for sh in shapeList if sh.color != backgroundColor])
         ila, ism = [], []
         for i in range(len(shapeList)):
             #color count
@@ -836,11 +840,15 @@ class Matrix():
             else:
                 attrList[i].append('ND2Sy')
             attrList[i].append(shapeList[i].position)
+            #pixels
+            if len(shapeList[i].pixels) == 1:
+                attrList[i].append('PiXl')
             #holes
-            if shapeList[i].nHoles == maxH:
-                attrList[i].append('MoHo')
-            elif shapeList[i].nHoles == minH:
-                attrList[i].append('LeHo')
+            if singleColor:
+                if shapeList[i].nHoles == maxH:
+                    attrList[i].append('MoHo')
+                elif shapeList[i].nHoles == minH:
+                    attrList[i].append('LeHo')
     
         if len(ism) == 1:
             attrList[ism[0]].append('SmSh')
