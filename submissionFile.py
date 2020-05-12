@@ -7011,10 +7011,10 @@ def getPossibleOperations(t, c):
     
     ###########################################################################
     # Evolve
-    #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
-    #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-    #    cfn = evolve(candTask)
-    #   x.append(getBestEvolve(candTask, cfn))
+    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
+        cfn = evolve(candTask)
+        x.append(getBestEvolve(candTask, cfn))
     #    x.append(partial(applyEvolve, cfn=cfn, nColors=candTask.trainSamples[0].nColors,\
     #                     kernel=5, nIterations=1))
     
@@ -7603,6 +7603,24 @@ class Best3Candidates():
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
     
+    def getOrderedIndices(self):
+        """
+        Returns a list of 3 indices (from 0 to 2) with the candidates ordered
+        from best to worst.
+        """
+        orderedList = [0]
+        if self.candidates[1] < self.candidates[0]:
+            orderedList.insert(0, 1)
+        else:
+            orderedList.append(1)
+        if self.candidates[2] < self.candidates[orderedList[0]]:
+            orderedList.insert(0, 2)
+        elif self.candidates[2] < self.candidates[orderedList[1]]:
+            orderedList.insert(1, 2)
+        else:
+            orderedList.append(2)
+        return orderedList
+    
 # Separate task by shapes
 class TaskSeparatedByShapes():
     def __init__(self, task, background, diagonal=False):
@@ -8103,106 +8121,24 @@ for output_id in submission.index:
                 pred = mergeMatrices(matrices[cand], originalT.backgroundColor)
                 mergedPredictions[cand] = pred
         
-        bestSepIndex = 0
-        if sepB3c.candidates[1].score < sepB3c.candidates[bestSepIndex].score:
-            bestSepIndex = 1
-        if sepB3c.candidates[2].score < sepB3c.candidates[bestSepIndex].score:
-            bestSepIndex = 2
-            
-        worstIndex = 0
-        if b3c.candidates[1].score > b3c.candidates[worstIndex].score:
-            worstIndex = 1
-        if b3c.candidates[2].score > b3c.candidates[worstIndex].score:
-            worstIndex = 2
-            
-        predictions[pair_id][worstIndex] = mergedPredictions[pair_id][bestSepIndex]
+        b3cIndices = b3c.getOrderedIndices()
+        sepB3cIndices = sepB3c.getOrderedIndices()
+                
+        b3cIndex, sepB3cIndex = 0, 0
+        for i in range(3):
+            if b3c.candidates[b3cIndices[b3cIndex]] <=  sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                b3cIndex += 1
+            else:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = predictions[s][sepB3cIndices[sepB3cIndex]]
+                sepB3cIndex += 1
     
     pred = []
     for i in range(len(predictions[pair_id])):
         pred.append(flattener(predictions[pair_id][i].astype(int).tolist()))
     predictions = pred
-    
-    """
-    if needsRecoloring(originalT):
-        task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
-        t = Task(task, task_id, submission=True)
-    else:
-        t = originalT
-    
-    cTask = copy.deepcopy(task)
-        
-    if t.sameIOShapes:
-        taskNeedsCropping = needsCropping(t)
-    else:
-        taskNeedsCropping = False
-    if taskNeedsCropping:
-        cropPositions = cropTask(t, cTask)
-        t2 = Task(cTask, task_id, submission=True)
-    elif t.hasUnchangedGrid:
-        if t.gridCellsHaveOneColor:
-            ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
-            t2 = Task(cTask, task_id, submission=True)
-        elif t.outGridCellsHaveOneColor:
-            ignoreGrid(t, cTask, inMatrix=False)
-            t2 = Task(cTask, task_id, submission=True)
-        else:
-            t2 = t
-    elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
-        ignoreAsymmetricGrid(t, cTask)
-        t2 = Task(cTask, task_id, submission=True)
-    else:
-        t2 = t
-                
-    c = Candidate([], [task])
-    c.t = t2
-    b3c = Best3Candidates(c, c, c)
-        
-    # Generate the three candidates with best possible score
-    prevScore = sum([c.score for c in b3c.candidates])
-    firstIt = True
-    while True:
-        copyB3C = copy.deepcopy(b3c)
-        for c in copyB3C.candidates:
-            if c.score == 0:
-                continue
-            tryOperations(t2, c, firstIt)
-            if firstIt:
-                firstIt = False
-                break
-        score = sum([c.score for c in b3c.candidates])
-        if score >= prevScore:
-            break
-        else:
-            prevScore = score
-            
-    for s in range(t.nTest):
-        if s != pair_id:
-            continue
-        nCandidate = 0
-        for c in b3c.candidates:
-            x = t2.testSamples[s].inMatrix.m.copy()
-            for op in c.ops:
-                if x is not None:
-                    newX = op(Matrix(x))
-                    if t2.sameIOShapes and len(t2.fixedColors) != 0:
-                        x = correctFixedColors(x, newX, t2.fixedColors)
-                    else:
-                        x = newX.copy()
-            if taskNeedsCropping:
-                x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
-                                         cropPositions["test"][s], t.testSamples[s].inMatrix.backgroundColor)
-            elif t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
-                x = recoverGrid(t, x, s)
-            elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
-                x = recoverAsymmetricGrid(t, x, s)
-            if needsRecoloring(originalT):
-                x = recoverOriginalColors(x, testRels[s])
-            #if c.score!=0 and treeModelSolutions[nCandidate]!=0:
-            #    predictions.append(flattener(treeModelSolutions[nCandidate][s]))
-            if x is not None:
-                predictions.append((flattener(x.astype(int).tolist())))
-            nCandidate += 1
-    """
 
     if len(predictions) == 0:
         pred = '|0| |0| |0|'

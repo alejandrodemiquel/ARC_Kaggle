@@ -307,6 +307,25 @@ class Best3Candidates():
 
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
+    
+    def getOrderedIndices(self):
+        """
+        Returns a list of 3 indices (from 0 to 2) with the candidates ordered
+        from best to worst.
+        """
+        orderedList = [0]
+        if self.candidates[1] < self.candidates[0]:
+            orderedList.insert(0, 1)
+        else:
+            orderedList.append(1)
+        if self.candidates[2] < self.candidates[orderedList[0]]:
+            orderedList.insert(0, 2)
+        elif self.candidates[2] < self.candidates[orderedList[1]]:
+            orderedList.insert(1, 2)
+        else:
+            orderedList.append(2)
+        return orderedList
+        
 
 # Separate task by shapes
 class TaskSeparatedByShapes():
@@ -868,7 +887,23 @@ for idx in tqdm(separateByShapes, position=0, leave=True):
                 pred = Utils.mergeMatrices(matrices[cand], originalT.backgroundColor)
                 mergedPredictions[cand] = pred
                 plot_sample(originalT.testSamples[s], pred)
+                
+        b3cIndices = b3c.getOrderedIndices()
+        sepB3cIndices = sepB3c.getOrderedIndices()
+                
+        b3cIndex, sepB3cIndex = 0, 0
+        for i in range(3):
+            if b3c.candidates[b3cIndices[b3cIndex]] <=  sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                b3cIndex += 1
+            else:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = predictions[s][sepB3cIndices[sepB3cIndex]]
+                sepB3cIndex += 1
         
+        
+        """
         bestSepIndex = 0
         if sepB3c.candidates[1].score < sepB3c.candidates[bestSepIndex].score:
             bestSepIndex = 1
@@ -887,4 +922,4 @@ for idx in tqdm(separateByShapes, position=0, leave=True):
         
         for s in range(originalT.nTest):
             predictions[s][worstIndex] = mergedPredictions[s][bestSepIndex]
-        
+        """
