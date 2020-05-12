@@ -8,10 +8,9 @@ add function to startOps + Crop: 624, 588
 - 424, 475, 498, 624: replicate + crop
 
 - can i remove the line to crop the largest shape? i think i can for 133 but what about 28
-- still worried about tryOperations score 0 (712)
 - 774 add cropshape options???
 
-- delete shapes: 254, 96, 129 (holes)
+- delete shapes: 654, 96, 129 (holes)
 - symmetrize: 61
 - arrange: 558, 440, 438, 414
 should be solved: 30 cropshape, 36 connect all pixekls,
@@ -31,6 +30,9 @@ lay + smth:
 replicate + cropLargest: 365, 624
 
 ------------DeleteShapes-----------
+
+solves: 96, 652
+
 TODOs:
 - Get attributes betters
 - when to call
