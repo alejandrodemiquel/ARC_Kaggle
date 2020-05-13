@@ -650,6 +650,21 @@ class Matrix():
             self.d2Symmetric = False
         self.totalSymmetric = self.lrSymmetric and self.udSymmetric and \
         self.d1Symmetric and self.d2Symmetric
+        
+        self.fullBorders = []
+        for f in self.frontiers:
+            if f.color != self.backgroundColor:
+                if f.position==0:
+                    self.fullBorders.append(f)
+                elif (f.direction=='h' and f.position==self.shape[0]-1) or\
+                (f.direction=='v' and f.position==self.shape[1]-1):
+                    self.fullBorders.append(f)
+               
+        self.isVertical = False
+        self.isHorizontal = False
+        if len(self.frontiers)!=0:
+            self.isVertical = all([f.direction=='v' for f in self.frontiers])
+            self.isHorizontal = all([f.direction=='h' for f in self.frontiers])
     
     def getColors(self):
         unique, counts = np.unique(self.m, return_counts=True)
@@ -867,6 +882,7 @@ class Matrix():
                     attrList[i].append('UnSh')
                     break
         return [set(l[1:]) for l in attrList]
+            
 
 # %% Class Sample
 class Sample():
@@ -1060,6 +1076,17 @@ class Sample():
             # Does the output matrix follow a pattern?
             self.followsRowPattern = self.outMatrix.followsRowPattern()
             self.followsColPattern = self.outMatrix.followsColPattern()
+            
+            # Full borders and horizontal/vertical
+            if self.sameShape:
+                self.commonFullBorders = []
+                for inBorder in self.inMatrix.fullBorders:
+                    for outBorder in self.outMatrix.fullBorders:
+                        if inBorder==outBorder:
+                            self.commonFullBorders.append(inBorder)
+                
+                self.isHorizontal = self.inMatrix.isHorizontal and self.outMatrix.isHorizontal
+                self.isVertical = self.inMatrix.isVertical and self.outMatrix.isVertical
 
     def getCommonShapes(self, diagonal=True, multicolor=False, sameColor=False, samePosition=False, rotation=False, \
                      mirror=False, scaling=False):
@@ -1381,6 +1408,14 @@ class Task():
             self.rowPatterns = [s.outMatrix.followsRowPattern() for s in self.trainSamples]
         if self.followsColPattern:
             self.colPatterns = [s.outMatrix.followsColPattern() for s in self.trainSamples]
+        
+        # Full Borders / Requires vertical-horizontal rotation
+        if self.sameIOShapes:
+            self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples])
+            self.requiresHVRotation = False
+            if not (self.allEqual([s.isHorizontal for s in self.trainSamples]) or \
+                    self.allEqual([s.isVertical for s in self.trainSamples])):    
+                self.requiresHVRotation = all([s.isHorizontal or s.isVertical for s in self.trainSamples])
         
     def allEqual(self, x):
         """

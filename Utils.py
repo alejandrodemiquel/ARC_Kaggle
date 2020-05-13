@@ -3900,8 +3900,6 @@ def extendMatrix(matrix, color, position="tl", xShape=None, yShape=None, isSquar
     if yShape==None:
         yShape = matrix.shape[1]
     m = np.full((xShape, yShape), color, dtype=np.uint8)
-    print(matrix.m)
-    print(xShape, yShape)
     if position=="tl":
         m[0:matrix.shape[0], 0:matrix.shape[1]] = matrix.m.copy()
     elif position=="tr":
