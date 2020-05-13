@@ -307,6 +307,25 @@ class Best3Candidates():
 
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
+    
+    def getOrderedIndices(self):
+        """
+        Returns a list of 3 indices (from 0 to 2) with the candidates ordered
+        from best to worst.
+        """
+        orderedList = [0]
+        if self.candidates[1] < self.candidates[0]:
+            orderedList.insert(0, 1)
+        else:
+            orderedList.append(1)
+        if self.candidates[2] < self.candidates[orderedList[0]]:
+            orderedList.insert(0, 2)
+        elif self.candidates[2] < self.candidates[orderedList[1]]:
+            orderedList.insert(1, 2)
+        else:
+            orderedList.append(2)
+        return orderedList
+        
 
 # Separate task by shapes
 class TaskSeparatedByShapes():
@@ -655,6 +674,110 @@ def recoverAsymmetricGrid(t, x, s):
                 realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
     return realX
 
+def rotateTaskWithOneBorder(t, task):
+    rotTask = copy.deepcopy(task)
+    rotations = {'train': [], 'test': []}
+    for s in range(t.nTrain):
+        border = t.trainSamples[s].commonFullBorders[0]
+        if border.direction=='h' and border.position==0:
+            rotations['train'].append(1)
+            rotTask['train'][s]['input'] = np.rot90(t.trainSamples[s].inMatrix.m, 1).tolist()
+            rotTask['train'][s]['output'] = np.rot90(t.trainSamples[s].outMatrix.m, 1).tolist()
+        elif border.direction=='v' and border.position==t.trainSamples[s].inMatrix.shape[1]-1:
+            rotations['train'].append(2)
+            rotTask['train'][s]['input'] = np.rot90(t.trainSamples[s].inMatrix.m, 2).tolist()
+            rotTask['train'][s]['output'] = np.rot90(t.trainSamples[s].outMatrix.m, 2).tolist()
+        elif border.direction=='h' and border.position==t.trainSamples[s].inMatrix.shape[0]-1:
+            rotations['train'].append(3)
+            rotTask['train'][s]['input'] = np.rot90(t.trainSamples[s].inMatrix.m, 3).tolist()
+            rotTask['train'][s]['output'] = np.rot90(t.trainSamples[s].outMatrix.m, 3).tolist()
+        else:
+            rotations['train'].append(0)
+    
+    for s in range(t.nTest):
+        if t.submission:
+            hasBorder=False
+            for border in t.testSamples[s].inMatrix.fullBorders:
+                if border.color!=t.testSamples[s].inMatrix.backgroundColor:
+                    if border.direction=='h' and border.position==0:
+                        rotations['test'].append(1)
+                        rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 1).tolist()
+                    elif border.direction=='v' and border.position==t.testSamples[s].inMatrix.shape[1]-1:
+                        rotations['test'].append(2)
+                        rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 2).tolist()
+                    elif border.direction=='h' and border.position==t.testSamples[s].inMatrix.shape[0]-1:
+                        rotations['test'].append(3)
+                        rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 3).tolist()
+                    else:
+                        rotations['test'].append(0)
+                    hasBorder=True
+                    break
+            if not hasBorder:
+                return False, False
+        else:
+            border = t.testSamples[s].commonFullBorders[0]
+            if border.direction=='h' and border.position==0:
+                rotations['test'].append(1)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 1).tolist()
+                rotTask['test'][s]['output'] = np.rot90(t.testSamples[s].outMatrix.m, 1).tolist()
+            elif border.direction=='v' and border.position==t.testSamples[s].inMatrix.shape[1]-1:
+                rotations['test'].append(2)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 2).tolist()
+                rotTask['test'][s]['output'] = np.rot90(t.testSamples[s].outMatrix.m, 2).tolist()
+            elif border.direction=='h' and border.position==t.testSamples[s].inMatrix.shape[0]-1:
+                rotations['test'].append(3)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 3).tolist()
+                rotTask['test'][s]['output'] = np.rot90(t.testSamples[s].outMatrix.m, 3).tolist()
+            else:
+                rotations['test'].append(0)
+        
+    return rotTask, rotations
+
+def rotateHVTask(t, task):
+    rotTask = copy.deepcopy(task)
+    rotations = {'train': [], 'test': []}
+    
+    for s in range(t.nTrain):
+        if t.trainSamples[s].isVertical:
+            rotations['train'].append(1)
+            rotTask['train'][s]['input'] = np.rot90(t.trainSamples[s].inMatrix.m, 1).tolist()
+            rotTask['train'][s]['output'] = np.rot90(t.trainSamples[s].outMatrix.m, 1).tolist()
+        else:
+            rotations['train'].append(0)
+    
+    for s in range(t.nTest):
+        if t.submission:
+            if t.testSamples[s].inMatrix.isHorizontal:
+                rotations['test'].append(0)
+            elif t.testSamples[s].inMatrix.isVertical:
+                rotations['test'].append(1)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 1).tolist()
+            else:
+                return False, False
+        else:
+            if t.testSamples[s].isHorizontal:
+                rotations['test'].append(0)
+            elif t.testSamples[s].isVertical:
+                rotations['test'].append(1)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 1).tolist()
+                rotTask['test'][s]['output'] = np.rot90(t.testSamples[s].outMatrix.m, 1).tolist()
+            else:
+                return False, False
+            
+    return rotTask, rotations
+
+def recoverRotations(matrix, trainOrTest, s, rotations):
+    if rotations[trainOrTest][s] == 1:
+        m = np.rot90(matrix, 3)
+    elif rotations[trainOrTest][s] == 2:
+        m = np.rot90(matrix, 2)
+    elif rotations[trainOrTest][s] == 3:
+        m = np.rot90(matrix, 1)
+    else:
+        m = matrix.copy()        
+    return m
+    
+
 def tryOperations(t, c, cTask, b3c, firstIt=False):
     """
     Given a Task.Task t and a Candidate c, this function applies all the
@@ -740,7 +863,17 @@ def getPredictionsFromTask(originalT, task):
         t2 = Task.Task(cTask, taskId, submission=False)
     else:
         t2 = t
-
+        
+    if t2.sameIOShapes:
+        hasRotated = False
+        if t2.hasOneFullBorder:
+            hasRotated, rotateParams = rotateTaskWithOneBorder(t2, cTask)
+        elif t2.requiresHVRotation:
+            hasRotated, rotateParams = rotateHVTask(t2, cTask)
+        if hasRotated!=False:
+            cTask = hasRotated.copy()
+            t2 = Task.Task(cTask, taskId, submission=False)
+                
     cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                          t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
     c = Candidate([], [task], score=cScore)
@@ -779,6 +912,8 @@ def getPredictionsFromTask(originalT, task):
                     x = Utils.correctFixedColors(x, newX, t2.fixedColors)
                 else:
                     x = newX.copy()
+            if t2.sameIOShapes and hasRotated!=False:
+                x = recoverRotations(x, "test", s, rotateParams)
             if taskNeedsCropping:
                 x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
                                          cropPositions["test"][s], t.testSamples[s].inMatrix.backgroundColor)
@@ -848,7 +983,11 @@ separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,75
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
+<<<<<<< HEAD
 for idx in tqdm(range(200,300), position=0, leave=True):
+=======
+for idx in tqdm(separateByShapes, position=0, leave=True):
+>>>>>>> fdfb45e9a8cd187e4b17c34c89353c53d5560042
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
@@ -860,16 +999,33 @@ for idx in tqdm(range(200,300), position=0, leave=True):
         separatedT = Task.Task(separationByShapes.separatedTask, taskId, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
         
-        mergedPredictions = [[], [], []]
+        mergedPredictions = []
         for s in range(originalT.nTest):
+            mergedPredictions.append([])
             matrixRange = separationByShapes.getRange("test", s)
             matrices = [[sepPredictions[i][cand] for i in range(matrixRange[0], matrixRange[1])] \
                          for cand in range(3)]
             for cand in range(3):
                 pred = Utils.mergeMatrices(matrices[cand], originalT.backgroundColor)
-                mergedPredictions[cand] = pred
-                plot_sample(originalT.testSamples[s], pred)
+                mergedPredictions[s].append(pred)
+                #plot_sample(originalT.testSamples[s], pred)
+                
+        b3cIndices = b3c.getOrderedIndices()
+        sepB3cIndices = sepB3c.getOrderedIndices()
+                
+        b3cIndex, sepB3cIndex = 0, 0
+        for i in range(3):
+            if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                b3cIndex += 1
+            else:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
+                sepB3cIndex += 1
         
+        
+        """
         bestSepIndex = 0
         if sepB3c.candidates[1].score < sepB3c.candidates[bestSepIndex].score:
             bestSepIndex = 1
@@ -888,4 +1044,4 @@ for idx in tqdm(range(200,300), position=0, leave=True):
         
         for s in range(originalT.nTest):
             predictions[s][worstIndex] = mergedPredictions[s][bestSepIndex]
-        
+        """

@@ -741,6 +741,21 @@ class Matrix():
             self.d2Symmetric = False
         self.totalSymmetric = self.lrSymmetric and self.udSymmetric and \
         self.d1Symmetric and self.d2Symmetric
+        
+        self.fullBorders = []
+        for f in self.frontiers:
+            if f.color != self.backgroundColor:
+                if f.position==0:
+                    self.fullBorders.append(f)
+                elif (f.direction=='h' and f.position==self.shape[0]-1) or\
+                (f.direction=='v' and f.position==self.shape[1]-1):
+                    self.fullBorders.append(f)
+                    
+        self.isVertical = False
+        self.isHorizontal = False
+        if len(self.frontiers)!=0:
+            self.isVertical = all([f.direction=='v' for f in self.frontiers])
+            self.isHorizontal = all([f.direction=='h' for f in self.frontiers])
     
     def getColors(self):
         unique, counts = np.unique(self.m, return_counts=True)
@@ -1151,6 +1166,17 @@ class Sample():
             # Does the output matrix follow a pattern?
             self.followsRowPattern = self.outMatrix.followsRowPattern()
             self.followsColPattern = self.outMatrix.followsColPattern()
+            
+            # Full borders
+            if self.sameShape:
+                self.commonFullBorders = []
+                for inBorder in self.inMatrix.fullBorders:
+                    for outBorder in self.outMatrix.fullBorders:
+                        if inBorder==outBorder:
+                            self.commonFullBorders.append(inBorder)
+                            
+                self.isHorizontal = self.inMatrix.isHorizontal and self.outMatrix.isHorizontal
+                self.isVertical = self.inMatrix.isVertical and self.outMatrix.isVertical
 
     def getCommonShapes(self, diagonal=True, multicolor=False, sameColor=False, samePosition=False, rotation=False, \
                      mirror=False, scaling=False):
@@ -1472,6 +1498,14 @@ class Task():
             self.rowPatterns = [s.outMatrix.followsRowPattern() for s in self.trainSamples]
         if self.followsColPattern:
             self.colPatterns = [s.outMatrix.followsColPattern() for s in self.trainSamples]
+        
+        # Full Borders / Requires vertical-horizontal rotation
+        if self.sameIOShapes:
+            self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples])
+            self.requiresHVRotation = False
+            if not (self.allEqual([s.isHorizontal for s in self.trainSamples]) or \
+                    self.allEqual([s.isVertical for s in self.trainSamples])):    
+                self.requiresHVRotation = all([s.isHorizontal or s.isVertical for s in self.trainSamples])
         
     def allEqual(self, x):
         """
@@ -7013,8 +7047,9 @@ def getPossibleOperations(t, c):
     # Evolve
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-    #    cfn = evolve(candTask)
-    #   x.append(getBestEvolve(candTask, cfn))
+    #    x.append(getBestEvolve(candTask))
+        #cfn = evolve(candTask)
+        #x.append(getBestEvolve(candTask, cfn))
     #    x.append(partial(applyEvolve, cfn=cfn, nColors=candTask.trainSamples[0].nColors,\
     #                     kernel=5, nIterations=1))
     
@@ -7603,6 +7638,24 @@ class Best3Candidates():
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
     
+    def getOrderedIndices(self):
+        """
+        Returns a list of 3 indices (from 0 to 2) with the candidates ordered
+        from best to worst.
+        """
+        orderedList = [0]
+        if self.candidates[1] < self.candidates[0]:
+            orderedList.insert(0, 1)
+        else:
+            orderedList.append(1)
+        if self.candidates[2] < self.candidates[orderedList[0]]:
+            orderedList.insert(0, 2)
+        elif self.candidates[2] < self.candidates[orderedList[1]]:
+            orderedList.insert(1, 2)
+        else:
+            orderedList.append(2)
+        return orderedList
+    
 # Separate task by shapes
 class TaskSeparatedByShapes():
     def __init__(self, task, background, diagonal=False):
@@ -7935,6 +7988,109 @@ def recoverAsymmetricGrid(t, x, s):
                 realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
     return realX
 
+def rotateTaskWithOneBorder(t, task):
+    rotTask = copy.deepcopy(task)
+    rotations = {'train': [], 'test': []}
+    for s in range(t.nTrain):
+        border = t.trainSamples[s].commonFullBorders[0]
+        if border.direction=='h' and border.position==0:
+            rotations['train'].append(1)
+            rotTask['train'][s]['input'] = np.rot90(t.trainSamples[s].inMatrix.m, 1).tolist()
+            rotTask['train'][s]['output'] = np.rot90(t.trainSamples[s].outMatrix.m, 1).tolist()
+        elif border.direction=='v' and border.position==t.trainSamples[s].inMatrix.shape[1]-1:
+            rotations['train'].append(2)
+            rotTask['train'][s]['input'] = np.rot90(t.trainSamples[s].inMatrix.m, 2).tolist()
+            rotTask['train'][s]['output'] = np.rot90(t.trainSamples[s].outMatrix.m, 2).tolist()
+        elif border.direction=='h' and border.position==t.trainSamples[s].inMatrix.shape[0]-1:
+            rotations['train'].append(3)
+            rotTask['train'][s]['input'] = np.rot90(t.trainSamples[s].inMatrix.m, 3).tolist()
+            rotTask['train'][s]['output'] = np.rot90(t.trainSamples[s].outMatrix.m, 3).tolist()
+        else:
+            rotations['train'].append(0)
+    
+    for s in range(t.nTest):
+        if t.submission:
+            hasBorder=False
+            for border in t.testSamples[s].inMatrix.fullBorders:
+                if border.color!=t.testSamples[s].inMatrix.backgroundColor:
+                    if border.direction=='h' and border.position==0:
+                        rotations['test'].append(1)
+                        rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 1).tolist()
+                    elif border.direction=='v' and border.position==t.testSamples[s].inMatrix.shape[1]-1:
+                        rotations['test'].append(2)
+                        rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 2).tolist()
+                    elif border.direction=='h' and border.position==t.testSamples[s].inMatrix.shape[0]-1:
+                        rotations['test'].append(3)
+                        rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 3).tolist()
+                    else:
+                        rotations['test'].append(0)
+                    hasBorder=True
+                    break
+            if not hasBorder:
+                return False
+        else:
+            border = t.testSamples[s].commonFullBorders[0]
+            if border.direction=='h' and border.position==0:
+                rotations['test'].append(1)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 1).tolist()
+                rotTask['test'][s]['output'] = np.rot90(t.testSamples[s].outMatrix.m, 1).tolist()
+            elif border.direction=='v' and border.position==t.testSamples[s].inMatrix.shape[1]-1:
+                rotations['test'].append(2)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 2).tolist()
+                rotTask['test'][s]['output'] = np.rot90(t.testSamples[s].outMatrix.m, 2).tolist()
+            elif border.direction=='h' and border.position==t.testSamples[s].inMatrix.shape[0]-1:
+                rotations['test'].append(3)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 3).tolist()
+                rotTask['test'][s]['output'] = np.rot90(t.testSamples[s].outMatrix.m, 3).tolist()
+            else:
+                rotations['test'].append(0)
+        
+    return rotTask, rotations
+
+def rotateHVTask(t, task):
+    rotTask = copy.deepcopy(task)
+    rotations = {'train': [], 'test': []}
+    
+    for s in range(t.nTrain):
+        if t.trainSamples[s].isVertical:
+            rotations['train'].append(1)
+            rotTask['train'][s]['input'] = np.rot90(t.trainSamples[s].inMatrix.m, 1).tolist()
+            rotTask['train'][s]['output'] = np.rot90(t.trainSamples[s].outMatrix.m, 1).tolist()
+        else:
+            rotations['train'].append(0)
+    
+    for s in range(t.nTest):
+        if t.submission:
+            if t.testSamples[s].inMatrix.isHorizontal:
+                rotations['test'].append(0)
+            elif t.testSamples[s].inMatrix.isVertical:
+                rotations['test'].append(1)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 1).tolist()
+            else:
+                return False, False
+        else:
+            if t.testSamples[s].isHorizontal:
+                rotations['test'].append(0)
+            elif t.testSamples[s].isVertical:
+                rotations['test'].append(1)
+                rotTask['test'][s]['input'] = np.rot90(t.testSamples[s].inMatrix.m, 1).tolist()
+                rotTask['test'][s]['output'] = np.rot90(t.testSamples[s].outMatrix.m, 1).tolist()
+            else:
+                return False, False
+            
+    return rotTask, rotations
+
+def recoverRotations(matrix, trainOrTest, s, rotations):
+    if rotations[trainOrTest][s] == 1:
+        m = np.rot90(matrix, 3)
+    elif rotations[trainOrTest][s] == 2:
+        m = np.rot90(matrix, 2)
+    elif rotations[trainOrTest][s] == 3:
+        m = np.rot90(matrix, 1)
+    else:
+        m = matrix.copy()        
+    return m
+
 def tryOperations(t, c, cTask, b3c, firstIt=False):
     """
     Given a Task.Task t and a Candidate c, this function applies all the
@@ -8014,6 +8170,16 @@ def getPredictionsFromTask(originalT, task):
         t2 = Task(cTask, task_id, submission=True)
     else:
         t2 = t
+        
+    if t2.sameIOShapes:
+        hasRotated = False
+        if t2.hasOneFullBorder:
+            hasRotated, rotateParams = rotateTaskWithOneBorder(t2, cTask)
+        elif t2.requiresHVRotation:
+            hasRotated, rotateParams = rotateHVTask(t2, cTask)
+        if hasRotated!=False:
+            cTask = hasRotated.copy()
+            t2 = Task(cTask, task_id, submission=True)
 
     cScore = sum([incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                          t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
@@ -8053,6 +8219,8 @@ def getPredictionsFromTask(originalT, task):
                     x = correctFixedColors(x, newX, t2.fixedColors)
                 else:
                     x = newX.copy()
+            if t2.sameIOShapes and hasRotated!=False:
+                x = recoverRotations(x, "test", s, rotateParams)
             if taskNeedsCropping:
                 x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
                                          cropPositions["test"][s], t.testSamples[s].inMatrix.backgroundColor)
@@ -8075,6 +8243,7 @@ submission = pd.read_csv(data_path / 'sample_submission.csv', index_col='output_
 for output_id in submission.index:
     task_id = output_id.split('_')[0]
     pair_id = int(output_id.split('_')[1])
+    #print(task_id)
     #if pair_id != 0:
     #    continue
     f = str(test_path / str(task_id + '.json'))
@@ -8093,116 +8262,35 @@ for output_id in submission.index:
     if separationByShapes != False:
         separatedT = Task(separationByShapes.separatedTask, task_id, submission=True)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
-        
-        mergedPredictions = [[], [], []]
+                
+        mergedPredictions = []
         for s in range(originalT.nTest):
+            mergedPredictions.append([])
             matrixRange = separationByShapes.getRange("test", s)
             matrices = [[sepPredictions[i][cand] for i in range(matrixRange[0], matrixRange[1])] \
                          for cand in range(3)]
             for cand in range(3):
                 pred = mergeMatrices(matrices[cand], originalT.backgroundColor)
-                mergedPredictions[cand] = pred
+                mergedPredictions[s].append(pred)
         
-        bestSepIndex = 0
-        if sepB3c.candidates[1].score < sepB3c.candidates[bestSepIndex].score:
-            bestSepIndex = 1
-        if sepB3c.candidates[2].score < sepB3c.candidates[bestSepIndex].score:
-            bestSepIndex = 2
-            
-        worstIndex = 0
-        if b3c.candidates[1].score > b3c.candidates[worstIndex].score:
-            worstIndex = 1
-        if b3c.candidates[2].score > b3c.candidates[worstIndex].score:
-            worstIndex = 2
-            
-        predictions[pair_id][worstIndex] = mergedPredictions[pair_id][bestSepIndex]
+        b3cIndices = b3c.getOrderedIndices()
+        sepB3cIndices = sepB3c.getOrderedIndices()
+                
+        b3cIndex, sepB3cIndex = 0, 0
+        for i in range(3):
+            if b3c.candidates[b3cIndices[b3cIndex]] <  sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                b3cIndex += 1
+            else:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = predictions[s][sepB3cIndices[sepB3cIndex]]
+                sepB3cIndex += 1
     
     pred = []
     for i in range(len(predictions[pair_id])):
         pred.append(flattener(predictions[pair_id][i].astype(int).tolist()))
     predictions = pred
-    
-    """
-    if needsRecoloring(originalT):
-        task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
-        t = Task(task, task_id, submission=True)
-    else:
-        t = originalT
-    
-    cTask = copy.deepcopy(task)
-        
-    if t.sameIOShapes:
-        taskNeedsCropping = needsCropping(t)
-    else:
-        taskNeedsCropping = False
-    if taskNeedsCropping:
-        cropPositions = cropTask(t, cTask)
-        t2 = Task(cTask, task_id, submission=True)
-    elif t.hasUnchangedGrid:
-        if t.gridCellsHaveOneColor:
-            ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
-            t2 = Task(cTask, task_id, submission=True)
-        elif t.outGridCellsHaveOneColor:
-            ignoreGrid(t, cTask, inMatrix=False)
-            t2 = Task(cTask, task_id, submission=True)
-        else:
-            t2 = t
-    elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
-        ignoreAsymmetricGrid(t, cTask)
-        t2 = Task(cTask, task_id, submission=True)
-    else:
-        t2 = t
-                
-    c = Candidate([], [task])
-    c.t = t2
-    b3c = Best3Candidates(c, c, c)
-        
-    # Generate the three candidates with best possible score
-    prevScore = sum([c.score for c in b3c.candidates])
-    firstIt = True
-    while True:
-        copyB3C = copy.deepcopy(b3c)
-        for c in copyB3C.candidates:
-            if c.score == 0:
-                continue
-            tryOperations(t2, c, firstIt)
-            if firstIt:
-                firstIt = False
-                break
-        score = sum([c.score for c in b3c.candidates])
-        if score >= prevScore:
-            break
-        else:
-            prevScore = score
-            
-    for s in range(t.nTest):
-        if s != pair_id:
-            continue
-        nCandidate = 0
-        for c in b3c.candidates:
-            x = t2.testSamples[s].inMatrix.m.copy()
-            for op in c.ops:
-                if x is not None:
-                    newX = op(Matrix(x))
-                    if t2.sameIOShapes and len(t2.fixedColors) != 0:
-                        x = correctFixedColors(x, newX, t2.fixedColors)
-                    else:
-                        x = newX.copy()
-            if taskNeedsCropping:
-                x = recoverCroppedMatrix(x, originalT.testSamples[s].inMatrix.shape, \
-                                         cropPositions["test"][s], t.testSamples[s].inMatrix.backgroundColor)
-            elif t.hasUnchangedGrid and (t.gridCellsHaveOneColor or t.outGridCellsHaveOneColor):
-                x = recoverGrid(t, x, s)
-            elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
-                x = recoverAsymmetricGrid(t, x, s)
-            if needsRecoloring(originalT):
-                x = recoverOriginalColors(x, testRels[s])
-            #if c.score!=0 and treeModelSolutions[nCandidate]!=0:
-            #    predictions.append(flattener(treeModelSolutions[nCandidate][s]))
-            if x is not None:
-                predictions.append((flattener(x.astype(int).tolist())))
-            nCandidate += 1
-    """
 
     if len(predictions) == 0:
         pred = '|0| |0| |0|'
