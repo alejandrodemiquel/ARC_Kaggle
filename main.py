@@ -144,7 +144,11 @@ valid_tasks['a8610ef7']['train'][3]['input'][0][1] = 0
 valid_tasks['a8610ef7']['train'][3]['input'][5][1] = 0
 valid_tasks['a8610ef7']['train'][3]['output'][0][1] = 0
 valid_tasks['a8610ef7']['train'][3]['output'][5][1] = 0
-
+# 97239e3d
+valid_tasks['97239e3d']['test'][0]['input'][14][6] = 0
+valid_tasks['97239e3d']['test'][0]['input'][14][10] = 0
+# d687bc17
+train_tasks['d687bc17']['train'][2]['output'][7][1] = 4
 
 
 # allTasks stores the tasks as given originally. It is a dictionary, and its
@@ -982,7 +986,7 @@ separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,75
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(separateByShapes, position=0, leave=True):
+for idx in tqdm(separateByColors, position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
@@ -1018,25 +1022,7 @@ for idx in tqdm(separateByShapes, position=0, leave=True):
                 for s in range(originalT.nTest):
                     predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
-        
-        
-        """
-        bestSepIndex = 0
-        if sepB3c.candidates[1].score < sepB3c.candidates[bestSepIndex].score:
-            bestSepIndex = 1
-        if sepB3c.candidates[2].score < sepB3c.candidates[bestSepIndex].score:
-            bestSepIndex = 2
-            
-        worstIndex = 0
-        if b3c.candidates[1].score > b3c.candidates[worstIndex].score:
-            worstIndex = 1
-        if b3c.candidates[2].score > b3c.candidates[worstIndex].score:
-            worstIndex = 2
-            
-        print(len(predictions))
-        print(len(predictions[0]))
-        print(predictions)
-        
-        for s in range(originalT.nTest):
-            predictions[s][worstIndex] = mergedPredictions[s][bestSepIndex]
-        """
+    
+    for s in range(originalT.nTest):
+        for i in range(3):
+            plot_sample(originalT.testSamples[s], predictions[s][i])
