@@ -860,10 +860,11 @@ class Matrix():
                 attrList[i].append('PiXl')
             #holes
             if singleColor:
-                if maxH>minH and shapeList[i].nHoles == maxH:
-                    attrList[i].append('MoHo')
-                elif maxH>minH and minH>0 and shapeList[i].nHoles == minH:
-                    attrList[i].append('LeHo')
+                if maxH>minH:
+                    if shapeList[i].nHoles == maxH:
+                        attrList[i].append('MoHo')
+                    elif shapeList[i].nHoles == minH:
+                        attrList[i].append('LeHo')                    
     
         if len(ism) == 1:
             attrList[ism[0]].append('SmSh')
