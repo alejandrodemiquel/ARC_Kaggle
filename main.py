@@ -966,11 +966,10 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
 
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
              299,345,364,383,395,488,576,578,635,712,727,768,785]
-cropAllBackground = [216, 258]
 arrangeTasks = [152,440,523,558,588,622]
-arrangeToDoTasks = [21,29,45,95,125,152,158,200,232,237,252,263,295,365,414,440,475,498,523,535,558,\
+arrangeToDoTasks = [21,29,43,45,95,125,152,158,200,232,237,252,263,295,307,365,414,434,440,475,498,523,535,558,\
                 588,589,622,624,652,676,699,759,760]
-replicateTasks = [17,68,75,79,100,111,116,157,172,208,360,367,421,500,524,540,624,645]
+replicateTasks = [17,26,68,75,79,100,111,116,157,172,208,360,367,421,500,524,540,597,624,645]
 replicateToDoTasks = [4,132,196,779,795]
 
 separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,429,\
@@ -983,15 +982,12 @@ separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,75
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-<<<<<<< HEAD
-for idx in tqdm(range(200,300), position=0, leave=True):
-=======
-for idx in tqdm(separateByShapes, position=0, leave=True):
->>>>>>> fdfb45e9a8cd187e4b17c34c89353c53d5560042
+
+for idx in tqdm(replicateTasks, position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
-    
+  
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
     
     separationByShapes = needsSeparationByShapes(originalT)
@@ -1023,7 +1019,6 @@ for idx in tqdm(separateByShapes, position=0, leave=True):
                 for s in range(originalT.nTest):
                     predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
-        
         
         """
         bestSepIndex = 0
