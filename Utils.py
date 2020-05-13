@@ -4127,7 +4127,7 @@ def getBestMultiplyMatrix(t, falseColor):
     def trueCondition(matrix, pixel):
         return True
     def maxColor(matrix, pixel):
-        x = [k for k, v in sorted(matrix.colorCount.items(), key=lambda item: item[1])]
+        x = [k for k, v in sorted(matrix.colorCount.items(), key=lambda item: item[1], reverse=True)]
         if len(x)<2 or matrix.colorCount[x[0]]!=matrix.colorCount[x[1]]:
             return pixel==max(matrix.colorCount, key=matrix.colorCount.get)
         else:

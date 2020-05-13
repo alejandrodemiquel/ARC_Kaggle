@@ -3402,7 +3402,6 @@ def getBestSymmetrizeSubmatrix(t):
         ud = True    
     if all(m.shape[0]==m.shape[1] and np.all(np.rot90(m)==m) for m in croppedSamples):
         rotation = True
-        print('hi')
     for sh in t.commonInDShapes:
         bestFunction, bestScore = updateBestFunction(t, partial(symmetrizeSubmatrix,\
                                                         lr=lr,ud=ud,rotation=rotation,subShape=sh), bestScore, bestFunction)
@@ -5762,7 +5761,7 @@ def getBestMultiplyMatrix(t, falseColor):
     def trueCondition(matrix, pixel):
         return True
     def maxColor(matrix, pixel):
-        x = [k for k, v in sorted(matrix.colorCount.items(), key=lambda item: item[1])]
+        x = [k for k, v in sorted(matrix.colorCount.items(), key=lambda item: item[1], reverse=True)]
         if len(x)<2 or matrix.colorCount[x[0]]!=matrix.colorCount[x[1]]:
             return pixel==max(matrix.colorCount, key=matrix.colorCount.get)
         else:
@@ -6950,7 +6949,7 @@ def getPossibleOperations(t, c):
         # CNNs
         
         #x.append(getBestCNN(candTask))
-        if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
+        if candTask.sameNSampleColors: # and all(["predictCNN" not in str(op.func) for op in c.ops]):
             x.append(getBestSameNSampleColorsCNN(candTask))
 
         """
