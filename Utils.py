@@ -1655,7 +1655,7 @@ def deleteShape(matrix, shape, backgroundColor):
         m[tuple(map(operator.add, c, shape.position))] = backgroundColor
     return m
 
-def symmetrizeNonbackgroundSubmatrix(matrix, ud=False, lr=False, rotation=False, newColor=None):
+def symmetrizeSubmatrix(matrix, ud=False, lr=False, rotation=False, newColor=None, subShape=None):
     """
     Given a Task.Matrix, make the non-background part symmetric
     """
@@ -1674,55 +1674,87 @@ def symmetrizeNonbackgroundSubmatrix(matrix, ud=False, lr=False, rotation=False,
         y2 -= 1
     subMat = m[x1:x2+1,y1:y2+1].copy()
     
-    found = False
-    for d in range(min(subMat.shape[0], subMat.shape[1]), 0, -1):
-        for x in range(subMat.shape[0]-d+1):
-            for y in range(subMat.shape[1]-d+1):
-                if ud and lr and np.all(subMat[x:x+d,y:y+d] == np.flipud(subMat[x:x+d,y:y+d]))\
-                        and np.all(subMat[x:x+d,y:y+d] == np.fliplr(subMat[x:x+d,y:y+d]))\
-                        and not np.all(subMat[x:x+d,y:y+d] == matrix.backgroundColor)\
-                        and np.all(subMat[x:x+d,y:y+d] == np.rot90(subMat[x:x+d,y:y+d])):
-                    found = True   
-                    break
-                elif rotation and np.all(subMat[x:x+d,y:y+d] == np.rot90(subMat[x:x+d,y:y+d],1))\
-                        and not np.all(subMat[x:x+d,y:y+d] == matrix.backgroundColor):
+    if subShape == None:
+        symList = []
+        if ud:
+            symList.append(np.flipud(subMat.copy()))
+            if lr:
+                symList.append(np.fliplr(subMat.copy()))
+                symList.append(np.fliplr(np.flipud(subMat.copy())))
+            elif lr:
+                symList.append(np.fliplr(subMat.copy()))
+        elif rotation:
+            for x in range(1,4):
+                symList.append(np.rot90(subMat.copy(),x))
+        for newSym in symList:
+            score, bestScore = 0, 0
+            bestX, bestY = 0, 0
+            for i, j in np.ndindex((m.shape[0]-newSym.shape[0]+1,m.shape[1]-newSym.shape[1]+1)):
+                score = np.count_nonzero(np.logical_or(m[i:i+newSym.shape[0],j:j+newSym.shape[1]] == newSym, newSym == bC))
+                if score > bestScore:
+                    bestX, bestY = i, j
+                    bestScore = score
+            for i, j in np.ndindex(newSym.shape):
+                if newSym[i,j] != bC:
+                    if newColor == None:
+                        m[bestX+i, bestY+j] = newSym[i,j]
+                    else:
+                        if m[bestX+i,bestY+j] == bC:
+                           m[bestX+i, bestY+j] = newColor 
+    else:
+        found = False
+        for x in range(subMat.shape[0]-subShape.shape[0]+1):
+            for y in range(subMat.shape[1]-subShape.shape[1]+1):
+                #if np.all(m[x1+x:x1+x+subShape.shape[0],y1+y:y1+y+subShape.shape[1]]==subShape.m):
+                if np.all(np.equal(m[x1+x:x1+x+subShape.shape[0],y1+y:y1+y+subShape.shape[1]] == bC,subShape.m == 255)):
                     found = True   
                     break
             if found:
                 break
-        if found:
-            break
-        
-    if ud and lr:
-        if 2*x+x1+d > m.shape[0] or 2*y+y1+d > m.shape[1]:
+        if not found:
             return m
-        for i in range(subMat.shape[0]):
-            for j in range(subMat.shape[1]):
-                if subMat[i][j] != bC:
-                    m[2*x+x1+d-i-1,y1+j] = subMat[i,j]
-                    m[x1+i,2*y+y1+d-j-1] = subMat[i,j]
-                    m[2*x+x1+d-i-1,2*y+y1+d-j-1] = subMat[i,j]
-    elif rotate:
-        #if x1+y+subMat.shape[0]> m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
-        if x1+y+subMat.shape[0] > m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
-            or y1+y-x+subMat.shape[0]>= m.shape[0] or x1+x-y+subMat.shape[1]>=m.shape[1]:
-            return m
-        for i in range(subMat.shape[0]):
-            for j in range(subMat.shape[1]):
-                if subMat[i][j] != bC:
-                    m[x1+x+d+y-j-1,y1+y-x+i] = subMat[i,j]
-                    m[x1+x-y+j,y1+y+d+x-i-1] = subMat[i,j]
-                    m[x1+2*x+d-i-1,y1+2*y+d-j-1] = subMat[i,j]        
+        if ud and lr:
+            if 2*x+x1+subShape.shape[0] > m.shape[0] or 2*y+y1+subShape.shape[0]> m.shape[1]:
+                return m
+            for i in range(subMat.shape[0]):
+                for j in range(subMat.shape[1]):
+                    if subMat[i][j] != bC:
+                        m[2*x+x1+subShape.shape[0]-i-1,y1+j] = subMat[i,j]
+                        m[x1+i,2*y+y1+subShape.shape[0]-j-1] = subMat[i,j]
+                        m[2*x+x1+subShape.shape[0]-i-1,2*y+y1+subShape.shape[0]-j-1] = subMat[i,j]
+        elif rotation:
+            if x1+y+x+subShape.shape[0] > m.shape[0] or y1+x+y+subShape.shape[1]> m.shape[1]\
+                or y1+y-x+subMat.shape[0]>= m.shape[0] or x1+x-y+subMat.shape[1]>=m.shape[1]:
+                return m
+            for i in range(subMat.shape[0]):
+                for j in range(subMat.shape[1]):
+                    if subMat[i,j] != bC:
+                        print(m.shape)
+                        print(x1+x+subShape.shape[0]+y-j-1,y1+y-x+i)
+                        print(x1+x-y+j,y1+y+subShape.shape[0]+x-i-1)
+                        m[x1+x+subShape.shape[0]+y-j-1,y1+y-x+i] = subMat[i,j]
+                        m[x1+x-y+j,y1+y+subShape.shape[0]+x-i-1] = subMat[i,j]
+                        m[x1+2*x+subShape.shape[0]-i-1,y1+2*y+subShape.shape[0]-j-1] = subMat[i,j]        
     return m
 
 def getBestSymmetrizeSubmatrix(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    rotation, lr, ud = False, False, False
     croppedSamples = [cropAllBackground(s.outMatrix) for s in t.trainSamples]
     if all(np.all(np.flipud(m)==m) for m in croppedSamples):
-        if all(np.all(np.fliplr(m)==m) for m in croppedSamples):
-            return partial(symmetrizeNonbackgroundSubmatrix,ud=True, lr=True)
+        lr = True
+    if all(np.all(np.fliplr(m)==m) for m in croppedSamples):    
+        ud = True    
     if all(m.shape[0]==m.shape[1] and np.all(np.rot90(m)==m) for m in croppedSamples):
-        return partial(symmetrizeNonbackgroundSubmatrix,rotation=True)
-    return partial(identityM)
+        rotation = True
+        print('hi')
+    for sh in t.commonInDShapes:
+        bestFunction, bestScore = updateBestFunction(t, partial(symmetrizeSubmatrix,\
+                                                        lr=lr,ud=ud,rotation=rotation,subShape=sh), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(symmetrizeSubmatrix,lr=lr,\
+                                                            ud=ud,rotation=rotation), bestScore, bestFunction)
+    return bestFunction
 
 def colorMap(matrix, cMap):
     """
@@ -4463,6 +4495,46 @@ def cropAllShapes(matrix, background, diagonal=False):
 
 # %% Stuff added by Roderic
 #delete shape with x properties
+def colorByPixels(matrix, colorMap=False, oneColor=False):    
+    m = matrix.m.copy()
+    shList = [sh for sh in matrix.shapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)>1]
+    pixList = [sh for sh in matrix.shapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)==1]
+    if len(shList)==0 or len(pixList)==0:
+        return m
+    if colorMap:
+        if all(any(abs(p1.position[0]-p2.position[0])+abs(p1.position[1]-p2.position[1])==1 for p1 in pixList) for p2 in pixList):
+            cMap = dict()
+            for p1 in pixList:
+                for p2 in pixList:
+                    if abs(p1.position[0]-p2.position[0])+abs(p1.position[1]-p2.position[1])==1:
+                        cMap[p1.color] = p2.color
+            for pix in pixList:
+                m[pix.position[0], pix.position[1]] = matrix.backgroundColor
+            for i,j in np.ndindex(m.shape):
+                if m[i,j] in cMap.keys():
+                    m[i,j] = cMap[m[i,j]]
+    else:
+        if oneColor:
+            cc = Counter([sh.color for sh in pixList])
+            newC = max(cc, key=cc.get)
+            m[m==newC]=matrix.backgroundColor
+            m[m!=matrix.backgroundColor]=newC
+        else:
+            for pix in pixList:
+                minD, newD = 1000, 1000
+                bestSh = None
+                for sh in shList:
+                    newD = min(np.linalg.norm(np.subtract(pix.position,np.add(p, sh.position))) for p in sh.pixels) 
+                    if newD < minD:
+                        minD = newD
+                        bestSh = sh
+                if bestSh != None:
+                    for i,j in np.ndindex(bestSh.shape):
+                        if bestSh.m[i,j] != 255:
+                            m[bestSh.position[0]+i, bestSh.position[1]+j]=pix.color
+                    m[pix.position[0], pix.position[1]] = matrix.backgroundColor
+    return m
+    
 def isDeleteTask(t):    
     if hasattr(t, 'colorChanges') and t.backgroundColor in [c[1] for c in t.colorChanges]:
         return True
@@ -4592,7 +4664,7 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
         else:
             shList = [sh for sh in matrix.multicolorShapes]
     
-    if len(shList) < 2:
+    if len(shList) < 2 or len(shList)>10:
         return matrix.m.copy()
     
     if arrange=='lay':
@@ -4697,12 +4769,6 @@ def getBestReplicateShapes(t):
     if isDeleteTask(t):
         deleteOriginal = True
     
-    #bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
-    #                                                        anchorType='subframe', allCombs=False,scale=False), bestScore, bestFunction)
-    #bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
-    #                                                        anchorType='subframe', allCombs=False,scale=True), bestScore, bestFunction)
-    #bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
-    #                                                        anchorType='subframe', allCombs=True,scale=False), bestScore, bestFunction)
     bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
                                                             anchorType='subframe'), bestScore, bestFunction)
     bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
@@ -4713,6 +4779,7 @@ def getBestReplicateShapes(t):
                                                             anchorType='subframe', allCombs=False,scale=True,attributes=set(['MoCl'])), bestScore, bestFunction)
     bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
                                                             anchorType='subframe', allCombs=True,attributes=set(['MoCl'])), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, anchorType='pixel',attributes=set(['MoCl'])), bestScore, bestFunction)
     
     if bestScore == 0:
         return bestFunction
@@ -4740,8 +4807,6 @@ def getBestReplicateShapes(t):
     for attributes in [set(['UnCo'])]:
         cC = Counter([cc[0] for cc in t.colorChanges])
         cc = max(cC, key=cC.get)
-        #bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
-        #                allCombs=True, scale=False, deleteOriginal=True), bestScore, bestFunction)
         bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
                         allCombs=True, scale=False, deleteOriginal=False), bestScore, bestFunction)
     return bestFunction
@@ -4856,8 +4921,16 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
                 newInsert = copy.deepcopy(bestSh)
                 newInsert.position = (bestX, bestY)
                 newInsert.shape = newInsert.m.shape
-                m=insertShape(m, newInsert)
-            
+                m = insertShape(m, newInsert)
+    elif anchorType == 'pixel':
+        if len(repList) == 1 and repList[0].shape[0] == repList[0].shape[1]:
+            for sh2 in shList:
+                if len(sh2.pixels) == 1:
+                    for repSh in repList:
+                        newInsert = copy.deepcopy(repSh)
+                        newInsert.position = (sh2.position[0] - (repSh.shape[0]-1)//2, sh2.position[1] - (repSh.shape[1]-1)//2)
+                        m = insertShape(m, newInsert)
+        
     if deleteOriginal:
         for sh in delList:
             m = deleteShape(m, sh, matrix.backgroundColor)
@@ -5350,7 +5423,7 @@ def getPossibleOperations(t, c):
         #replicate/symmterize/other shape related tasks
         x.append(getBestSymmetrizeSubmatrix(candTask))
         x.append(getBestReplicateShapes(candTask))
-        
+
         #delete shapes
         if isDeleteTask(candTask) and all(t.backgroundColor == c[1] for c in candTask.colorChanges):
             x.append(getBestDeleteShapes(candTask, True, True))
@@ -5569,7 +5642,9 @@ def getPossibleOperations(t, c):
                                          targetColor=target, trueColor=c[1]))
                         
     # Cropshape
-    
+    x.append(partial(colorByPixels))
+    x.append(partial(colorByPixels, colorMap=True))
+    x.append(partial(colorByPixels, oneColor=True))
     if candTask.outSmallerThanIn:
         x.append(partial(deleteShapes, attributes = getDeleteAttributes(candTask, diagonal = False), diagonal = False, multicolor=False))
         x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
@@ -5595,7 +5670,7 @@ def getPossibleOperations(t, c):
         if len(candTask.commonInShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
         
-        for attrs in [set(['LaSh'])]:
+        for attrs in [set(['LaSh','UnCo'])]:
             x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
                                  singleColor=True, diagonals=True)) 
             x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\

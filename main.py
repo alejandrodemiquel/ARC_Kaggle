@@ -667,7 +667,7 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
     if c.score==0 or b3c.allPerfect():
         return
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
-                "maxColorFromCell", "deleteShapes", "replicateShapes") # applyEvolve?
+                "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels") # applyEvolve?
     repeatIfPerfect = ("extendColor")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
@@ -791,17 +791,17 @@ def getPredictionsFromTask(originalT, task):
             
             taskPredictions[s].append(x)
             
-            """
-            plot_sample(originalT.testSamples[s], x)
+            
+            #plot_sample(originalT.testSamples[s], x)
             if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
                 print(idx, c.ops)
                 plot_task(idx)
-                break
-                solved.append(Solution(idx, taskId, c.ops))
-                solvedIds.append(idx)
                 #break
-            """
+                #solved.append(Solution(idx, taskId, c.ops))
+                #solvedIds.append(idx)
+                #break
+            
             
     return taskPredictions, b3c
 
@@ -830,12 +830,13 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
                    760, 768, 779]
 
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
-             299,345,364,383,395,488,576,578,635,712,727,785]
+             299,345,364,383,395,488,576,578,635,712,727,768,785]
 cropAllBackground = [216, 258]
-arrangeTasks = [21,29,45,95,125,152,158,200,232,237,252,263,295,365,414,440,475,498,523,535,558,\
+arrangeTasks = [152,440,523,558,588,622]
+arrangeToDoTasks = [21,29,45,95,125,152,158,200,232,237,252,263,295,365,414,440,475,498,523,535,558,\
                 588,589,622,624,652,676,699,759,760]
-replicateTasks = [17,68,75,79,100,111,116,157,172,360,367,421,500,524,540,645]
-replicateToDoTasks = [4,100,132,157,196,208,779,795]
+replicateTasks = [17,68,75,79,100,111,116,157,172,208,360,367,421,500,524,540,624,645]
+replicateToDoTasks = [4,132,196,779,795]
 
 separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,429,\
                     432,455,469,496,497,502,504,513,517,525,528,531,552,599,602,\
@@ -847,8 +848,8 @@ separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,75
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(separateByShapes, position=0, leave=True):
-    taskId = index[84]
+for idx in tqdm(range(200,300), position=0, leave=True):
+    taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
     

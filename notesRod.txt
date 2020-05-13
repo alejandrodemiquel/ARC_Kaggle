@@ -1,8 +1,8 @@
 IDEAS:
-
+219 same stuffff
 add function to startOps + Crop: 624, 588
 
-- replicateShape + scaling, changing color
+- replicateShape + changing color
 - 194: crop, minimize, 
 - 108: symmetrize, colormap, deleteshape
 - 424, 475, 498, 624: replicate + crop
@@ -12,12 +12,14 @@ add function to startOps + Crop: 624, 588
 
 - delete shapes: 654, 96, 129 (holes)
 - symmetrize: 61
-- arrange: 558, 440, 438, 414
-should be solved: 30 cropshape, 36 connect all pixekls,
+- arrange: 438, 414
 
 ------------ArrangeShapes---------
 solves: 152, 440, 558, 588, 622
 ignore grid + lay: 414
+
+455 (overlap), 676 (encaixar)
+
 overlap: 21, 498 , 589
 fit + smth:
 	- scale: 158, 760, 535
@@ -30,32 +32,33 @@ lay + smth:
 replicate + cropLargest: 365, 624
 
 ------------DeleteShapes-----------
-
 solves: 96, 652
 
 TODOs:
-- Get attributes betters
-- when to call
-
+- More examples
+------------ColorByPixels------
+353, 415
+------------Symmetrize-----
+108
+284
+542
 ------------Replicate--------
 TODOs:
 - at pixels
 - adopt anchor color
 
-- 74, 88, 100, 108, 111, 116, 132, 157, 172, 190, 205, 207, 208, 274, 284, 326, 362, 365, 367, 369, 421, 424, 431, 464, 467, 472, 474, 475, 494, 497, 498, 500, 509, 514, 523, 524,539, 540, 583, 592, 626, 628, 636, 650, 659, 674, 683, 716, 742, 779, 786, 795
+- 74, 88, 108, 111, 116, 132, 190, 205, 207, 208, 274, 284, 326, 362, 365, 367, 369, 424, 431, 464, 467, 472, 474, 475, 494, 497, 498, 509, 514, 523, 539, 583, 592, 626, 628, 636, 650, 659, 674, 683, 716, 742, 779, 786, 795
 
 140, 
 
 maybe 592?
 add 'all' + context? eg 583
 
-solved: 17,68,75,79,100,111,116,157,172,360,367,421,500,540,645
-howtocall: 524
+solved: 17,68,75,79,100,111,116,157,172,205,208,360,367,421,500,524,540,624,645
 
 same:
 - at pixels: 53, 74, 88, 509, 205, 424, 474, 628, 674, 716, 786
-- slots: 68, 645, 367, 421, 524
-- at subshapes: 132, 190, 196, 208, 659, 683, 779, 795
+- at subshapes: 132, 190, 196, 659, 683, 779, 795
 - everywhere: 207, 362, 539, 650
 - symmetrize: 108, 284
 
@@ -76,7 +79,7 @@ other ref: 153, 158, 208, 223, 229, 389
 
 ------------Crop-------------
 unsolved crop tasks:
-[28,87,204,318,395,440,445,464,473,509,586,589,624,655,676,689,768,774]
+[28,87,204,318,395,440,445,464,473,509,586,589,624,655,676,689,774]
 
 CropShape:
 - Identify if output is shape
@@ -84,8 +87,7 @@ CropShape:
 - Identify characteristic attributes
 - Crop holes: 586, 354
 
-solves: 13, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217, 258, 262, 270, 289, 299, 345, 364,  383, 488, 576, 578, 635, 712, 727, 785, 690(sort)
-solves too: 28, 395
+solves: 13, 28, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217, 258, 262, 270, 289, 299, 345, 364,  383, 395,488, 576, 578, 635, 712, 727, 785, 690(sort)
 
 cropframe: 13, 204, 443
 cropLargestNonbackgroudnFrame = 87, 194, 464
@@ -93,12 +95,8 @@ reference: 318, 690
 cropsomething? 354, 365
 color count in multicolor shapes: 473, 586(count holes?)	
 
-something + cropshape: 424 (replicate), 440 (sort), 455 (overlap), 676 (encaixar)
 
 color changes: 768, 774
-
-OTHER: 589
-
 
 --------overlapSubmatrices--------
 
@@ -267,3 +265,76 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
             for sh in shs:
                 m = deleteShape(m, sh, matrix.backgroundColor)              
     return(m)
+
+------------------------SYMETREIZEEEEEE__-
+
+
+def symmetrizeNonbackgroundSubmatrix(matrix, ud=False, lr=False, rotation=False, newColor=None):
+    """
+    Given a Task.Matrix, make the non-background part symmetric
+    """
+    m = matrix.m.copy()
+    bC = matrix.backgroundColor
+    if np.all(m == bC):
+        return m
+    x1, x2, y1, y2 = 0, m.shape[0]-1, 0, m.shape[1]-1
+    while x1 <= x2 and np.all(m[x1,:] == bC):
+        x1 += 1
+    while x2 >= x1 and np.all(m[x2,:] == bC):
+        x2 -= 1
+    while y1 <= y2 and np.all(m[:,y1] == bC):
+        y1 += 1
+    while y2 >= y1 and np.all(m[:,y2] == bC):
+        y2 -= 1
+    subMat = m[x1:x2+1,y1:y2+1].copy()
+    
+    found = False
+    for d in range(min(subMat.shape[0], subMat.shape[1]), 0, -1):
+        for x in range(subMat.shape[0]-d+1):
+            for y in range(subMat.shape[1]-d+1):
+                if ud and lr and np.all(subMat[x:x+d,y:y+d] == np.flipud(subMat[x:x+d,y:y+d]))\
+                        and np.all(subMat[x:x+d,y:y+d] == np.fliplr(subMat[x:x+d,y:y+d]))\
+                        and not np.all(subMat[x:x+d,y:y+d] == matrix.backgroundColor)\
+                        and np.all(subMat[x:x+d,y:y+d] == np.rot90(subMat[x:x+d,y:y+d])):
+                    found = True   
+                    break
+                elif rotation and np.all(subMat[x:x+d,y:y+d] == np.rot90(subMat[x:x+d,y:y+d],1))\
+                        and not np.all(subMat[x:x+d,y:y+d] == matrix.backgroundColor):
+                    found = True   
+                    break
+            if found:
+                break
+        if found:
+            break
+        
+    if ud and lr:
+        if 2*x+x1+d > m.shape[0] or 2*y+y1+d > m.shape[1]:
+            return m
+        for i in range(subMat.shape[0]):
+            for j in range(subMat.shape[1]):
+                if subMat[i][j] != bC:
+                    m[2*x+x1+d-i-1,y1+j] = subMat[i,j]
+                    m[x1+i,2*y+y1+d-j-1] = subMat[i,j]
+                    m[2*x+x1+d-i-1,2*y+y1+d-j-1] = subMat[i,j]
+    elif rotate:
+        #if x1+y+subMat.shape[0]> m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
+        if x1+y+subMat.shape[0] > m.shape[0] or y1+x+subMat.shape[1]> m.shape[1]\
+            or y1+y-x+subMat.shape[0]>= m.shape[0] or x1+x-y+subMat.shape[1]>=m.shape[1]:
+            return m
+        for i in range(subMat.shape[0]):
+            for j in range(subMat.shape[1]):
+                if subMat[i][j] != bC:
+                    m[x1+x+d+y-j-1,y1+y-x+i] = subMat[i,j]
+                    m[x1+x-y+j,y1+y+d+x-i-1] = subMat[i,j]
+                    m[x1+2*x+d-i-1,y1+2*y+d-j-1] = subMat[i,j]        
+    return m
+
+
+def getBestSymmetrizeSubmatrixOld(t):
+    croppedSamples = [cropAllBackground(s.outMatrix) for s in t.trainSamples]
+    if all(np.all(np.flipud(m)==m) for m in croppedSamples):
+        if all(np.all(np.fliplr(m)==m) for m in croppedSamples):
+            return partial(symmetrizeNonbackgroundSubmatrix,ud=True, lr=True)
+    if all(m.shape[0]==m.shape[1] and np.all(np.rot90(m)==m) for m in croppedSamples):
+        return partial(symmetrizeNonbackgroundSubmatrix,rotation=True)
+    return partial(identityM)
