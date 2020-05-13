@@ -8262,15 +8262,16 @@ for output_id in submission.index:
     if separationByShapes != False:
         separatedT = Task(separationByShapes.separatedTask, task_id, submission=True)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
-        
-        mergedPredictions = [[], [], []]
+                
+        mergedPredictions = []
         for s in range(originalT.nTest):
+            mergedPredictions.append([])
             matrixRange = separationByShapes.getRange("test", s)
             matrices = [[sepPredictions[i][cand] for i in range(matrixRange[0], matrixRange[1])] \
                          for cand in range(3)]
             for cand in range(3):
                 pred = mergeMatrices(matrices[cand], originalT.backgroundColor)
-                mergedPredictions[cand] = pred
+                mergedPredictions[s].append(pred)
         
         b3cIndices = b3c.getOrderedIndices()
         sepB3cIndices = sepB3c.getOrderedIndices()

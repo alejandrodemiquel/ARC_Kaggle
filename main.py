@@ -994,28 +994,29 @@ for idx in tqdm(separateByShapes, position=0, leave=True):
         separatedT = Task.Task(separationByShapes.separatedTask, taskId, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
         
-        mergedPredictions = [[], [], []]
+        mergedPredictions = []
         for s in range(originalT.nTest):
+            mergedPredictions.append([])
             matrixRange = separationByShapes.getRange("test", s)
             matrices = [[sepPredictions[i][cand] for i in range(matrixRange[0], matrixRange[1])] \
                          for cand in range(3)]
             for cand in range(3):
                 pred = Utils.mergeMatrices(matrices[cand], originalT.backgroundColor)
-                mergedPredictions[cand] = pred
-                plot_sample(originalT.testSamples[s], pred)
+                mergedPredictions[s].append(pred)
+                #plot_sample(originalT.testSamples[s], pred)
                 
         b3cIndices = b3c.getOrderedIndices()
         sepB3cIndices = sepB3c.getOrderedIndices()
                 
         b3cIndex, sepB3cIndex = 0, 0
         for i in range(3):
-            if b3c.candidates[b3cIndices[b3cIndex]] <=  sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
+            if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
                 for s in range(originalT.nTest):
                     predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
                 b3cIndex += 1
             else:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = predictions[s][sepB3cIndices[sepB3cIndex]]
+                    predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
         
         
