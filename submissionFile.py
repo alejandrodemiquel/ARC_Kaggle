@@ -317,9 +317,10 @@ class Shape:
         
         self.nHoles = self.getNHoles()
         
-        self.isFullFrame = False
         if self.nColors==1:
-            self.isFullFrame = self.isFullFrame()            
+            self.isFullFrame = self.isFullFrame()   
+        else:
+            self.isFullFrame = False
         
         if self.nColors==1:
             self.boolFeatures = []
