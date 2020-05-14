@@ -4638,7 +4638,7 @@ def cropAllShapes(matrix, background, diagonal=False):
     return m
 
 # %% Stuff added by Roderic
-#delete shape with x properties
+
 def getBestColorByPixels(t):
     delPix = False
     if isDeleteTask(t) or t.outSmallerThanIn:
@@ -4709,6 +4709,7 @@ def isDeleteTask(t):
         return True
     return False
 
+#delete shape with x properties
 def getBestDeleteShapes(t, multicolor=False, diagonal=True):
     attrs = set(['LaSh','SmSh','MoCl','MoCo','PiXl'])
     bestScore = 1000
@@ -5388,10 +5389,6 @@ def getPossibleOperations(t, c):
         params = fillTheBlankParameters(t)
         x.append(partial(fillTheBlank, params=params))
         
-    # switchColors
-    if all([n==2 for n in candTask.nInColors]):
-        x.append(partial(switchColors))
-        
     # downsize
     if candTask.sameOutShape:
         outShape = candTask.outShape
@@ -5768,12 +5765,6 @@ def getPossibleOperations(t, c):
                                          factor=candTask.outShapeFactor, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
     
-    if candTask.inputIsGrid:
-        if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
-            for times in range(1, 6):
-                x.append(partial(colorAppearingXTimes, times=times))
-            x.append(partial(maxColorFromCell))
-    
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         if outputIsSubmatrix(candTask, isGrid=True):
             for color in range(10):
@@ -5826,15 +5817,20 @@ def getPossibleOperations(t, c):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
     
+    if candTask.inputIsGrid:
+        if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
+            for times in range(1, 6):
+                x.append(partial(colorAppearingXTimes, times=times))
+            x.append(partial(maxColorFromCell))
                         
     # Cropshape    
     if candTask.outSmallerThanIn:
+        x.append(getBestArrangeShapes(candTask))
+        x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
+        x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(colorByPixels, deletePixels=True))
         x.append(partial(colorByPixels, colorMap=True, deletePixels=True))
         x.append(partial(deleteShapes, attributes = getDeleteAttributes(candTask, diagonal = False), diagonal = False, multicolor=False))
-        x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
-        x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
-        x.append(getBestArrangeShapes(candTask))
           
         if candTask.backgroundColor!=-1:
             #arrangeShapes                    
@@ -5861,8 +5857,7 @@ def getPossibleOperations(t, c):
                                  singleColor=True, diagonals=True)) 
             x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
                                  singleColor=True, diagonals=True, context=True)) 
-    
-    x.append(partial(cropAllBackground))   
+      
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
@@ -5875,6 +5870,15 @@ def getPossibleOperations(t, c):
         x.append(partial(cropFullFrame, bigOrSmall="small"))
         x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=False))
         x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=False))
+    
+    
+    # startOps
+    
+    x.append(partial(cropAllBackground)) 
+    
+    # switchColors
+    if all([n==2 for n in candTask.nInColors]):
+        x.append(partial(switchColors))
     
     # minimize
     if not candTask.sameIOShapes:
