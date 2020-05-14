@@ -6323,47 +6323,61 @@ def getBestColorByPixels(t):
     bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, deletePixels=delPix), bestScore, bestFunction)
     bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, colorMap=True, deletePixels=delPix), bestScore, bestFunction)
     bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, oneColor=True, deletePixels=delPix), bestScore, bestFunction)
-    return bestFunction    
-
-def colorByPixels(matrix, colorMap=False, oneColor=False):    
+    return bestFunction
+    
+def colorByPixels(matrix, colorMap=False, oneColor=False, deletePixels=False):
+    """
+    Attempts to find color changes dictated by pixels. Be it pixels determine the color of the closest shape,\
+    be it adjacent pixels determine a color map. 
+    """
     m = matrix.m.copy()
     shList = [sh for sh in matrix.shapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)>1]
     pixList = [sh for sh in matrix.shapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)==1]
-    if len(shList)==0 or len(pixList)==0:
+    if len(shList)==0 or len(pixList)==0 or len(pixList)>10:
         return m
     if colorMap:
-        if all(any(abs(p1.position[0]-p2.position[0])+abs(p1.position[1]-p2.position[1])==1 for p1 in pixList) for p2 in pixList):
-            cMap = dict()
-            for p1 in pixList:
-                for p2 in pixList:
-                    if abs(p1.position[0]-p2.position[0])+abs(p1.position[1]-p2.position[1])==1:
-                        cMap[p1.color] = p2.color
+        cMap = dict()
+        seenP = []
+        for p1 in pixList:
+            for p2 in pixList:
+                if abs(p1.position[1]-p2.position[1])==1 and p1.position[0]==p2.position[0] and p1.color not in cMap.keys():
+                    cMap[p1.color] = p2.color
+                    seenP.append(p1.position)                   
+        if deletePixels:
             for pix in pixList:
                 m[pix.position[0], pix.position[1]] = matrix.backgroundColor
-            for i,j in np.ndindex(m.shape):
-                if m[i,j] in cMap.keys():
-                    m[i,j] = cMap[m[i,j]]
+        for i,j in np.ndindex(m.shape):
+            if m[i,j] in cMap.keys() and (i,j) not in seenP:
+                m[i,j] = cMap[m[i,j]]
     else:
         if oneColor:
             cc = Counter([sh.color for sh in pixList])
             newC = max(cc, key=cc.get)
-            m[m==newC]=matrix.backgroundColor
+            if deletePixels:
+                m[m==newC]=matrix.backgroundColor
             m[m!=matrix.backgroundColor]=newC
         else:
-            for pix in pixList:
+            if len(pixList) != len(shList):
+                return m
+            for i in range(len(pixList)):
                 minD, newD = 1000, 1000
-                bestSh = None
-                for sh in shList:
-                    newD = min(np.linalg.norm(np.subtract(pix.position,np.add(p, sh.position))) for p in sh.pixels) 
-                    if newD < minD:
-                        minD = newD
-                        bestSh = sh
+                bestSh, bestPix = None, None
+                for pix in pixList:
+                    for sh in shList:
+                        newD = min(np.linalg.norm(np.subtract(pix.position,np.add(p, sh.position))) for p in sh.pixels) 
+                        if newD < minD:
+                            minD = newD
+                            bestSh = sh
+                            bestPix = pix
                 if bestSh != None:
                     for i,j in np.ndindex(bestSh.shape):
                         if bestSh.m[i,j] != 255:
-                            m[bestSh.position[0]+i, bestSh.position[1]+j]=pix.color
-                    m[pix.position[0], pix.position[1]] = matrix.backgroundColor
-    return m    
+                            m[bestSh.position[0]+i, bestSh.position[1]+j]=bestPix.color
+                    if deletePixels:
+                        m[bestPix.position[0], bestPix.position[1]] = matrix.backgroundColor
+                    shList.remove(bestSh)
+                    pixList.remove(bestPix)
+    return m 
 
 def isDeleteTask(t):    
     if hasattr(t, 'colorChanges') and t.backgroundColor in [c[1] for c in t.colorChanges]:
