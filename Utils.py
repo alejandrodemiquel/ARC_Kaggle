@@ -4651,16 +4651,15 @@ def getBestArrangeShapes(t):
     elif t.outIsInMulticolorShapeSize:
         bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='fit',\
                                                                 diagonal=True, multicolor=True), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes,arrange='fit',shByColor=True), bestScore, bestFunction)
     return bestFunction
 
-def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True):
-    
+def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True, shByColor=False):
     def tessellateShapes (mat, shL, n, bC):
         m = mat.copy()
         """
         Attempts to tessellate matrix mat with background color bC shapes is list sh.
         """
-
         for i, j in np.ndindex(tuple(mat.shape[k] - shL[n].shape[k] + 1 for k in (0,1))):
             if np.all(np.logical_or(m[i: i+shL[n].shape[0], j: j+shL[n].shape[1]] == bC, shL[n].m == 255)):
                 for k, l in np.ndindex(shL[n].shape):
@@ -4673,19 +4672,22 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
                     return m, arrFound
                 else:
                     for k, l in np.ndindex(shL[n].shape):
-                        m[i+k,j+l] = bC
+                        if shL[n].m[k,l] != 255:
+                            m[i+k,j+l] = bC
         return m, False
-    
-    if not multicolor: 
-        if diagonal:   
-            shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
-        else:   
-            shList = [sh for sh in matrix.shapes if sh.color != matrix.backgroundColor]
+    if shByColor:
+        shList = [sh for sh in matrix.shapesByColor]
     else:
-        if diagonal: 
-            shList = [sh for sh in matrix.multicolorDShapes]
+        if not multicolor: 
+            if diagonal:   
+                shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
+            else:   
+                shList = [sh for sh in matrix.shapes if sh.color != matrix.backgroundColor]
         else:
-            shList = [sh for sh in matrix.multicolorShapes]
+            if diagonal: 
+                shList = [sh for sh in matrix.multicolorDShapes]
+            else:
+                shList = [sh for sh in matrix.multicolorShapes]
     
     if len(shList) < 2 or len(shList)>10:
         return matrix.m.copy()
@@ -4732,15 +4734,16 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
         shList.sort(key=lambda x: len(x.pixels), reverse=True)
         if outShape == None:
             outShape = shList[0].shape
+        """    
         if all(sh.shape == outShape for sh in shList):
-            m = np.full(outShape, fill_value=0)
+            m = np.full(outShape, fill_value=matrix.backgroundColor)
             for sh in shList:
                 for i, j in np.ndindex(m.shape):
                     if sh.m[i,j]!= 255:
                         m[i,j] = max(m[i,j],sh.m[i,j])
             return m
-        
-        elif all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
+        """
+        if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
             m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,0,matrix.backgroundColor)
             if tessellate:
                 return m
@@ -5121,9 +5124,10 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
         return matrix
     if context:
         bestShape = shapeList[bestShapes[0]]
-        return matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
+        m = matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
+        return m.copy() 
     else:
-        bestShape = shapeList[bestShapes[0]].m
+        bestShape = shapeList[bestShapes[0]].m.copy()
         bestShape[bestShape==255]=backgroundColor
     return bestShape
     
@@ -5666,6 +5670,7 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
+    
                         
     # Cropshape    
     if candTask.outSmallerThanIn:
@@ -5675,12 +5680,12 @@ def getPossibleOperations(t, c):
         x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(getBestArrangeShapes(candTask))
-        
+          
         if candTask.backgroundColor!=-1:
             #arrangeShapes                    
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=True))
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=False))
-        
+           
         bestCrop = getBestCropShape(candTask)
         if 'attributes' in bestCrop.keywords.keys():
             for attr in bestCrop.keywords['attributes']:
@@ -5689,7 +5694,7 @@ def getPossibleOperations(t, c):
                 newCrop = copy.deepcopy(bestCrop)
                 newCrop.keywords['attributes'] = set([attr])
                 x.append(newCrop)
-               
+                   
         #this next part is artificial
         if len(candTask.commonInDShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInDShapes, diagonal=True))
@@ -5701,6 +5706,7 @@ def getPossibleOperations(t, c):
                                  singleColor=True, diagonals=True)) 
             x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
                                  singleColor=True, diagonals=True, context=True)) 
+    
     x.append(partial(cropAllBackground))   
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))

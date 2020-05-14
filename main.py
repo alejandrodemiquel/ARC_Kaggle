@@ -970,7 +970,7 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
 
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
              299,345,364,383,395,488,576,578,635,712,727,768,785]
-arrangeTasks = [152,440,523,558,588,622]
+arrangeTasks = [152,307,440,498,523,558,588,622]
 arrangeToDoTasks = [21,29,43,45,95,125,152,158,200,232,237,252,263,295,307,365,414,434,440,475,498,523,535,558,\
                 588,589,622,624,652,676,699,759,760]
 replicateTasks = [17,26,68,75,79,100,111,116,157,172,208,360,367,421,500,524,540,597,624,645]
@@ -986,20 +986,11 @@ separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,75
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-<<<<<<< HEAD
-
-for idx in tqdm(replicateTasks, position=0, leave=True):
-    taskId = index[idx]
-    task = allTasks[taskId]
-    originalT = Task.Task(task, taskId, submission=False)
-  
-=======
-for idx in tqdm(separateByColors, position=0, leave=True):
+for idx in tqdm([650], position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
->>>>>>> 4fc51868c8e1b4b43ba63029b9035bb1b43da1cc
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
 
     separationByShapes = needsSeparationByShapes(originalT)
@@ -1031,31 +1022,7 @@ for idx in tqdm(separateByColors, position=0, leave=True):
                 for s in range(originalT.nTest):
                     predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
-<<<<<<< HEAD
-        
-        """
-        bestSepIndex = 0
-        if sepB3c.candidates[1].score < sepB3c.candidates[bestSepIndex].score:
-            bestSepIndex = 1
-        if sepB3c.candidates[2].score < sepB3c.candidates[bestSepIndex].score:
-            bestSepIndex = 2
-            
-        worstIndex = 0
-        if b3c.candidates[1].score > b3c.candidates[worstIndex].score:
-            worstIndex = 1
-        if b3c.candidates[2].score > b3c.candidates[worstIndex].score:
-            worstIndex = 2
-            
-        print(len(predictions))
-        print(len(predictions[0]))
-        print(predictions)
-        
-        for s in range(originalT.nTest):
-            predictions[s][worstIndex] = mergedPredictions[s][bestSepIndex]
-        """
-=======
 
     for s in range(originalT.nTest):
         for i in range(3):
             plot_sample(originalT.testSamples[s], predictions[s][i])
->>>>>>> 4fc51868c8e1b4b43ba63029b9035bb1b43da1cc

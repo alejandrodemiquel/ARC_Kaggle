@@ -1,4 +1,5 @@
 IDEAS:
+CONFLICT DELETE SHAPES and CROPSHAPE
 219 same stuffff
 add function to startOps + Crop: 624, 588
 

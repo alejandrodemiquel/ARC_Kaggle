@@ -391,6 +391,28 @@ class Shape:
             return True
         return False
 
+def detectShapesByColor(x, background):
+    shapes = []
+    for c in range(10):
+        if c == background or c not in x:
+            continue
+        mc = np.zeros(x.shape, dtype=int)
+        mc[x==c] = c
+        mc[x!=c] = 255
+        x1, x2, y1, y2 = 0, mc.shape[0]-1, 0, mc.shape[1]-1
+        while x1 <= x2 and np.all(mc[x1,:] == 255):
+            x1 += 1 
+        while x2 >= x1 and np.all(mc[x2,:] == 255):
+            x2 -= 1
+        while y1 <= y2 and np.all(mc[:,y1] == 255):
+            y1 += 1
+        while y2 >= y1 and np.all(mc[:,y2] == 255):
+            y2 -= 1
+        m = mc[x1:x2+1,y1:y2+1]
+        s = Shape(m.copy(), x1, y1, background, False)
+        shapes.append(s)
+    return shapes
+
 def detectShapes(x, background, singleColor=False, diagonals=False):
     """
     Given a numpy array x (2D), returns a list of the Shapes present in x
@@ -587,6 +609,7 @@ class Matrix():
         self.nDShapes = len(self.dShapes)
         self.fullFrames = [shape for shape in self.shapes if shape.isFullFrame]
         self.fullFrames = sorted(self.fullFrames, key=lambda x: x.shape[0]*x.shape[1], reverse=True)
+        self.shapesByColor = detectShapesByColor(self.m, self.backgroundColor)
         #self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         #self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         #R: Since black is the most common background color. 
