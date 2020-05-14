@@ -2066,8 +2066,8 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
     sortedCcwf = {k: v for k, v in sorted(ccwf.items(), key=lambda item: sum(item[1]))}
     for color in sortedCcwf.keys():
         for sh in range(len(matrix.shapes)):
-            if (matrix.shapes[sh].color in fixedColors) or \
-            (matrix.shapes[sh].hasFeatures(fixedShapeFeatures)):
+            if (matrix.shapes[sh].color in fixedColors):# or \
+            #(matrix.shapes[sh].hasFeatures(fixedShapeFeatures)):
                 continue
             if hasFeatures(featureList[sh], ccwf[color]):
                 m = changeColorShapes(m, [matrix.shapes[sh]], color)
