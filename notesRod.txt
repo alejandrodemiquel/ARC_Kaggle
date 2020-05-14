@@ -1,5 +1,5 @@
 IDEAS:
-CONFLICT DELETE SHAPES and CROPSHAPE
+CONFLICT DELETE SHAPES and CROPSHAPE, 776 s'hauria de solucionar. i altres també.....
 219 same stuffff
 add function to startOps + Crop: 624, 588
 
@@ -39,6 +39,8 @@ TODOs:
 - More examples
 ------------ColorByPixels------
 353,415,523,768
+
+todo 182
 ------------Symmetrize-----
 solved: 26, 111, 116, 360
 108,284,542
@@ -79,7 +81,7 @@ other ref: 153, 158, 208, 223, 229, 389
 
 ------------Crop-------------
 unsolved crop tasks:
-[28,87,204,318,395,440,445,464,473,509,586,589,624,655,676,689,774]
+[87,204,318,473,586,774]
 
 CropShape:
 - Identify if output is shape
