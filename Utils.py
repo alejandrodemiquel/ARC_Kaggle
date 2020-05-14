@@ -4802,26 +4802,38 @@ def getBestArrangeShapes(t):
     return bestFunction
 
 def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True, shByColor=False):
-    def tessellateShapes (mat, shL, n, bC):
+    
+    def tessellateShapes (mat, shL, n, bC, rotation=False):
         m = mat.copy()
+        arrFound = False
+        rot = 1
         """
         Attempts to tessellate matrix mat with background color bC shapes is list sh.
         """
-        for i, j in np.ndindex(tuple(mat.shape[k] - shL[n].shape[k] + 1 for k in (0,1))):
-            if np.all(np.logical_or(m[i: i+shL[n].shape[0], j: j+shL[n].shape[1]] == bC, shL[n].m == 255)):
-                for k, l in np.ndindex(shL[n].shape):
-                    if shL[n].m[k,l] != 255:
-                        m[i+k,j+l] = shL[n].m[k,l]
-                if n == len(shL) - 1:
-                    return m, True
-                m, arrFound = tessellateShapes(m, shL, n+1, bC)
-                if arrFound:
-                    return m, arrFound
-                else:
-                    for k, l in np.ndindex(shL[n].shape):
-                        if shL[n].m[k,l] != 255:
-                            m[i+k,j+l] = bC
+        if rotation:
+            rot = 4
+        for x in range(rot):
+            sh = copy.deepcopy(shL[n])
+            sh.m = np.rot90(sh.m,x).copy()
+            sh.shape = sh.m.shape
+            if mat.shape[0] < sh.shape[0] or mat.shape[1] < sh.shape[1]:
+                continue
+            for i, j in np.ndindex(tuple(mat.shape[k] - sh.shape[k] + 1 for k in (0,1))):
+                if np.all(np.logical_or(m[i: i+sh.shape[0], j: j+sh.shape[1]] == bC, sh.m == 255)):
+                    for k, l in np.ndindex(sh.shape):
+                        if sh.m[k,l] != 255:
+                            m[i+k,j+l] = sh.m[k,l]
+                    if n == len(shL) - 1:
+                        return m, True
+                    m, arrFound = tessellateShapes(m, shL, n+1, bC, rotation)
+                    if arrFound:
+                        return m, True
+                    if not arrFound:
+                        for k, l in np.ndindex(sh.shape):
+                            if sh.m[k,l] != 255:
+                                m[i+k,j+l] = bC
         return m, False
+    
     if shByColor:
         shList = [sh for sh in matrix.shapesByColor]
     else:
@@ -4891,7 +4903,12 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
             return m
         """
         if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
-            m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,0,matrix.backgroundColor)
+            m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
+                                             0,matrix.backgroundColor)
+            if tessellate:
+                return m
+            m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
+                                             0,matrix.backgroundColor,rotation=True)
             if tessellate:
                 return m
             else:
@@ -5024,7 +5041,7 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
         newList = []
         for repShape in repList:
             for r in range(0,4):
-                mr, mrM = np.rot90(repShape.m, r), np.rot90(repShape.m[::-1,::], r)
+                mr, mrM = np.rot90(repShape.m.copy(), r), np.rot90(repShape.m[::-1,::].copy(), r)
                 newRep, newRepM = copy.deepcopy(repShape), copy.deepcopy(repShape)
                 newRep.m, newRepM.m = mr, mrM
                 newRep.shape, newRepM.shape = mr.shape, mrM.shape
