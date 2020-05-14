@@ -4339,79 +4339,172 @@ def getBestSurroundShapes(t):
 
 # %% Extend Color
 
-def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=None):
+def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=None,\
+                deleteExtensionColors=set()):
     m = matrix.m.copy()
     
     if sourceColor==None:
         sourceColor=color
     
     # Vertical
-    if direction=='v' or direction=='u':
+    if direction=='all' or direction=='hv' or direction=='v' or direction=='u':
         for j in range(m.shape[1]):
             colorCells=False
+            start = m.shape[0]-1
             for i in reversed(range(m.shape[0])):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
+                    start = i
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
+                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                    currentI = i
+                    for i in range(currentI, start):
+                        m[i,j] = matrix.m[i,j]
+                    break
             if color==None:
                 sourceColor=None
-    if direction=='v' or direction=='d':
+    if direction=='all' or direction=='hv' or direction=='v' or direction=='d':
         for j in range(m.shape[1]):
             colorCells=False
+            start = 0
             for i in range(m.shape[0]):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
+                    start = i
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
+                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                    currentI = i
+                    for i in reversed(range(start, currentI)):
+                        m[i,j] = matrix.m[i,j]
+                    break
             if color==None:
                 sourceColor=None
              
     # Horizontal
-    if direction=='h' or direction=='l':
+    if direction=='all' or direction=='hv' or direction=='h' or direction=='l':
         for i in range(m.shape[0]):
             colorCells=False
+            start = m.shape[1]-1
             for j in reversed(range(m.shape[1])):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
+                    start = j
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
+                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                    currentJ = j
+                    for j in range(currentJ, start):
+                        m[i,j] = matrix.m[i,j]
+                    break
             if color==None:
                 sourceColor=None
-    if direction=='h' or direction=='r':
+    if direction=='all' or direction=='hv' or direction=='h' or direction=='r':
         for i in range(m.shape[0]):
             colorCells=False
+            start = 0
             for j in range(m.shape[1]):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
+                    start = j
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
+                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                    currentJ = j
+                    for j in reversed(range(start, currentJ)):
+                        m[i,j] = matrix.m[i,j]
+                    break
             if color==None:
                 sourceColor=None
+                
+    # Diagonal
+    if direction=='all' or  direction=='diag' or direction=='d1' or direction=='d2':
+        if direction=='diag' or direction=='all':
+            directions = ['d1', 'd2']
+        else:
+            directions = [direction]
+        for direction in directions:
+            for transpose in [True, False]:
+                if transpose and direction=='d1':
+                    matrix.m = np.rot90(matrix.m, 2).T
+                    m = np.rot90(m, 2).T
+                if transpose and direction=='d2':
+                    matrix.m = matrix.m.T
+                    m = m.T
+                if direction=='d2':
+                    matrix.m = np.fliplr(matrix.m)
+                    m = np.fliplr(m)
+                for i in range(-m.shape[0]+1, m.shape[1]):
+                    diag = np.diagonal(matrix.m, i)
+                    colorCells=False
+                    for j in range(len(diag)):
+                        if color==None:
+                            if i<=0:
+                                if matrix.m[-i+j,j] not in (fixedColors|cic):
+                                    sourceColor = matrix.m[-i+j,j]
+                            else:
+                                if matrix.m[j,i+j] not in (fixedColors|cic):
+                                    sourceColor = matrix.m[j,i+j]
+                        if i<=0:
+                            if matrix.m[-i+j,j]==sourceColor:
+                                colorCells=True
+                            if colorCells and matrix.m[-i+j,j] in cic:
+                                if color==None:
+                                    m[-i+j,j] = sourceColor
+                                else:
+                                    m[-i+j,j] = color
+                            if colorCells and matrix.m[-i+j,j] in deleteExtensionColors:
+                                for j in range(len(diag)):
+                                    m[-i+j,j] = matrix.m[-i+j,j]
+                                break
+                        else:
+                            if matrix.m[j,i+j]==sourceColor:
+                                colorCells=True
+                            if colorCells and matrix.m[j,i+j] in cic:
+                                if color==None:
+                                    m[j,i+j] = sourceColor
+                                else:
+                                    m[j,i+j] = color
+                            if colorCells and matrix.m[j,i+j] in deleteExtensionColors:
+                                for j in range(len(diag)):
+                                    m[j,i+j] = matrix.m[j,i+j]
+                                break
+                    if color==None:
+                        sourceColor=None
+                if direction=='d2':
+                    matrix.m = np.fliplr(matrix.m)
+                    m = np.fliplr(m)
+                if transpose and direction=='d2':
+                    matrix.m = matrix.m.T
+                    m = m.T
+                if transpose and direction=='d1':
+                    matrix.m = np.rot90(matrix.m, 2).T
+                    m = np.rot90(m, 2).T
 
     return m
 
@@ -4421,8 +4514,13 @@ def getBestExtendColor(t):
     
     cic = t.commonChangedInColors
     fixedColors = t.fixedColors
-    for d in ['r', 'l', 'h', 'u', 'd', 'v']:
+    for d in ['r', 'l', 'h', 'u', 'd', 'v', 'hv', 'd1', 'd2', 'diag', 'all']:
         f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
+                    deleteExtensionColors=fixedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
@@ -4431,8 +4529,19 @@ def getBestExtendColor(t):
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             if bestScore==0:
                 return bestFunction
+            f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors,\
+                        deleteExtensionColors=fixedColors)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
             for fc in t.fixedColors:
-                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, fixedColors=fixedColors)
+                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
+                            fixedColors=fixedColors)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
+                            fixedColors=fixedColors, deleteExtensionColors=fixedColors)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction

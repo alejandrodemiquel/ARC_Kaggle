@@ -986,8 +986,8 @@ separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,75
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm([650], position=0, leave=True):
-    taskId = index[686]
+for idx in tqdm(separateByColors, position=0, leave=True):
+    taskId = index[644]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
