@@ -491,6 +491,28 @@ class Shape:
             return True
         
         return False
+    
+def detectShapesByColor(x, background):
+    shapes = []
+    for c in range(10):
+        if c == background or c not in x:
+            continue
+        mc = np.zeros(x.shape, dtype=int)
+        mc[x==c] = c
+        mc[x!=c] = 255
+        x1, x2, y1, y2 = 0, mc.shape[0]-1, 0, mc.shape[1]-1
+        while x1 <= x2 and np.all(mc[x1,:] == 255):
+            x1 += 1 
+        while x2 >= x1 and np.all(mc[x2,:] == 255):
+            x2 -= 1
+        while y1 <= y2 and np.all(mc[:,y1] == 255):
+            y1 += 1
+        while y2 >= y1 and np.all(mc[:,y2] == 255):
+            y2 -= 1
+        m = mc[x1:x2+1,y1:y2+1]
+        s = Shape(m.copy(), x1, y1, background, False)
+        shapes.append(s)
+    return shapes
 
 def detectShapes(x, background, singleColor=False, diagonals=False):
     """
@@ -688,6 +710,7 @@ class Matrix():
         self.nDShapes = len(self.dShapes)
         self.fullFrames = [shape for shape in self.shapes if shape.isFullFrame]
         self.fullFrames = sorted(self.fullFrames, key=lambda x: x.shape[0]*x.shape[1], reverse=True)
+        self.shapesByColor = detectShapesByColor(self.m, self.backgroundColor)
         #self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         #self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         #R: Since black is the most common background color. 
@@ -6270,16 +6293,15 @@ def getBestArrangeShapes(t):
     elif t.outIsInMulticolorShapeSize:
         bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='fit',\
                                                                 diagonal=True, multicolor=True), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes,arrange='fit',shByColor=True), bestScore, bestFunction)
     return bestFunction
 
-def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True):
-    
+def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True, shByColor=False):
     def tessellateShapes (mat, shL, n, bC):
         m = mat.copy()
         """
         Attempts to tessellate matrix mat with background color bC shapes is list sh.
         """
-
         for i, j in np.ndindex(tuple(mat.shape[k] - shL[n].shape[k] + 1 for k in (0,1))):
             if np.all(np.logical_or(m[i: i+shL[n].shape[0], j: j+shL[n].shape[1]] == bC, shL[n].m == 255)):
                 for k, l in np.ndindex(shL[n].shape):
@@ -6292,19 +6314,22 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
                     return m, arrFound
                 else:
                     for k, l in np.ndindex(shL[n].shape):
-                        m[i+k,j+l] = bC
+                        if shL[n].m[k,l] != 255:
+                            m[i+k,j+l] = bC
         return m, False
-    
-    if not multicolor: 
-        if diagonal:   
-            shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
-        else:   
-            shList = [sh for sh in matrix.shapes if sh.color != matrix.backgroundColor]
+    if shByColor:
+        shList = [sh for sh in matrix.shapesByColor]
     else:
-        if diagonal: 
-            shList = [sh for sh in matrix.multicolorDShapes]
+        if not multicolor: 
+            if diagonal:   
+                shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
+            else:   
+                shList = [sh for sh in matrix.shapes if sh.color != matrix.backgroundColor]
         else:
-            shList = [sh for sh in matrix.multicolorShapes]
+            if diagonal: 
+                shList = [sh for sh in matrix.multicolorDShapes]
+            else:
+                shList = [sh for sh in matrix.multicolorShapes]
     
     if len(shList) < 2 or len(shList)>10:
         return matrix.m.copy()
@@ -6351,15 +6376,16 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
         shList.sort(key=lambda x: len(x.pixels), reverse=True)
         if outShape == None:
             outShape = shList[0].shape
+        """    
         if all(sh.shape == outShape for sh in shList):
-            m = np.full(outShape, fill_value=0)
+            m = np.full(outShape, fill_value=matrix.backgroundColor)
             for sh in shList:
                 for i, j in np.ndindex(m.shape):
                     if sh.m[i,j]!= 255:
                         m[i,j] = max(m[i,j],sh.m[i,j])
             return m
-        
-        elif all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
+        """
+        if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
             m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,0,matrix.backgroundColor)
             if tessellate:
                 return m
@@ -6384,7 +6410,7 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
                             if sh.m[i,j] != 255:
                                 m[bestX+i,bestY+j] = sh.m[i,j]
                 return m
-    return matrix.m.copy()
+    return matrix.m
 
 #replicate shape
 def isReplicateTask(t):
@@ -6737,9 +6763,10 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
         return matrix
     if context:
         bestShape = shapeList[bestShapes[0]]
-        return matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
+        m = matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
+        return m.copy() 
     else:
-        bestShape = shapeList[bestShapes[0]].m
+        bestShape = shapeList[bestShapes[0]].m.copy()
         bestShape[bestShape==255]=backgroundColor
     return bestShape
     
