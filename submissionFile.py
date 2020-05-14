@@ -317,9 +317,10 @@ class Shape:
         
         self.nHoles = self.getNHoles()
         
-        self.isFullFrame = False
         if self.nColors==1:
-            self.isFullFrame = self.isFullFrame()            
+            self.isFullFrame = self.isFullFrame()   
+        else:
+            self.isFullFrame = False
         
         if self.nColors==1:
             self.boolFeatures = []
@@ -490,6 +491,28 @@ class Shape:
             return True
         
         return False
+    
+def detectShapesByColor(x, background):
+    shapes = []
+    for c in range(10):
+        if c == background or c not in x:
+            continue
+        mc = np.zeros(x.shape, dtype=int)
+        mc[x==c] = c
+        mc[x!=c] = 255
+        x1, x2, y1, y2 = 0, mc.shape[0]-1, 0, mc.shape[1]-1
+        while x1 <= x2 and np.all(mc[x1,:] == 255):
+            x1 += 1 
+        while x2 >= x1 and np.all(mc[x2,:] == 255):
+            x2 -= 1
+        while y1 <= y2 and np.all(mc[:,y1] == 255):
+            y1 += 1
+        while y2 >= y1 and np.all(mc[:,y2] == 255):
+            y2 -= 1
+        m = mc[x1:x2+1,y1:y2+1]
+        s = Shape(m.copy(), x1, y1, background, False)
+        shapes.append(s)
+    return shapes
 
 def detectShapes(x, background, singleColor=False, diagonals=False):
     """
@@ -687,6 +710,7 @@ class Matrix():
         self.nDShapes = len(self.dShapes)
         self.fullFrames = [shape for shape in self.shapes if shape.isFullFrame]
         self.fullFrames = sorted(self.fullFrames, key=lambda x: x.shape[0]*x.shape[1], reverse=True)
+        self.shapesByColor = detectShapesByColor(self.m, self.backgroundColor)
         #self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         #self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         #R: Since black is the most common background color. 
@@ -4315,79 +4339,172 @@ def getBestSurroundShapes(t):
 
 # %% Extend Color
 
-def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=None):
+def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=None,\
+                deleteExtensionColors=set()):
     m = matrix.m.copy()
     
     if sourceColor==None:
         sourceColor=color
     
     # Vertical
-    if direction=='v' or direction=='u':
+    if direction=='all' or direction=='hv' or direction=='v' or direction=='u':
         for j in range(m.shape[1]):
             colorCells=False
+            start = m.shape[0]-1
             for i in reversed(range(m.shape[0])):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
+                    start = i
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
+                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                    currentI = i
+                    for i in range(currentI, start):
+                        m[i,j] = matrix.m[i,j]
+                    break
             if color==None:
                 sourceColor=None
-    if direction=='v' or direction=='d':
+    if direction=='all' or direction=='hv' or direction=='v' or direction=='d':
         for j in range(m.shape[1]):
             colorCells=False
+            start = 0
             for i in range(m.shape[0]):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
+                    start = i
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
+                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                    currentI = i
+                    for i in reversed(range(start, currentI)):
+                        m[i,j] = matrix.m[i,j]
+                    break
             if color==None:
                 sourceColor=None
              
     # Horizontal
-    if direction=='h' or direction=='l':
+    if direction=='all' or direction=='hv' or direction=='h' or direction=='l':
         for i in range(m.shape[0]):
             colorCells=False
+            start = m.shape[1]-1
             for j in reversed(range(m.shape[1])):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
+                    start = j
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
+                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                    currentJ = j
+                    for j in range(currentJ, start):
+                        m[i,j] = matrix.m[i,j]
+                    break
             if color==None:
                 sourceColor=None
-    if direction=='h' or direction=='r':
+    if direction=='all' or direction=='hv' or direction=='h' or direction=='r':
         for i in range(m.shape[0]):
             colorCells=False
+            start = 0
             for j in range(m.shape[1]):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     colorCells=True
+                    start = j
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
+                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                    currentJ = j
+                    for j in reversed(range(start, currentJ)):
+                        m[i,j] = matrix.m[i,j]
+                    break
             if color==None:
                 sourceColor=None
+                
+    # Diagonal
+    if direction=='all' or  direction=='diag' or direction=='d1' or direction=='d2':
+        if direction=='diag' or direction=='all':
+            directions = ['d1', 'd2']
+        else:
+            directions = [direction]
+        for direction in directions:
+            for transpose in [True, False]:
+                if transpose and direction=='d1':
+                    matrix.m = np.rot90(matrix.m, 2).T
+                    m = np.rot90(m, 2).T
+                if transpose and direction=='d2':
+                    matrix.m = matrix.m.T
+                    m = m.T
+                if direction=='d2':
+                    matrix.m = np.fliplr(matrix.m)
+                    m = np.fliplr(m)
+                for i in range(-m.shape[0]+1, m.shape[1]):
+                    diag = np.diagonal(matrix.m, i)
+                    colorCells=False
+                    for j in range(len(diag)):
+                        if color==None:
+                            if i<=0:
+                                if matrix.m[-i+j,j] not in (fixedColors|cic):
+                                    sourceColor = matrix.m[-i+j,j]
+                            else:
+                                if matrix.m[j,i+j] not in (fixedColors|cic):
+                                    sourceColor = matrix.m[j,i+j]
+                        if i<=0:
+                            if matrix.m[-i+j,j]==sourceColor:
+                                colorCells=True
+                            if colorCells and matrix.m[-i+j,j] in cic:
+                                if color==None:
+                                    m[-i+j,j] = sourceColor
+                                else:
+                                    m[-i+j,j] = color
+                            if colorCells and matrix.m[-i+j,j] in deleteExtensionColors:
+                                for j in range(len(diag)):
+                                    m[-i+j,j] = matrix.m[-i+j,j]
+                                break
+                        else:
+                            if matrix.m[j,i+j]==sourceColor:
+                                colorCells=True
+                            if colorCells and matrix.m[j,i+j] in cic:
+                                if color==None:
+                                    m[j,i+j] = sourceColor
+                                else:
+                                    m[j,i+j] = color
+                            if colorCells and matrix.m[j,i+j] in deleteExtensionColors:
+                                for j in range(len(diag)):
+                                    m[j,i+j] = matrix.m[j,i+j]
+                                break
+                    if color==None:
+                        sourceColor=None
+                if direction=='d2':
+                    matrix.m = np.fliplr(matrix.m)
+                    m = np.fliplr(m)
+                if transpose and direction=='d2':
+                    matrix.m = matrix.m.T
+                    m = m.T
+                if transpose and direction=='d1':
+                    matrix.m = np.rot90(matrix.m, 2).T
+                    m = np.rot90(m, 2).T
 
     return m
 
@@ -4397,8 +4514,13 @@ def getBestExtendColor(t):
     
     cic = t.commonChangedInColors
     fixedColors = t.fixedColors
-    for d in ['r', 'l', 'h', 'u', 'd', 'v']:
+    for d in ['r', 'l', 'h', 'u', 'd', 'v', 'hv', 'd1', 'd2', 'diag', 'all']:
         f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
+                    deleteExtensionColors=fixedColors)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
@@ -4407,8 +4529,19 @@ def getBestExtendColor(t):
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             if bestScore==0:
                 return bestFunction
+            f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors,\
+                        deleteExtensionColors=fixedColors)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            if bestScore==0:
+                return bestFunction
             for fc in t.fixedColors:
-                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, fixedColors=fixedColors)
+                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
+                            fixedColors=fixedColors)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
+                            fixedColors=fixedColors, deleteExtensionColors=fixedColors)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
@@ -4974,7 +5107,7 @@ def deletePixels(matrix, diagonals=False):
 # %% Connect Pixels
 
 def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
-                  allowedChanges={}, lineExclusive=False):
+                  allowedChanges={}, lineExclusive=False, diagonal=False):
     """
     Given a matrix, this function connects all the pixels that have the same
     color. This means that, for example, all the pixels between two red pixels
@@ -5034,27 +5167,73 @@ def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
                 else:
                     if matrix[i,j] in allowedChanges.keys():
                         m[i,j] = allowedChanges[matrix[i,j]]
- 
+    
+    # Diagonal         
+    if diagonal:
+        for d in [1, 2]:
+            if d==2:
+                matrix = np.fliplr(matrix)
+                m = np.fliplr(m)
+            for i in range(-matrix.shape[0]-1, matrix.shape[1]):
+                diag = np.diagonal(matrix, i)
+                lowLimit = 0
+                while lowLimit < len(diag) and diag[lowLimit] != pixelColor:
+                    lowLimit += 1
+                lowLimit += 1
+                upLimit = len(diag)-1
+                while upLimit > lowLimit and diag[upLimit] != pixelColor:
+                    upLimit -= 1
+                if upLimit > lowLimit:
+                    if lineExclusive:
+                        for j in range(lowLimit, upLimit):
+                            if i<=0:
+                                if matrix[-i+j,j] == pixelColor:
+                                    lowLimit = upLimit
+                                    break
+                            else:
+                                if matrix[j,i+j] == pixelColor:
+                                    lowLimit = upLimit
+                                    break
+                    for j in range(lowLimit, upLimit):
+                        if i<=0:
+                            if connColor != None:
+                                if matrix[-i+j,j] != pixelColor and matrix[-i+j,j] not in fixedColors:
+                                    m[-i+j,j] = connColor
+                            else:
+                                if matrix[-i+j,j] in allowedChanges.keys():
+                                    m[-i+j,j] = allowedChanges[matrix[-i+j,j]]
+                        else:
+                            if connColor != None:
+                                if matrix[j,i+j] != pixelColor and matrix[j,i+j] not in fixedColors:
+                                    m[j,i+j] = connColor
+                            else:
+                                if matrix[j,i+j] in allowedChanges.keys():
+                                    m[j,i+j] = allowedChanges[matrix[j,i+j]]
+            if d==2:
+                matrix = np.fliplr(matrix)
+                m = np.fliplr(m)
+
     return m
 
 def connectAnyPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
-                     allowedChanges={}, lineExclusive=False):
+                     allowedChanges={}, lineExclusive=False, diagonal=False):
     m = matrix.m.copy()
     if pixelColor==None:
         if connColor==None:
             for c in matrix.colors - set([matrix.backgroundColor]):
-                m = connectPixels(m, c, c, lineExclusive=lineExclusive)
+                m = connectPixels(m, c, c, lineExclusive=lineExclusive, diagonal=diagonal)
             return m
         else:
             for c in matrix.colors - set([matrix.backgroundColor]):
-                m = connectPixels(m, c, connColor, lineExclusive=lineExclusive)
+                m = connectPixels(m, c, connColor, lineExclusive=lineExclusive, diagonal=diagonal)
             return m
     else:
         if len(allowedChanges)>0:
             m = connectPixels(m, pixelColor, allowedChanges=allowedChanges,\
-                              lineExclusive=lineExclusive)
+                              lineExclusive=lineExclusive, diagonal=diagonal)
         else:
-            m = connectPixels(m, pixelColor, connColor, fixedColors, lineExclusive=lineExclusive)
+            m = connectPixels(m, pixelColor, connColor, fixedColors, lineExclusive=lineExclusive,\
+                              diagonal=diagonal)
     return m
 
 def rotate(matrix, angle):
@@ -6135,7 +6314,17 @@ def cropAllShapes(matrix, background, diagonal=False):
     return m
 
 # %% Stuff added by Roderic
-#delete shape with x properties
+def getBestColorByPixels(t):
+    delPix = False
+    if isDeleteTask(t) or t.outSmallerThanIn:
+        delPix = True
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, deletePixels=delPix), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, colorMap=True, deletePixels=delPix), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, oneColor=True, deletePixels=delPix), bestScore, bestFunction)
+    return bestFunction    
+
 def colorByPixels(matrix, colorMap=False, oneColor=False):    
     m = matrix.m.copy()
     shList = [sh for sh in matrix.shapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)>1]
@@ -6181,6 +6370,7 @@ def isDeleteTask(t):
         return True
     return False
 
+#delete shape with x properties
 def getBestDeleteShapes(t, multicolor=False, diagonal=True):
     attrs = set(['LaSh','SmSh','MoCl','MoCo','PiXl'])
     bestScore = 1000
@@ -6269,16 +6459,15 @@ def getBestArrangeShapes(t):
     elif t.outIsInMulticolorShapeSize:
         bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='fit',\
                                                                 diagonal=True, multicolor=True), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes,arrange='fit',shByColor=True), bestScore, bestFunction)
     return bestFunction
 
-def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True):
-    
+def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True, shByColor=False):
     def tessellateShapes (mat, shL, n, bC):
         m = mat.copy()
         """
         Attempts to tessellate matrix mat with background color bC shapes is list sh.
         """
-
         for i, j in np.ndindex(tuple(mat.shape[k] - shL[n].shape[k] + 1 for k in (0,1))):
             if np.all(np.logical_or(m[i: i+shL[n].shape[0], j: j+shL[n].shape[1]] == bC, shL[n].m == 255)):
                 for k, l in np.ndindex(shL[n].shape):
@@ -6291,19 +6480,22 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
                     return m, arrFound
                 else:
                     for k, l in np.ndindex(shL[n].shape):
-                        m[i+k,j+l] = bC
+                        if shL[n].m[k,l] != 255:
+                            m[i+k,j+l] = bC
         return m, False
-    
-    if not multicolor: 
-        if diagonal:   
-            shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
-        else:   
-            shList = [sh for sh in matrix.shapes if sh.color != matrix.backgroundColor]
+    if shByColor:
+        shList = [sh for sh in matrix.shapesByColor]
     else:
-        if diagonal: 
-            shList = [sh for sh in matrix.multicolorDShapes]
+        if not multicolor: 
+            if diagonal:   
+                shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
+            else:   
+                shList = [sh for sh in matrix.shapes if sh.color != matrix.backgroundColor]
         else:
-            shList = [sh for sh in matrix.multicolorShapes]
+            if diagonal: 
+                shList = [sh for sh in matrix.multicolorDShapes]
+            else:
+                shList = [sh for sh in matrix.multicolorShapes]
     
     if len(shList) < 2 or len(shList)>10:
         return matrix.m.copy()
@@ -6350,15 +6542,16 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
         shList.sort(key=lambda x: len(x.pixels), reverse=True)
         if outShape == None:
             outShape = shList[0].shape
+        """    
         if all(sh.shape == outShape for sh in shList):
-            m = np.full(outShape, fill_value=0)
+            m = np.full(outShape, fill_value=matrix.backgroundColor)
             for sh in shList:
                 for i, j in np.ndindex(m.shape):
                     if sh.m[i,j]!= 255:
                         m[i,j] = max(m[i,j],sh.m[i,j])
             return m
-        
-        elif all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
+        """
+        if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
             m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,0,matrix.backgroundColor)
             if tessellate:
                 return m
@@ -6383,7 +6576,7 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
                             if sh.m[i,j] != 255:
                                 m[bestX+i,bestY+j] = sh.m[i,j]
                 return m
-    return matrix.m.copy()
+    return matrix.m
 
 #replicate shape
 def isReplicateTask(t):
@@ -6736,9 +6929,10 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
         return matrix
     if context:
         bestShape = shapeList[bestShapes[0]]
-        return matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
+        m = matrix.m[bestShape.position[0]:bestShape.position[0]+bestShape.shape[0], bestShape.position[1]:bestShape.position[1]+bestShape.shape[1]]
+        return m.copy() 
     else:
-        bestShape = shapeList[bestShapes[0]].m
+        bestShape = shapeList[bestShapes[0]].m.copy()
         bestShape[bestShape==255]=backgroundColor
     return bestShape
     
@@ -6853,10 +7047,6 @@ def getPossibleOperations(t, c):
         params = fillTheBlankParameters(t)
         x.append(partial(fillTheBlank, params=params))
         
-    # switchColors
-    if all([n==2 for n in candTask.nInColors]):
-        x.append(partial(switchColors))
-        
     # downsize
     if candTask.sameOutShape:
         outShape = candTask.outShape
@@ -6884,10 +7074,11 @@ def getPossibleOperations(t, c):
                 axis.append("lr")
             if candTask.udSymmetric:
                 axis.append("ud")
-            if candTask.d1Symmetric:
-                axis.append("d1")
-            if candTask.d2Symmetric:
-                axis.append("d2")
+            if all([sample.inMatrix.shape[0]==sample.inMatrix.shape[1] for sample in candTask.testSamples]):              
+                if candTask.d1Symmetric: 
+                    axis.append("d1")
+                if candTask.d2Symmetric:
+                    axis.append("d2")
             x.append(partial(symmetrize, axis=axis, color=color))
             if candTask.totalOutColors==1:
                 for fc in candTask.fixedColors:
@@ -6896,7 +7087,7 @@ def getPossibleOperations(t, c):
     
         # Color symmetric pixels
         x.append(getBestColorSymmetricPixels(candTask))
-    
+        
         # Complete rectangles
         if candTask.backgroundColor!=-1 and len(candTask.fixedColors)==1 and \
         len(candTask.colorChanges)==1:
@@ -6904,14 +7095,11 @@ def getPossibleOperations(t, c):
             nc = next(iter(candTask.colorChanges))[1]
             x.append(partial(completeRectangles, sourceColor=sc, newColor=nc))
         
-        x.append(partial(deletePixels, diagonals=True))
-        x.append(partial(deletePixels, diagonals=False))
-        
         #######################################################################
         # For LinearShapeModel we need to have the same shapes in the input
         # and in the output, and in the exact same positions.
         # This model predicts the color of the shape in the output.
-        
+        """
         if candTask.onlyShapeColorChanges:
             ccwf = getColorChangesWithFeatures(candTask)
             fsf = candTask.fixedShapeFeatures
@@ -6928,7 +7116,7 @@ def getPossibleOperations(t, c):
                                      bigOrSmall=bs, isBorder=border))
             
             return x
-        
+        """
         #######################################################################
         # Complete row/col patterns
         colStep=None
@@ -7040,8 +7228,11 @@ def getPossibleOperations(t, c):
 
         # Connect Pixels
         x.append(partial(connectAnyPixels))
+        x.append(partial(connectAnyPixels, diagonal=True))
         if all([len(x)==1 for x in candTask.changedInColors]):
             x.append(partial(connectAnyPixels, connColor=next(iter(candTask.changedOutColors[0]))))
+            x.append(partial(connectAnyPixels, connColor=next(iter(candTask.changedOutColors[0])), \
+                             diagonal=True))
 
         fc = candTask.fixedColors
         #if hasattr(t, "fixedColors"):
@@ -7052,10 +7243,16 @@ def getPossibleOperations(t, c):
             for cc in candTask.commonChangedOutColors:
                 x.append(partial(connectAnyPixels, pixelColor=pc, \
                                  connColor=cc, fixedColors=fc))
+                x.append(partial(connectAnyPixels, pixelColor=pc, \
+                                 connColor=cc, fixedColors=fc, diagonal=True))
         for pc in candTask.colors - candTask.commonChangedInColors:
             x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges)))
+            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges), \
+                             diagonal=True))
             x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges),\
                              lineExclusive=True))
+            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges),\
+                             lineExclusive=True, diagonal=True))
                 
         for cc in candTask.commonColorChanges:
             for cc in candTask.commonColorChanges:
@@ -7065,14 +7262,8 @@ def getPossibleOperations(t, c):
         
         #replicate/symmterize/other shape related tasks
         x.append(getBestSymmetrizeSubmatrix(candTask))
-        x.append(partial(replicateShapes,diagonal=True, multicolor=True, allCombs=False,anchorType='subframe', scale=False))
-        x.append(partial(replicateShapes,diagonal=True, multicolor=True, allCombs=True,anchorType='subframe', scale=False, deleteOriginal=True))
-        if isReplicateTask(candTask)[0]:
-            x.append(getBestReplicateShapes(candTask))
-        #if len(candTask.colorChanges) == 1:
-        #    x.append(partial(replicateShapes,diagonal=True, multicolor=False, allCombs=True,\
-        #                     anchorColor = list(candTask.colorChanges)[0][0], anchorType='all', attributes=set(['UnCo'])))
-
+        x.append(getBestReplicateShapes(candTask))
+        x.append(getBestColorByPixels(candTask))
         #delete shapes
         if isDeleteTask(candTask) and all(t.backgroundColor == c[1] for c in candTask.colorChanges):
             x.append(getBestDeleteShapes(candTask, True, True))
@@ -7120,30 +7311,34 @@ def getPossibleOperations(t, c):
                     else:
                         x.append(partial(overlapSubmatrices, colorHierarchy=ch))
         
-        pixelMap = pixelCorrespondence(candTask)
-        if len(pixelMap) != 0:
-            x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
+        #pixelMap = Models.pixelCorrespondence(candTask)
+        #if len(pixelMap) != 0:
+        #    x.append(partial(mapPixels, pixelMap=pixelMap, outShape=candTask.outShape))
     
     ###########################################################################
     # Evolve
     #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
     #len(candTask.commonChangedInColors)==1 and candTask.sameNSampleColors:
-    #    x.append(getBestEvolve(candTask))
         #cfn = evolve(candTask)
         #x.append(getBestEvolve(candTask, cfn))
-    #    x.append(partial(applyEvolve, cfn=cfn, nColors=candTask.trainSamples[0].nColors,\
-    #                     kernel=5, nIterations=1))
+        #x.append(partial(applyEvolve, cfn=cfn, nColors=candTask.trainSamples[0].nColors,\
+        #                 kernel=5, nIterations=1, fixedColors=candTask.fixedColors,\
+        #                 changedInColors=candTask.commonChangedInColors,\
+        #                 changedOutColors=candTask.commonChangedOutColors, \
+        #                 referenceIsFixed=True))
     
-    if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
-    len(candTask.commonChangedInColors)==1:
+    #if candTask.sameIOShapes and all([len(x)==1 for x in candTask.changedInColors]) and\
+    #len(candTask.commonChangedInColors)==1:
+
+    if candTask.sameIOShapes and len(candTask.commonChangedInColors)==1:   
         x.append(getBestEvolvingLines(candTask))
-        
+
     ###########################################################################
     # Other cases
     
     if candTask.inSmallerThanOut and t.inSmallerThanOut:
         x.append(getBestExtendMatrix(candTask))
-        
+
     if hasattr(candTask, 'inShapeFactor'):
         x.append(partial(multiplyPixels, factor=candTask.inShapeFactor))
         x.append(partial(multiplyMatrix, factor=candTask.inShapeFactor))
@@ -7228,12 +7423,6 @@ def getPossibleOperations(t, c):
                                          factor=candTask.outShapeFactor, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
     
-    if candTask.inputIsGrid:
-        if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
-            x.append(partial(maxColorFromCell))
-            for times in range(1, 6):
-                x.append(partial(colorAppearingXTimes, times=times))
-    
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         if outputIsSubmatrix(candTask, isGrid=True):
             for color in range(10):
@@ -7285,20 +7474,27 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
-                      
-    # Cropshape
-    x.append(partial(colorByPixels))
-    x.append(partial(colorByPixels, colorMap=True))
-    x.append(partial(colorByPixels, oneColor=True))
+    
+    if candTask.inputIsGrid:
+        if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
+            for times in range(1, 6):
+                x.append(partial(colorAppearingXTimes, times=times))
+            x.append(partial(maxColorFromCell))
+                        
+    # Cropshape    
     if candTask.outSmallerThanIn:
-        x.append(partial(deleteShapes, attributes = getDeleteAttributes(candTask, diagonal = False), diagonal = False, multicolor=False))
+        x.append(getBestArrangeShapes(candTask))
         x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
-        x.append(getBestArrangeShapes(candTask))
+        x.append(partial(colorByPixels, deletePixels=True))
+        x.append(partial(colorByPixels, colorMap=True, deletePixels=True))
+        x.append(partial(deleteShapes, attributes = getDeleteAttributes(candTask, diagonal = False), diagonal = False, multicolor=False))
+          
         if candTask.backgroundColor!=-1:
+            #arrangeShapes                    
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=True))
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=False))
-        
+           
         bestCrop = getBestCropShape(candTask)
         if 'attributes' in bestCrop.keywords.keys():
             for attr in bestCrop.keywords['attributes']:
@@ -7307,18 +7503,19 @@ def getPossibleOperations(t, c):
                 newCrop = copy.deepcopy(bestCrop)
                 newCrop.keywords['attributes'] = set([attr])
                 x.append(newCrop)
-                
+                   
         #this next part is artificial
         if len(candTask.commonInDShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInDShapes, diagonal=True))
         if len(candTask.commonInShapes) > 0:
                 x.append(partial(cropShapeReference, referenceShape=candTask.commonInShapes, diagonal=False))
-        for attrs in [set(['LaSh','UnCo'])]:
+        
+        for attrs in [set(['LaSh']),set(['UnCo'])]:
             x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
                                  singleColor=True, diagonals=True)) 
             x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
-                             singleColor=True, diagonals=True, context=True)) 
-    
+                                 singleColor=True, diagonals=True, context=True)) 
+      
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
@@ -7331,6 +7528,15 @@ def getPossibleOperations(t, c):
         x.append(partial(cropFullFrame, bigOrSmall="small"))
         x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=False))
         x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=False))
+    
+    
+    # startOps
+    
+    x.append(partial(cropAllBackground)) 
+    
+    # switchColors
+    if all([n==2 for n in candTask.nInColors]):
+        x.append(partial(switchColors))
     
     # minimize
     if not candTask.sameIOShapes:
