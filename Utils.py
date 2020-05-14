@@ -1723,8 +1723,9 @@ def symmetrizeSubmatrix(matrix, ud=False, lr=False, rotation=False, newColor=Non
                         m[x1+i,2*y+y1+subShape.shape[0]-j-1] = subMat[i,j]
                         m[2*x+x1+subShape.shape[0]-i-1,2*y+y1+subShape.shape[0]-j-1] = subMat[i,j]
         elif rotation:
-            if x1+y+x+subShape.shape[0] > m.shape[0] or y1+x+y+subShape.shape[1]> m.shape[1]\
-                or y1+y-x+subMat.shape[0]>= m.shape[0] or x1+x-y+subMat.shape[1]>=m.shape[1]:
+            if x1+y+x+subShape.shape[0] > m.shape[0] or y1+x+y+subShape.shape[1] > m.shape[1]\
+                or y1+y-x+subMat.shape[0] >= m.shape[0] or x1+x-y+subMat.shape[1] >= m.shape[1]\
+                or x1+2*x+subShape.shape[0] > m.shape[0] or y1+2*y+subShape.shape[0] > m.shape[1]:
                 return m
             for i in range(subMat.shape[0]):
                 for j in range(subMat.shape[1]):
@@ -4802,7 +4803,6 @@ def getBestArrangeShapes(t):
     return bestFunction
 
 def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True, shByColor=False):
-    
     def tessellateShapes (mat, shL, n, bC, rotation=False):
         m = mat.copy()
         arrFound = False
@@ -4812,6 +4812,10 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
         """
         if rotation:
             rot = 4
+            if len(shL[n].pixels)==1:
+                rot = 1
+            if len(shL[n].pixels)==2:
+                rot = 2
         for x in range(rot):
             sh = copy.deepcopy(shL[n])
             sh.m = np.rot90(sh.m,x).copy()
