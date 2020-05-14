@@ -7422,9 +7422,9 @@ def getPossibleOperations(t, c):
     
     if candTask.inputIsGrid:
         if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
-            x.append(partial(maxColorFromCell))
             for times in range(1, 6):
                 x.append(partial(colorAppearingXTimes, times=times))
+            x.append(partial(maxColorFromCell))
     
     if hasattr(candTask, 'gridCellIsOutputShape') and candTask.gridCellIsOutputShape:
         if outputIsSubmatrix(candTask, isGrid=True):
