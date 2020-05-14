@@ -883,7 +883,7 @@ def getPredictionsFromTask(originalT, task):
     c = Candidate([], [task], score=cScore)
     c.t = t2
     b3c = Best3Candidates(c, c, c)
-
+    
     # Generate the three candidates with best possible score
     prevScore = sum([c.score for c in b3c.candidates])
     firstIt = True
@@ -932,10 +932,10 @@ def getPredictionsFromTask(originalT, task):
 
 
             #plot_sample(originalT.testSamples[s], x)
-            if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
+            #if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
-                print(idx, c.ops)
-                plot_task(idx)
+                #print(idx, c.ops)
+                #plot_task(idx)
                 #break
                 #solved.append(Solution(idx, taskId, c.ops))
                 #solvedIds.append(idx)
@@ -987,7 +987,7 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm([650], position=0, leave=True):
-    taskId = index[idx]
+    taskId = index[686]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 

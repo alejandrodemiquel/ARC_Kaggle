@@ -4998,7 +4998,7 @@ def deletePixels(matrix, diagonals=False):
 # %% Connect Pixels
 
 def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
-                  allowedChanges={}, lineExclusive=False):
+                  allowedChanges={}, lineExclusive=False, diagonal=False):
     """
     Given a matrix, this function connects all the pixels that have the same
     color. This means that, for example, all the pixels between two red pixels
@@ -5058,27 +5058,73 @@ def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
                 else:
                     if matrix[i,j] in allowedChanges.keys():
                         m[i,j] = allowedChanges[matrix[i,j]]
- 
+    
+    # Diagonal         
+    if diagonal:
+        for d in [1, 2]:
+            if d==2:
+                matrix = np.fliplr(matrix)
+                m = np.fliplr(m)
+            for i in range(-matrix.shape[0]-1, matrix.shape[1]):
+                diag = np.diagonal(matrix, i)
+                lowLimit = 0
+                while lowLimit < len(diag) and diag[lowLimit] != pixelColor:
+                    lowLimit += 1
+                lowLimit += 1
+                upLimit = len(diag)-1
+                while upLimit > lowLimit and diag[upLimit] != pixelColor:
+                    upLimit -= 1
+                if upLimit > lowLimit:
+                    if lineExclusive:
+                        for j in range(lowLimit, upLimit):
+                            if i<=0:
+                                if matrix[-i+j,j] == pixelColor:
+                                    lowLimit = upLimit
+                                    break
+                            else:
+                                if matrix[j,i+j] == pixelColor:
+                                    lowLimit = upLimit
+                                    break
+                    for j in range(lowLimit, upLimit):
+                        if i<=0:
+                            if connColor != None:
+                                if matrix[-i+j,j] != pixelColor and matrix[-i+j,j] not in fixedColors:
+                                    m[-i+j,j] = connColor
+                            else:
+                                if matrix[-i+j,j] in allowedChanges.keys():
+                                    m[-i+j,j] = allowedChanges[matrix[-i+j,j]]
+                        else:
+                            if connColor != None:
+                                if matrix[j,i+j] != pixelColor and matrix[j,i+j] not in fixedColors:
+                                    m[j,i+j] = connColor
+                            else:
+                                if matrix[j,i+j] in allowedChanges.keys():
+                                    m[j,i+j] = allowedChanges[matrix[j,i+j]]
+            if d==2:
+                matrix = np.fliplr(matrix)
+                m = np.fliplr(m)
+
     return m
 
 def connectAnyPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
-                     allowedChanges={}, lineExclusive=False):
+                     allowedChanges={}, lineExclusive=False, diagonal=False):
     m = matrix.m.copy()
     if pixelColor==None:
         if connColor==None:
             for c in matrix.colors - set([matrix.backgroundColor]):
-                m = connectPixels(m, c, c, lineExclusive=lineExclusive)
+                m = connectPixels(m, c, c, lineExclusive=lineExclusive, diagonal=diagonal)
             return m
         else:
             for c in matrix.colors - set([matrix.backgroundColor]):
-                m = connectPixels(m, c, connColor, lineExclusive=lineExclusive)
+                m = connectPixels(m, c, connColor, lineExclusive=lineExclusive, diagonal=diagonal)
             return m
     else:
         if len(allowedChanges)>0:
             m = connectPixels(m, pixelColor, allowedChanges=allowedChanges,\
-                              lineExclusive=lineExclusive)
+                              lineExclusive=lineExclusive, diagonal=diagonal)
         else:
-            m = connectPixels(m, pixelColor, connColor, fixedColors, lineExclusive=lineExclusive)
+            m = connectPixels(m, pixelColor, connColor, fixedColors, lineExclusive=lineExclusive,\
+                              diagonal=diagonal)
     return m
 
 def rotate(matrix, angle):
@@ -7068,8 +7114,11 @@ def getPossibleOperations(t, c):
 
         # Connect Pixels
         x.append(partial(connectAnyPixels))
+        x.append(partial(connectAnyPixels, diagonal=True))
         if all([len(x)==1 for x in candTask.changedInColors]):
             x.append(partial(connectAnyPixels, connColor=next(iter(candTask.changedOutColors[0]))))
+            x.append(partial(connectAnyPixels, connColor=next(iter(candTask.changedOutColors[0])), \
+                             diagonal=True))
 
         fc = candTask.fixedColors
         #if hasattr(t, "fixedColors"):
@@ -7080,10 +7129,16 @@ def getPossibleOperations(t, c):
             for cc in candTask.commonChangedOutColors:
                 x.append(partial(connectAnyPixels, pixelColor=pc, \
                                  connColor=cc, fixedColors=fc))
+                x.append(partial(connectAnyPixels, pixelColor=pc, \
+                                 connColor=cc, fixedColors=fc, diagonal=True))
         for pc in candTask.colors - candTask.commonChangedInColors:
             x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges)))
+            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges), \
+                             diagonal=True))
             x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges),\
                              lineExclusive=True))
+            x.append(partial(connectAnyPixels, pixelColor=pc, allowedChanges=dict(candTask.colorChanges),\
+                             lineExclusive=True, diagonal=True))
                 
         for cc in candTask.commonColorChanges:
             for cc in candTask.commonColorChanges:
