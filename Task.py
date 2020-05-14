@@ -226,7 +226,10 @@ class Shape:
         
         self.nHoles = self.getNHoles()
         
-        self.isFullFrame = self.isFullFrame()
+        if self.nColors==1:
+            self.isFullFrame = self.isFullFrame()
+        else:
+            self.isFullFrame=False
         
         if self.nColors==1:
             self.boolFeatures = []
@@ -380,6 +383,7 @@ class Shape:
             m = np.rot90(m2, 1)
             return np.array_equal(m, m2)
         
+    """
     def isFullFrame(self):
         if self.shape[0]<3 or self.shape[1]<3:
             return False
@@ -389,6 +393,25 @@ class Shape:
                     return False
         if self.nPixels == 2 * (self.shape[0]+self.shape[1]-2):
             return True
+        return False
+    """
+    
+    def isFullFrame(self):
+        if self.shape[0]<3 or self.shape[1]<3:
+            return False
+        for i in range(self.shape[0]):
+            if self.m[i,0]==255 or self.m[i,self.shape[1]-1]==255:
+                return False
+        for j in range(self.shape[1]):
+            if self.m[0,j]==255 or self.m[self.shape[0]-1,j]==255:
+                return False
+            
+        # We require fullFrames to have less than 20% of the pixels inside the
+        # frame of the same color of the frame
+        
+        if self.nPixels - 2*(self.shape[0]+self.shape[1]-2) < 0.2*(self.shape[0]-2)*(self.shape[1]-2):
+            return True
+        
         return False
 
 def detectShapesByColor(x, background):

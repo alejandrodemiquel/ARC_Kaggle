@@ -317,7 +317,9 @@ class Shape:
         
         self.nHoles = self.getNHoles()
         
-        self.isFullFrame = self.isFullFrame()
+        self.isFullFrame = False
+        if self.nColors==1:
+            self.isFullFrame = self.isFullFrame()            
         
         if self.nColors==1:
             self.boolFeatures = []
@@ -474,12 +476,19 @@ class Shape:
     def isFullFrame(self):
         if self.shape[0]<3 or self.shape[1]<3:
             return False
-        for i in range(1, self.shape[0]-1):
-            for j in range(1, self.shape[1]-1):
-                if self.m[i,j] != 255:
-                    return False
-        if self.nPixels == 2 * (self.shape[0]+self.shape[1]-2):
+        for i in range(self.shape[0]):
+            if self.m[i,0]==255 or self.m[i,self.shape[1]-1]==255:
+                return False
+        for j in range(self.shape[1]):
+            if self.m[0,j]==255 or self.m[self.shape[0]-1,j]==255:
+                return False
+            
+        # We require fullFrames to have less than 20% of the pixels inside the
+        # frame of the same color of the frame
+        
+        if self.nPixels - 2*(self.shape[0]+self.shape[1]-2) < 0.2*(self.shape[0]-2)*(self.shape[1]-2):
             return True
+        
         return False
 
 def detectShapes(x, background, singleColor=False, diagonals=False):
@@ -3402,7 +3411,6 @@ def getBestSymmetrizeSubmatrix(t):
         ud = True    
     if all(m.shape[0]==m.shape[1] and np.all(np.rot90(m)==m) for m in croppedSamples):
         rotation = True
-        print('hi')
     for sh in t.commonInDShapes:
         bestFunction, bestScore = updateBestFunction(t, partial(symmetrizeSubmatrix,\
                                                         lr=lr,ud=ud,rotation=rotation,subShape=sh), bestScore, bestFunction)
@@ -3720,8 +3728,8 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
     sortedCcwf = {k: v for k, v in sorted(ccwf.items(), key=lambda item: sum(item[1]))}
     for color in sortedCcwf.keys():
         for sh in range(len(matrix.shapes)):
-            if (matrix.shapes[sh].color in fixedColors) or \
-            (matrix.shapes[sh].hasFeatures(fixedShapeFeatures)):
+            if (matrix.shapes[sh].color in fixedColors):# or \
+            #(matrix.shapes[sh].hasFeatures(fixedShapeFeatures)):
                 continue
             if hasFeatures(featureList[sh], ccwf[color]):
                 m = changeColorShapes(m, [matrix.shapes[sh]], color)
@@ -5762,7 +5770,7 @@ def getBestMultiplyMatrix(t, falseColor):
     def trueCondition(matrix, pixel):
         return True
     def maxColor(matrix, pixel):
-        x = [k for k, v in sorted(matrix.colorCount.items(), key=lambda item: item[1])]
+        x = [k for k, v in sorted(matrix.colorCount.items(), key=lambda item: item[1], reverse=True)]
         if len(x)<2 or matrix.colorCount[x[0]]!=matrix.colorCount[x[1]]:
             return pixel==max(matrix.colorCount, key=matrix.colorCount.get)
         else:

@@ -2066,8 +2066,8 @@ def changeShapesWithFeatures(matrix, ccwf, fixedColors, fixedShapeFeatures):
     sortedCcwf = {k: v for k, v in sorted(ccwf.items(), key=lambda item: sum(item[1]))}
     for color in sortedCcwf.keys():
         for sh in range(len(matrix.shapes)):
-            if (matrix.shapes[sh].color in fixedColors) or \
-            (matrix.shapes[sh].hasFeatures(fixedShapeFeatures)):
+            if (matrix.shapes[sh].color in fixedColors):# or \
+            #(matrix.shapes[sh].hasFeatures(fixedShapeFeatures)):
                 continue
             if hasFeatures(featureList[sh], ccwf[color]):
                 m = changeColorShapes(m, [matrix.shapes[sh]], color)
@@ -4127,7 +4127,7 @@ def getBestMultiplyMatrix(t, falseColor):
     def trueCondition(matrix, pixel):
         return True
     def maxColor(matrix, pixel):
-        x = [k for k, v in sorted(matrix.colorCount.items(), key=lambda item: item[1])]
+        x = [k for k, v in sorted(matrix.colorCount.items(), key=lambda item: item[1], reverse=True)]
         if len(x)<2 or matrix.colorCount[x[0]]!=matrix.colorCount[x[1]]:
             return pixel==max(matrix.colorCount, key=matrix.colorCount.get)
         else:
