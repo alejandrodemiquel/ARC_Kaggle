@@ -4513,107 +4513,139 @@ def getBestSurroundShapes(t):
 # %% Extend Color
 
 def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=None,\
-                deleteExtensionColors=set()):
-    m = matrix.m.copy()
+                deleteExtensionColors=set(), deleteIfBorder=False, \
+                breakAtFixedColor=False, mergeColor=None):
+    #m = matrix.m.copy()
     
     if sourceColor==None:
         sourceColor=color
+        
+    matrices = []
     
     # Vertical
     if direction=='all' or direction=='hv' or direction=='v' or direction=='u':
-        for j in range(m.shape[1]):
+        for j in range(matrix.shape[1]):
             colorCells=False
-            start = m.shape[0]-1
-            for i in reversed(range(m.shape[0])):
+            start = matrix.shape[0]-1
+            for i in reversed(range(matrix.shape[0])):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
+                    m = matrix.m.copy()
                     colorCells=True
                     start = i
+                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                    break
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
-                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
+                                   i==0 and deleteIfBorder):
                     currentI = i
                     for i in range(currentI, start):
                         m[i,j] = matrix.m[i,j]
                     break
             if color==None:
                 sourceColor=None
+            if colorCells:
+                matrices.append(m)
     if direction=='all' or direction=='hv' or direction=='v' or direction=='d':
-        for j in range(m.shape[1]):
+        for j in range(matrix.shape[1]):
             colorCells=False
             start = 0
-            for i in range(m.shape[0]):
+            for i in range(matrix.shape[0]):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
+                    m = matrix.m.copy()
                     colorCells=True
                     start = i
+                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                    break
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
-                if colorCells and matrix.m[i,j] in deleteExtensionColors:
-                    currentI = i
+                if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
+                                   i==m.shape[0]-1 and deleteIfBorder):
+                    currentI = i+1
                     for i in reversed(range(start, currentI)):
                         m[i,j] = matrix.m[i,j]
                     break
             if color==None:
                 sourceColor=None
+            if colorCells:
+                matrices.append(m)
              
     # Horizontal
     if direction=='all' or direction=='hv' or direction=='h' or direction=='l':
-        for i in range(m.shape[0]):
+        for i in range(matrix.shape[0]):
             colorCells=False
-            start = m.shape[1]-1
-            for j in reversed(range(m.shape[1])):
+            start = matrix.shape[1]-1
+            for j in reversed(range(matrix.shape[1])):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
+                    m = matrix.m.copy()
                     colorCells=True
                     start = j
+                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                    break
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
-                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
+                                   j==0 and deleteIfBorder):
                     currentJ = j
                     for j in range(currentJ, start):
                         m[i,j] = matrix.m[i,j]
                     break
             if color==None:
                 sourceColor=None
+            if colorCells:
+                matrices.append(m)
     if direction=='all' or direction=='hv' or direction=='h' or direction=='r':
-        for i in range(m.shape[0]):
+        for i in range(matrix.shape[0]):
             colorCells=False
             start = 0
-            for j in range(m.shape[1]):
+            for j in range(matrix.shape[1]):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
+                    m = matrix.m.copy()
                     colorCells=True
                     start = j
+                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                    break
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
-                if colorCells and matrix.m[i,j] in deleteExtensionColors:
-                    currentJ = j
+                if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
+                                   j==m.shape[1]-1 and deleteIfBorder):
+                    currentJ = j+1
                     for j in reversed(range(start, currentJ)):
                         m[i,j] = matrix.m[i,j]
                     break
             if color==None:
                 sourceColor=None
+            if colorCells:
+                matrices.append(m)
+              
+    if len(matrices)>0:
+        m = mergeMatrices(matrices, next(iter(cic)), mergeColor=mergeColor)
+    else:
+        m = matrix.m.copy()
                 
     # Diagonal
     if direction=='all' or  direction=='diag' or direction=='d1' or direction=='d2':
@@ -4632,7 +4664,7 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                 if direction=='d2':
                     matrix.m = np.fliplr(matrix.m)
                     m = np.fliplr(m)
-                for i in range(-m.shape[0]+1, m.shape[1]):
+                for i in range(-matrix.shape[0]+1, matrix.shape[1]):
                     diag = np.diagonal(matrix.m, i)
                     colorCells=False
                     for j in range(len(diag)):
@@ -4646,24 +4678,30 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                         if i<=0:
                             if matrix.m[-i+j,j]==sourceColor:
                                 colorCells=True
+                            if colorCells and matrix.m[-i+j,j] in fixedColors and breakAtFixedColor:
+                                break
                             if colorCells and matrix.m[-i+j,j] in cic:
                                 if color==None:
                                     m[-i+j,j] = sourceColor
                                 else:
                                     m[-i+j,j] = color
-                            if colorCells and matrix.m[-i+j,j] in deleteExtensionColors:
+                            if colorCells and ((matrix.m[-i+j,j] in deleteExtensionColors) or \
+                                               j==len(diag)-1 and deleteIfBorder):
                                 for j in range(len(diag)):
                                     m[-i+j,j] = matrix.m[-i+j,j]
                                 break
                         else:
                             if matrix.m[j,i+j]==sourceColor:
                                 colorCells=True
+                            if colorCells and matrix.m[j,i+j] in fixedColors and breakAtFixedColor:
+                                break
                             if colorCells and matrix.m[j,i+j] in cic:
                                 if color==None:
                                     m[j,i+j] = sourceColor
                                 else:
                                     m[j,i+j] = color
-                            if colorCells and matrix.m[j,i+j] in deleteExtensionColors:
+                            if colorCells and ((matrix.m[j,i+j] in deleteExtensionColors) or \
+                                               j==len(diag)-1 and deleteIfBorder):
                                 for j in range(len(diag)):
                                     m[j,i+j] = matrix.m[j,i+j]
                                 break
@@ -4679,45 +4717,60 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                     matrix.m = np.rot90(matrix.m, 2).T
                     m = np.rot90(m, 2).T
 
-    return m
+    return m    
 
 def getBestExtendColor(t):
     bestScore = 1000
     bestFunction = partial(identityM)
     
+    mergeColors = t.commonOutColors-t.totalInColors
+    if len(mergeColors) == 1:
+        mergeColor = next(iter(mergeColors))
+    else:
+        mergeColor = None
+    
     cic = t.commonChangedInColors
+    if len(cic)==0:
+        return bestFunction
     fixedColors = t.fixedColors
     for d in ['r', 'l', 'h', 'u', 'd', 'v', 'hv', 'd1', 'd2', 'diag', 'all']:
-        f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors)
-        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-        if bestScore==0:
-            return bestFunction
-        f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
-                    deleteExtensionColors=fixedColors)
-        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-        if bestScore==0:
-            return bestFunction
-        for coc in t.commonChangedOutColors:    
-            f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors)
+        for dib,bafc in product([True, False], [True, False]):
+            f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
+                        deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             if bestScore==0:
                 return bestFunction
-            f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors,\
-                        deleteExtensionColors=fixedColors)
+            f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
+                        deleteExtensionColors=fixedColors,\
+                        deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             if bestScore==0:
                 return bestFunction
-            for fc in t.fixedColors:
-                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
-                            fixedColors=fixedColors)
+            for coc in t.commonChangedOutColors:    
+                f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors,\
+                            deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
-                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
-                            fixedColors=fixedColors, deleteExtensionColors=fixedColors)
+                f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors,\
+                            deleteExtensionColors=fixedColors,\
+                            deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
+                for fc in t.fixedColors:
+                    f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
+                                fixedColors=fixedColors,\
+                                deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
+                    bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                    if bestScore==0:
+                        return bestFunction
+                    f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
+                                fixedColors=fixedColors, deleteExtensionColors=fixedColors,\
+                                deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
+                    bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                    if bestScore==0:
+                        return bestFunction
                 
     return bestFunction
 
@@ -7566,7 +7619,7 @@ def getPossibleOperations(t, c):
     ###########################################################################
     # Other cases
     
-    if len(candTask.fixedColors)!=0:
+    if candTask.sameIOShapes and len(candTask.fixedColors)!=0:
         for color in candTask.fixedColors:
             for outColor in candTask.commonOutColors:
                 x.append(partial(paintCrossedCoordinates, refColor=color,\
