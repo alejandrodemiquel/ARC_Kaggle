@@ -1486,6 +1486,26 @@ def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None, \
     m = mergeMatrices(matrices, next(iter(cic)), mergeColor)
     return m
 
+# %% Crossed coordinates
+    
+def paintCrossedCoordinates(matrix, refColor, outColor, fixedColors=set()):
+    m = matrix.m.copy()
+    xCoord = set()
+    yCoord = set()
+    
+    for i,j in np.ndindex(matrix.shape):
+        if m[i,j]==refColor:
+            xCoord.add(i)
+            yCoord.add(j)
+    
+    for i in xCoord:
+        for j in yCoord:
+            if matrix.m[i,j] not in fixedColors:
+                m[i,j] = outColor
+    
+    return m
+    
+
 # %% Linear Models
 
 # If input always has the same shape and output always has the same shape
@@ -5868,6 +5888,12 @@ def getPossibleOperations(t, c):
 
     ###########################################################################
     # Other cases
+    
+    if len(candTask.fixedColors)!=0:
+        for color in candTask.fixedColors:
+            for outColor in candTask.commonOutColors:
+                x.append(partial(paintCrossedCoordinates, refColor=color,\
+                                 outColor=outColor, fixedColors=candTask.fixedColors))
     
     if candTask.inSmallerThanOut and t.inSmallerThanOut:
         x.append(getBestExtendMatrix(candTask))
