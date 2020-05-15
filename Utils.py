@@ -901,7 +901,8 @@ def getBestEvolve(t, cfn):
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
                  colorRules=None, stepSize=None, fixedDirection=True, turning=False,\
-                 turnAfterNSteps=[None, None], stepIncrease=None):
+                 turnAfterNSteps=[None, None], stepIncrease=None, \
+                 alternateStepIncrease=False):
         """
         cic = changedInColors
         """
@@ -922,20 +923,63 @@ class EvolvingLine():
             for i in range(10):
                 if i not in cic:
                     self.dealWith[i] = colorRules
-        else:
+        elif colorRules!=None:
             for cr in colorRules:
                 self.dealWith[cr[0]] = cr[1]    
         self.dealWith[self.color] = "skip"
-        self.maxSteps = turnAfterNSteps
+        self.maxSteps = turnAfterNSteps.copy() # [number of maximum steps, direction]
         self.stepIncrease = stepIncrease
-        self.step = 0
+        self.step = -1
+        self.alternateStepIncrease = alternateStepIncrease
+        self.increaseStep = False
         
     def draw(self, m, direction=None):
+        # If we reached the maximum number of steps, turn
+        if self.maxSteps[0]!=None:
+            if self.maxSteps[0]==self.step:
+                if self.maxSteps[1]=="stop":
+                    return
+                
+                #self.turning=True
+                
+                if self.direction=='u' and self.maxSteps[1]=='r' or\
+                self.direction=='d' and self.maxSteps[1]=='l':
+                    direction = 'r'
+                    if not self.fixedDirection:
+                        self.direction = 'r'
+                        
+                elif self.direction=='u' and self.maxSteps[1]=='l' or\
+                self.direction=='d' and self.maxSteps[1]=='r':
+                    direction = 'l'
+                    if not self.fixedDirection:
+                        self.direction = 'l'   
+                        
+                elif self.direction=='r' and self.maxSteps[1]=='l' or\
+                self.direction=='l' and self.maxSteps[1]=='r':
+                    direction = 'u'
+                    if not self.fixedDirection:
+                        self.direction = 'u'
+                        
+                elif self.direction=='l' and self.maxSteps[1]=='l' or\
+                self.direction=='r' and self.maxSteps[1]=='r':
+                    direction = 'd'
+                    if not self.fixedDirection:
+                        self.direction = 'd' 
+                        
+                if self.stepIncrease!=None:
+                    if self.increaseStep:
+                        self.maxSteps[0]+=self.stepIncrease
+                        if self.alternateStepIncrease:
+                            self.increaseStep=False
+                    else:
+                        self.increaseStep=True
+                        
+                self.step = -1
+                    
+        self.step += 1
+        
         if direction==None:
             direction=self.direction
-        
-        #if self.maxSteps!=None:
-            
                     
         # Left
         if direction=='l':
@@ -1329,6 +1373,14 @@ def getBestEvolvingLines(t):
                     fixedDirection=False, coc=coc)  
     bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         
+    for asi in [True, False]:
+        for stepIncrease in [None, 1, 2]:
+            for steps in [1, 2, 3, 4]:
+                for direction in ['r', 'l']:
+                    f = partial(drawEvolvingLines, sources=sources, rules="stop", cic=cic, \
+                    fixedDirection=False, alternateStepIncrease=asi, \
+                    stepIncrease=stepIncrease, turnAfterNSteps=[steps, direction]) 
+                    bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             
     return bestFunction
 
@@ -1348,7 +1400,9 @@ def mergeMatrices(matrices, backgroundColor):
             result[i,j] = backgroundColor
     return result
         
-def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None):
+def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None, \
+                      stepIncrease=None, alternateStepIncrease=False, \
+                      turnAfterNSteps=[None, None]):
     if len(sources)==0:
         return matrix.m.copy()
     fd = fixedDirection
@@ -1360,31 +1414,51 @@ def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None):
                 if source[1]=="away":
                     if i==0:
                         if coc==None:
-                            line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                         else:
-                            line = EvolvingLine(coc, 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(coc, 'd', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                     elif i==matrix.m.shape[0]-1:
                         if coc==None:
-                            line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                         else:
-                            line = EvolvingLine(coc, 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(coc, 'u', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                     elif j==0:
                         if coc==None:
-                            line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                         else:
-                            line = EvolvingLine(coc, 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(coc, 'r', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                     elif j==matrix.m.shape[1]-1:
                         if coc==None:
-                            line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                         else:
-                            line = EvolvingLine(coc, 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(coc, 'l', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                     else:
                         return matrix.m.copy()
                 else:
                     if coc==None:
-                        line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                            stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                            turnAfterNSteps=turnAfterNSteps)
                     else:
-                        line = EvolvingLine(coc, source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        line = EvolvingLine(coc, source[1], [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                            stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                            turnAfterNSteps=turnAfterNSteps)
                 line.draw(newM)
         matrices.append(newM)
     m = mergeMatrices(matrices, next(iter(cic)))
