@@ -896,7 +896,7 @@ def getBestEvolve(t, cfn):
 # To be solved: 23,57,59,65,83,93,118,135,140,147,167,189,198,201,231,236,247,
 # 298,322,357,429,449,457,505,577,585,605,693,703,731,748,749,793,797
     
-# Solved: 46,344,573,629,679,790
+# Solved: 46,344,573,629,679,749,790
 
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
@@ -1334,6 +1334,9 @@ def detectEvolvingLineSources(t):
     return sources
 
 def getBestEvolvingLines(t):
+    if any([s.inMatrix.shape[0]==1 or s.inMatrix.shape[1]==1 for s in t.trainSamples]):
+        return partial(identityM)
+    
     sources = detectEvolvingLineSources(t)
     
     fixedColorsList = list(t.fixedColors2)

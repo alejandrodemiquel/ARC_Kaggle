@@ -136,26 +136,28 @@ def detectFrontiers(m):
     frontiers = []
     
     # Horizontal lines
-    for i in range(m.shape[0]):
-        color = m[i, 0]
-        isFrontier = True
-        for j in range(m.shape[1]):
-            if color != m[i,j]:
-                isFrontier = False
-                break
-        if isFrontier:
-            frontiers.append(Frontier(color, 'h', i))
+    if m.shape[0]>1:
+        for i in range(m.shape[0]):
+            color = m[i, 0]
+            isFrontier = True
+            for j in range(m.shape[1]):
+                if color != m[i,j]:
+                    isFrontier = False
+                    break
+            if isFrontier:
+                frontiers.append(Frontier(color, 'h', i))
             
     # Vertical lines
-    for j in range(m.shape[1]):
-        color = m[0, j]
-        isFrontier = True
-        for i in range(m.shape[0]):
-            if color != m[i,j]:
-                isFrontier = False
-                break
-        if isFrontier:
-            frontiers.append(Frontier(color, 'v', j))
+    if m.shape[1]>1:
+        for j in range(m.shape[1]):
+            color = m[0, j]
+            isFrontier = True
+            for i in range(m.shape[0]):
+                if color != m[i,j]:
+                    isFrontier = False
+                    break
+            if isFrontier:
+                frontiers.append(Frontier(color, 'v', j))
             
     return frontiers
 
@@ -1534,7 +1536,10 @@ class Task():
         
         # Full Borders / Requires vertical-horizontal rotation
         if self.sameIOShapes:
-            self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples])
+            if self.submission:
+                self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples])
+            else:
+                self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples+self.testSamples])
             self.requiresHVRotation = False
             if not (self.allEqual([s.isHorizontal for s in self.trainSamples]) or \
                     self.allEqual([s.isVertical for s in self.trainSamples])):    
@@ -3021,6 +3026,9 @@ def detectEvolvingLineSources(t):
     return sources
 
 def getBestEvolvingLines(t):
+    if any([s.inMatrix.shape[0]==1 or s.inMatrix.shape[1]==1 for s in t.trainSamples]):
+        return partial(identityM)
+    
     sources = detectEvolvingLineSources(t)
     
     fixedColorsList = list(t.fixedColors2)
