@@ -1350,6 +1350,12 @@ def getBestEvolvingLines(t):
     bestScore = 1000
     bestFunction = partial(identityM)
     
+    mergeColors = t.commonOutColors-t.totalInColors
+    if len(mergeColors) == 1:
+        mergeColor = next(iter(mergeColors))
+    else:
+        mergeColor = None
+    
     for actions in combinations_with_replacement(["stop", 'l', 'r', "split", "skip"],\
                                                  len(t.fixedColors2)):
         rules = []
@@ -1357,23 +1363,23 @@ def getBestEvolvingLines(t):
             rules.append([fixedColorsList[c], actions[c]])
             
         f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                    fixedDirection=True, coc=coc)
+                    fixedDirection=True, coc=coc, mergeColor=mergeColor)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                    fixedDirection=False, coc=coc)  
+                    fixedDirection=False, coc=coc, mergeColor=mergeColor)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if coc!=None:
             f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                        fixedDirection=True, coc=coc)
+                        fixedDirection=True, coc=coc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                        fixedDirection=False, coc=coc)
+                        fixedDirection=False, coc=coc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
         
     f = partial(drawEvolvingLines, sources=sources, rules="convert", cic=cic, \
-                    fixedDirection=False, coc=coc)  
+                    fixedDirection=False, coc=coc, mergeColor=mergeColor)  
     bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         
     for asi in [True, False]:
@@ -1382,30 +1388,43 @@ def getBestEvolvingLines(t):
                 for direction in ['r', 'l']:
                     f = partial(drawEvolvingLines, sources=sources, rules="stop", cic=cic, \
                     fixedDirection=False, alternateStepIncrease=asi, \
-                    stepIncrease=stepIncrease, turnAfterNSteps=[steps, direction]) 
+                    stepIncrease=stepIncrease, turnAfterNSteps=[steps, direction], mergeColor=mergeColor) 
                     bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             
     return bestFunction
 
-def mergeMatrices(matrices, backgroundColor):
+def mergeMatrices(matrices, backgroundColor, mergeColor=None):
     """
     All matrices are required to have the same shape.
     """
     result = np.zeros(matrices[0].shape, dtype=np.uint8)
-    for i,j in np.ndindex(matrices[0].shape):
-        done=False
-        for m in matrices:
-            if m[i,j]!=backgroundColor:
-                result[i,j] = m[i,j]
-                done=True
-                break
-        if not done:
-            result[i,j] = backgroundColor
+    if mergeColor==None:
+        for i,j in np.ndindex(matrices[0].shape):
+            done=False
+            for m in matrices:
+                if m[i,j]!=backgroundColor:
+                    result[i,j] = m[i,j]
+                    done=True
+                    break
+            if not done:
+                result[i,j] = backgroundColor
+    else:
+        for i,j in np.ndindex(matrices[0].shape):
+            colors = set()
+            for m in matrices:
+                if m[i,j]!=backgroundColor:
+                    colors.add(m[i,j])
+            if len(colors)==0:
+                result[i,j] = backgroundColor
+            elif len(colors)==1:
+                result[i,j] = next(iter(colors))
+            else:
+                result[i,j] = mergeColor
     return result
         
 def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None, \
                       stepIncrease=None, alternateStepIncrease=False, \
-                      turnAfterNSteps=[None, None]):
+                      turnAfterNSteps=[None, None], mergeColor=None):
     if len(sources)==0:
         return matrix.m.copy()
     fd = fixedDirection
@@ -1464,7 +1483,7 @@ def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None, \
                                             turnAfterNSteps=turnAfterNSteps)
                 line.draw(newM)
         matrices.append(newM)
-    m = mergeMatrices(matrices, next(iter(cic)))
+    m = mergeMatrices(matrices, next(iter(cic)), mergeColor)
     return m
 
 # %% Linear Models
@@ -2953,7 +2972,7 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                     matrix.m = np.rot90(matrix.m, 2).T
                     m = np.rot90(m, 2).T
 
-    return m
+    return m    
 
 def getBestExtendColor(t):
     bestScore = 1000

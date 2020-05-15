@@ -1463,7 +1463,7 @@ class Task():
             if self.submission:
                 self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples])
             else:
-                self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples+self.testSamples])
+                self.hasOneFullBorder = all([hasattr(s, 'commonFullBorders') and len(s.commonFullBorders)==1 for s in self.trainSamples+self.testSamples])
             self.requiresHVRotation = False
             if not (self.allEqual([s.isHorizontal for s in self.trainSamples]) or \
                     self.allEqual([s.isVertical for s in self.trainSamples])):    
