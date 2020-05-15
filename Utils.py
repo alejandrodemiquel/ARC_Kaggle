@@ -900,7 +900,8 @@ def getBestEvolve(t, cfn):
 
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
-                 colorRules=None, stepSize=None, fixedDirection=True, turning=False):
+                 colorRules=None, stepSize=None, fixedDirection=True, turning=False,\
+                 turnAfterNSteps=[None, None], stepIncrease=None):
         """
         cic = changedInColors
         """
@@ -917,13 +918,24 @@ class EvolvingLine():
         # left=10, right=11, top=12, bot=13
         for color in range(14): # 10 colors + 4 borders
             self.dealWith[color] = 'stop'
-        for cr in colorRules:
-            self.dealWith[cr[0]] = cr[1]    
+        if type(colorRules)==str:
+            for i in range(10):
+                if i not in cic:
+                    self.dealWith[i] = colorRules
+        else:
+            for cr in colorRules:
+                self.dealWith[cr[0]] = cr[1]    
         self.dealWith[self.color] = "skip"
+        self.maxSteps = turnAfterNSteps
+        self.stepIncrease = stepIncrease
+        self.step = 0
         
     def draw(self, m, direction=None):
         if direction==None:
             direction=self.direction
+        
+        #if self.maxSteps!=None:
+            
                     
         # Left
         if direction=='l':
@@ -1004,6 +1016,36 @@ class EvolvingLine():
     def dealWithColor(self, color, m):
         if self.dealWith[color] == "stop":
             return
+        
+        if self.dealWith[color] == "convert":
+            if self.direction=='l':
+                if self.position[1]!=0:
+                    self.color = color
+                    self.position[1]-=1
+                    self.draw(m)
+                else:
+                    return
+            if self.direction=='r':
+                if self.position[1]!=m.shape[1]-1:
+                    self.color = color
+                    self.position[1]+=1
+                    self.draw(m)
+                else:
+                    return
+            if self.direction=='u':
+                if self.position[0]!=0:
+                    self.color = color
+                    self.position[0]-=1
+                    self.draw(m)
+                else:
+                    return
+            if self.direction=='d':
+                if self.position[0]!=m.shape[0]-1:
+                    self.color = color
+                    self.position[0]+=1
+                    self.draw(m)
+                else:
+                    return
             
         if self.dealWith[color] == "split":
             if self.direction=='l' or self.direction=='r':
@@ -1266,14 +1308,27 @@ def getBestEvolvingLines(t):
         rules = []
         for c in range(len(fixedColorsList)):
             rules.append([fixedColorsList[c], actions[c]])
+            
         f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
                     fixedDirection=True, coc=coc)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                    fixedDirection=False, coc=coc)
+                    fixedDirection=False, coc=coc)  
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if coc!=None:
+            f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
+                        fixedDirection=True, coc=coc)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+            f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
+                        fixedDirection=False, coc=coc)
+            bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
+        
+    f = partial(drawEvolvingLines, sources=sources, rules="convert", cic=cic, \
+                    fixedDirection=False, coc=coc)  
+    bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        
             
     return bestFunction
 
@@ -5475,11 +5530,13 @@ def getPossibleOperations(t, c):
             nc = next(iter(candTask.colorChanges))[1]
             x.append(partial(completeRectangles, sourceColor=sc, newColor=nc))
         
+        x.append(partial(deletePixels, diagonals=True))
+        x.append(partial(deletePixels, diagonals=False))
+        
         #######################################################################
         # For LinearShapeModel we need to have the same shapes in the input
         # and in the output, and in the exact same positions.
         # This model predicts the color of the shape in the output.
-        """
         if candTask.onlyShapeColorChanges:
             ccwf = getColorChangesWithFeatures(candTask)
             fsf = candTask.fixedShapeFeatures
@@ -5496,7 +5553,7 @@ def getPossibleOperations(t, c):
                                      bigOrSmall=bs, isBorder=border))
             
             return x
-        """
+
         #######################################################################
         # Complete row/col patterns
         colStep=None
