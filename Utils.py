@@ -4814,7 +4814,9 @@ def pixelwiseXorInSubmatrices(matrix, factor, falseColor, targetColor=None, true
     matrices = getSubmatrices(matrix.m.copy(), factor)
     return pixelwiseXor(matrices[0], matrices[1], falseColor, targetColor, trueColor, firstTrue, secondTrue)
 
-# %% Operations considering all submatrices of a grid
+# %% Grid only functions
+
+# Operations considering all submatrices of a grid
 
 def pixelwiseAndInGridSubmatrices(matrix, falseColor, targetColor=None, trueColor=None):
     matrices = [c[0].m for c in matrix.grid.cellList]
@@ -4830,6 +4832,23 @@ def pixelwiseXorInGridSubmatrices(matrix, falseColor, targetColor=None, trueColo
     m1 = matrix.grid.cellList[0][0].m.copy()
     m2 = matrix.grid.cellList[1][0].m.copy()
     return pixelwiseXor(m1, m2, falseColor, targetColor, trueColor, firstTrue, secondTrue)
+
+
+def paintGridCellWithMostColor(matrix, color, outColor, fixedColors):
+    m = matrix.m.copy()
+    maxColorPixels = 0
+    for i,j in np.ndindex(matrix.grid.shape):
+        if color in matrix.grid.cells[i][j][0].colorCount.keys():
+            if matrix.grid.cells[i][j][0].colorCount[color]>maxColorPixels:
+                maxColorPixels = matrix.grid.cells[i][j][0].colorCount[color]
+                bestPosition = (i,j)
+    
+    position = matrix.grid.cells[bestPosition[0]][bestPosition[1]][1]
+    for i,j in np.ndindex(matrix.grid.cellShape):
+        if m[i+position[0], j+position[1]] not in fixedColors:
+            m[i+position[0], j+position[1]] = outColor
+            
+    return m
 
 # %% crop all shapes
     
