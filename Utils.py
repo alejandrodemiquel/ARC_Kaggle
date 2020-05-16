@@ -896,12 +896,13 @@ def getBestEvolve(t, cfn):
 # To be solved: 23,57,59,65,83,93,118,135,140,147,167,189,198,201,231,236,247,
 # 298,322,357,429,449,457,505,577,585,605,693,703,731,748,749,793,797
     
-# Solved: 46,344,573,629,679,790
+# Solved: 46,344,573,629,679,749,790
 
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
                  colorRules=None, stepSize=None, fixedDirection=True, turning=False,\
-                 turnAfterNSteps=[None, None], stepIncrease=None):
+                 turnAfterNSteps=[None, None], stepIncrease=None, \
+                 alternateStepIncrease=False):
         """
         cic = changedInColors
         """
@@ -922,20 +923,63 @@ class EvolvingLine():
             for i in range(10):
                 if i not in cic:
                     self.dealWith[i] = colorRules
-        else:
+        elif colorRules!=None:
             for cr in colorRules:
                 self.dealWith[cr[0]] = cr[1]    
         self.dealWith[self.color] = "skip"
-        self.maxSteps = turnAfterNSteps
+        self.maxSteps = turnAfterNSteps.copy() # [number of maximum steps, direction]
         self.stepIncrease = stepIncrease
-        self.step = 0
+        self.step = -1
+        self.alternateStepIncrease = alternateStepIncrease
+        self.increaseStep = False
         
     def draw(self, m, direction=None):
+        # If we reached the maximum number of steps, turn
+        if self.maxSteps[0]!=None:
+            if self.maxSteps[0]==self.step:
+                if self.maxSteps[1]=="stop":
+                    return
+                
+                #self.turning=True
+                
+                if self.direction=='u' and self.maxSteps[1]=='r' or\
+                self.direction=='d' and self.maxSteps[1]=='l':
+                    direction = 'r'
+                    if not self.fixedDirection:
+                        self.direction = 'r'
+                        
+                elif self.direction=='u' and self.maxSteps[1]=='l' or\
+                self.direction=='d' and self.maxSteps[1]=='r':
+                    direction = 'l'
+                    if not self.fixedDirection:
+                        self.direction = 'l'   
+                        
+                elif self.direction=='r' and self.maxSteps[1]=='l' or\
+                self.direction=='l' and self.maxSteps[1]=='r':
+                    direction = 'u'
+                    if not self.fixedDirection:
+                        self.direction = 'u'
+                        
+                elif self.direction=='l' and self.maxSteps[1]=='l' or\
+                self.direction=='r' and self.maxSteps[1]=='r':
+                    direction = 'd'
+                    if not self.fixedDirection:
+                        self.direction = 'd' 
+                        
+                if self.stepIncrease!=None:
+                    if self.increaseStep:
+                        self.maxSteps[0]+=self.stepIncrease
+                        if self.alternateStepIncrease:
+                            self.increaseStep=False
+                    else:
+                        self.increaseStep=True
+                        
+                self.step = -1
+                    
+        self.step += 1
+        
         if direction==None:
             direction=self.direction
-        
-        #if self.maxSteps!=None:
-            
                     
         # Left
         if direction=='l':
@@ -1290,6 +1334,9 @@ def detectEvolvingLineSources(t):
     return sources
 
 def getBestEvolvingLines(t):
+    if any([s.inMatrix.shape[0]==1 or s.inMatrix.shape[1]==1 for s in t.trainSamples]):
+        return partial(identityM)
+    
     sources = detectEvolvingLineSources(t)
     
     fixedColorsList = list(t.fixedColors2)
@@ -1303,6 +1350,12 @@ def getBestEvolvingLines(t):
     bestScore = 1000
     bestFunction = partial(identityM)
     
+    mergeColors = t.commonOutColors-t.totalInColors
+    if len(mergeColors) == 1:
+        mergeColor = next(iter(mergeColors))
+    else:
+        mergeColor = None
+    
     for actions in combinations_with_replacement(["stop", 'l', 'r', "split", "skip"],\
                                                  len(t.fixedColors2)):
         rules = []
@@ -1310,45 +1363,68 @@ def getBestEvolvingLines(t):
             rules.append([fixedColorsList[c], actions[c]])
             
         f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                    fixedDirection=True, coc=coc)
+                    fixedDirection=True, coc=coc, mergeColor=mergeColor)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                    fixedDirection=False, coc=coc)  
+                    fixedDirection=False, coc=coc, mergeColor=mergeColor)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if coc!=None:
             f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                        fixedDirection=True, coc=coc)
+                        fixedDirection=True, coc=coc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             f = partial(drawEvolvingLines, sources=sources, rules=rules, cic=cic, \
-                        fixedDirection=False, coc=coc)
+                        fixedDirection=False, coc=coc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
         
     f = partial(drawEvolvingLines, sources=sources, rules="convert", cic=cic, \
-                    fixedDirection=False, coc=coc)  
+                    fixedDirection=False, coc=coc, mergeColor=mergeColor)  
     bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         
+    for asi in [True, False]:
+        for stepIncrease in [None, 1, 2]:
+            for steps in [1, 2, 3, 4]:
+                for direction in ['r', 'l']:
+                    f = partial(drawEvolvingLines, sources=sources, rules="stop", cic=cic, \
+                    fixedDirection=False, alternateStepIncrease=asi, \
+                    stepIncrease=stepIncrease, turnAfterNSteps=[steps, direction], mergeColor=mergeColor) 
+                    bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             
     return bestFunction
 
-def mergeMatrices(matrices, backgroundColor):
+def mergeMatrices(matrices, backgroundColor, mergeColor=None):
     """
     All matrices are required to have the same shape.
     """
     result = np.zeros(matrices[0].shape, dtype=np.uint8)
-    for i,j in np.ndindex(matrices[0].shape):
-        done=False
-        for m in matrices:
-            if m[i,j]!=backgroundColor:
-                result[i,j] = m[i,j]
-                done=True
-                break
-        if not done:
-            result[i,j] = backgroundColor
+    if mergeColor==None:
+        for i,j in np.ndindex(matrices[0].shape):
+            done=False
+            for m in matrices:
+                if m[i,j]!=backgroundColor:
+                    result[i,j] = m[i,j]
+                    done=True
+                    break
+            if not done:
+                result[i,j] = backgroundColor
+    else:
+        for i,j in np.ndindex(matrices[0].shape):
+            colors = set()
+            for m in matrices:
+                if m[i,j]!=backgroundColor:
+                    colors.add(m[i,j])
+            if len(colors)==0:
+                result[i,j] = backgroundColor
+            elif len(colors)==1:
+                result[i,j] = next(iter(colors))
+            else:
+                result[i,j] = mergeColor
     return result
         
-def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None):
+def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None, \
+                      stepIncrease=None, alternateStepIncrease=False, \
+                      turnAfterNSteps=[None, None], mergeColor=None):
     if len(sources)==0:
         return matrix.m.copy()
     fd = fixedDirection
@@ -1360,35 +1436,75 @@ def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None):
                 if source[1]=="away":
                     if i==0:
                         if coc==None:
-                            line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(source[0], 'd', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                         else:
-                            line = EvolvingLine(coc, 'd', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(coc, 'd', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                     elif i==matrix.m.shape[0]-1:
                         if coc==None:
-                            line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(source[0], 'u', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                         else:
-                            line = EvolvingLine(coc, 'u', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(coc, 'u', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                     elif j==0:
                         if coc==None:
-                            line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(source[0], 'r', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                         else:
-                            line = EvolvingLine(coc, 'r', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(coc, 'r', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                     elif j==matrix.m.shape[1]-1:
                         if coc==None:
-                            line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(source[0], 'l', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                         else:
-                            line = EvolvingLine(coc, 'l', [i,j], cic, colorRules=rules, fixedDirection=fd)
+                            line = EvolvingLine(coc, 'l', [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                                stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                                turnAfterNSteps=turnAfterNSteps)
                     else:
                         return matrix.m.copy()
                 else:
                     if coc==None:
-                        line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        line = EvolvingLine(source[0], source[1], [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                            stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                            turnAfterNSteps=turnAfterNSteps)
                     else:
-                        line = EvolvingLine(coc, source[1], [i,j], cic, colorRules=rules, fixedDirection=fd)
+                        line = EvolvingLine(coc, source[1], [i,j], cic, colorRules=rules, fixedDirection=fd,\
+                                            stepIncrease=stepIncrease, alternateStepIncrease=alternateStepIncrease,\
+                                            turnAfterNSteps=turnAfterNSteps)
                 line.draw(newM)
         matrices.append(newM)
-    m = mergeMatrices(matrices, next(iter(cic)))
+    m = mergeMatrices(matrices, next(iter(cic)), mergeColor)
     return m
+
+# %% Crossed coordinates
+    
+def paintCrossedCoordinates(matrix, refColor, outColor, fixedColors=set()):
+    m = matrix.m.copy()
+    xCoord = set()
+    yCoord = set()
+    
+    for i,j in np.ndindex(matrix.shape):
+        if m[i,j]==refColor:
+            xCoord.add(i)
+            yCoord.add(j)
+    
+    for i in xCoord:
+        for j in yCoord:
+            if matrix.m[i,j] not in fixedColors:
+                m[i,j] = outColor
+    
+    return m
+    
 
 # %% Linear Models
 
@@ -2710,107 +2826,139 @@ def getBestSurroundShapes(t):
 # %% Extend Color
 
 def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=None,\
-                deleteExtensionColors=set()):
-    m = matrix.m.copy()
+                deleteExtensionColors=set(), deleteIfBorder=False, \
+                breakAtFixedColor=False, mergeColor=None):
+    #m = matrix.m.copy()
     
     if sourceColor==None:
         sourceColor=color
+        
+    matrices = []
     
     # Vertical
     if direction=='all' or direction=='hv' or direction=='v' or direction=='u':
-        for j in range(m.shape[1]):
+        for j in range(matrix.shape[1]):
             colorCells=False
-            start = m.shape[0]-1
-            for i in reversed(range(m.shape[0])):
+            start = matrix.shape[0]-1
+            for i in reversed(range(matrix.shape[0])):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
+                    m = matrix.m.copy()
                     colorCells=True
                     start = i
+                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                    break
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
-                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
+                                   i==0 and deleteIfBorder):
                     currentI = i
                     for i in range(currentI, start):
                         m[i,j] = matrix.m[i,j]
                     break
             if color==None:
                 sourceColor=None
+            if colorCells:
+                matrices.append(m)
     if direction=='all' or direction=='hv' or direction=='v' or direction=='d':
-        for j in range(m.shape[1]):
+        for j in range(matrix.shape[1]):
             colorCells=False
             start = 0
-            for i in range(m.shape[0]):
+            for i in range(matrix.shape[0]):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
+                    m = matrix.m.copy()
                     colorCells=True
                     start = i
+                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                    break
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
-                if colorCells and matrix.m[i,j] in deleteExtensionColors:
-                    currentI = i
+                if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
+                                   i==m.shape[0]-1 and deleteIfBorder):
+                    currentI = i+1
                     for i in reversed(range(start, currentI)):
                         m[i,j] = matrix.m[i,j]
                     break
             if color==None:
                 sourceColor=None
+            if colorCells:
+                matrices.append(m)
              
     # Horizontal
     if direction=='all' or direction=='hv' or direction=='h' or direction=='l':
-        for i in range(m.shape[0]):
+        for i in range(matrix.shape[0]):
             colorCells=False
-            start = m.shape[1]-1
-            for j in reversed(range(m.shape[1])):
+            start = matrix.shape[1]-1
+            for j in reversed(range(matrix.shape[1])):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
+                    m = matrix.m.copy()
                     colorCells=True
                     start = j
+                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                    break
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
-                if colorCells and matrix.m[i,j] in deleteExtensionColors:
+                if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
+                                   j==0 and deleteIfBorder):
                     currentJ = j
                     for j in range(currentJ, start):
                         m[i,j] = matrix.m[i,j]
                     break
             if color==None:
                 sourceColor=None
+            if colorCells:
+                matrices.append(m)
     if direction=='all' or direction=='hv' or direction=='h' or direction=='r':
-        for i in range(m.shape[0]):
+        for i in range(matrix.shape[0]):
             colorCells=False
             start = 0
-            for j in range(m.shape[1]):
+            for j in range(matrix.shape[1]):
                 if color==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
+                    m = matrix.m.copy()
                     colorCells=True
                     start = j
+                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                    break
                 if colorCells and matrix.m[i,j] in cic:
                     if color==None:
                         m[i,j] = sourceColor
                     else:
                         m[i,j] = color
-                if colorCells and matrix.m[i,j] in deleteExtensionColors:
-                    currentJ = j
+                if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
+                                   j==m.shape[1]-1 and deleteIfBorder):
+                    currentJ = j+1
                     for j in reversed(range(start, currentJ)):
                         m[i,j] = matrix.m[i,j]
                     break
             if color==None:
                 sourceColor=None
+            if colorCells:
+                matrices.append(m)
+              
+    if len(matrices)>0:
+        m = mergeMatrices(matrices, next(iter(cic)), mergeColor=mergeColor)
+    else:
+        m = matrix.m.copy()
                 
     # Diagonal
     if direction=='all' or  direction=='diag' or direction=='d1' or direction=='d2':
@@ -2829,7 +2977,7 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                 if direction=='d2':
                     matrix.m = np.fliplr(matrix.m)
                     m = np.fliplr(m)
-                for i in range(-m.shape[0]+1, m.shape[1]):
+                for i in range(-matrix.shape[0]+1, matrix.shape[1]):
                     diag = np.diagonal(matrix.m, i)
                     colorCells=False
                     for j in range(len(diag)):
@@ -2843,24 +2991,30 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                         if i<=0:
                             if matrix.m[-i+j,j]==sourceColor:
                                 colorCells=True
+                            if colorCells and matrix.m[-i+j,j] in fixedColors and breakAtFixedColor:
+                                break
                             if colorCells and matrix.m[-i+j,j] in cic:
                                 if color==None:
                                     m[-i+j,j] = sourceColor
                                 else:
                                     m[-i+j,j] = color
-                            if colorCells and matrix.m[-i+j,j] in deleteExtensionColors:
+                            if colorCells and ((matrix.m[-i+j,j] in deleteExtensionColors) or \
+                                               j==len(diag)-1 and deleteIfBorder):
                                 for j in range(len(diag)):
                                     m[-i+j,j] = matrix.m[-i+j,j]
                                 break
                         else:
                             if matrix.m[j,i+j]==sourceColor:
                                 colorCells=True
+                            if colorCells and matrix.m[j,i+j] in fixedColors and breakAtFixedColor:
+                                break
                             if colorCells and matrix.m[j,i+j] in cic:
                                 if color==None:
                                     m[j,i+j] = sourceColor
                                 else:
                                     m[j,i+j] = color
-                            if colorCells and matrix.m[j,i+j] in deleteExtensionColors:
+                            if colorCells and ((matrix.m[j,i+j] in deleteExtensionColors) or \
+                                               j==len(diag)-1 and deleteIfBorder):
                                 for j in range(len(diag)):
                                     m[j,i+j] = matrix.m[j,i+j]
                                 break
@@ -2876,45 +3030,60 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                     matrix.m = np.rot90(matrix.m, 2).T
                     m = np.rot90(m, 2).T
 
-    return m
+    return m    
 
 def getBestExtendColor(t):
     bestScore = 1000
     bestFunction = partial(identityM)
     
+    mergeColors = t.commonOutColors-t.totalInColors
+    if len(mergeColors) == 1:
+        mergeColor = next(iter(mergeColors))
+    else:
+        mergeColor = None
+    
     cic = t.commonChangedInColors
+    if len(cic)==0:
+        return bestFunction
     fixedColors = t.fixedColors
     for d in ['r', 'l', 'h', 'u', 'd', 'v', 'hv', 'd1', 'd2', 'diag', 'all']:
-        f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors)
-        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-        if bestScore==0:
-            return bestFunction
-        f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
-                    deleteExtensionColors=fixedColors)
-        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-        if bestScore==0:
-            return bestFunction
-        for coc in t.commonChangedOutColors:    
-            f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors)
+        for dib,bafc in product([True, False], [True, False]):
+            f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
+                        deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             if bestScore==0:
                 return bestFunction
-            f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors,\
-                        deleteExtensionColors=fixedColors)
+            f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
+                        deleteExtensionColors=fixedColors,\
+                        deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
             if bestScore==0:
                 return bestFunction
-            for fc in t.fixedColors:
-                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
-                            fixedColors=fixedColors)
+            for coc in t.commonChangedOutColors:    
+                f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors,\
+                            deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
-                f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
-                            fixedColors=fixedColors, deleteExtensionColors=fixedColors)
+                f = partial(extendColor, color=coc, direction=d, cic=cic, fixedColors=fixedColors,\
+                            deleteExtensionColors=fixedColors,\
+                            deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
+                for fc in t.fixedColors:
+                    f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
+                                fixedColors=fixedColors,\
+                                deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
+                    bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                    if bestScore==0:
+                        return bestFunction
+                    f = partial(extendColor, color=coc, direction=d, cic=cic, sourceColor=fc, \
+                                fixedColors=fixedColors, deleteExtensionColors=fixedColors,\
+                                deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
+                    bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                    if bestScore==0:
+                        return bestFunction
                 
     return bestFunction
 
@@ -5822,6 +5991,12 @@ def getPossibleOperations(t, c):
 
     ###########################################################################
     # Other cases
+    
+    if candTask.sameIOShapes and len(candTask.fixedColors)!=0:
+        for color in candTask.fixedColors:
+            for outColor in candTask.commonOutColors:
+                x.append(partial(paintCrossedCoordinates, refColor=color,\
+                                 outColor=outColor, fixedColors=candTask.fixedColors))
     
     if candTask.inSmallerThanOut and t.inSmallerThanOut:
         x.append(getBestExtendMatrix(candTask))
