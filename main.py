@@ -759,6 +759,8 @@ def rotateHVTask(t, task):
             else:
                 return False, False
         else:
+            if not (hasattr(t.testSamples[s], 'isHorizontal') and hasattr(t.testSamples[s], 'isVertical')):
+                return False, False
             if t.testSamples[s].isHorizontal:
                 rotations['test'].append(0)
             elif t.testSamples[s].isVertical:
@@ -982,12 +984,13 @@ separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,42
 separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,754,\
                     769,780,781]
 
-#, 190, 367, 421, 431, 524
+# Only unsolved tasks
+evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
+                298,322,357,429,449,457,577,585,605,693,703,731,748,793,797]
+
 count=0
-# 92,130,567,29,34,52,77,127
-# 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm([360], position=0, leave=True):
-    taskId = index[749]
+for idx in tqdm(evolvingLine, position=0, leave=True):
+    taskId = index[798]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
