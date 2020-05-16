@@ -908,7 +908,7 @@ def getPredictionsFromTask(originalT, task):
     for s in range(t.nTest):
         taskPredictions.append([])
         for c in b3c.candidates:
-            #print(c.ops)
+            print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -932,9 +932,9 @@ def getPredictionsFromTask(originalT, task):
 
 
             #plot_sample(originalT.testSamples[s], x)
-            #if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
+            if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
-                #print(idx, c.ops)
+                print(idx, c.ops)
                 #plot_task(idx)
                 #break
                 #solved.append(Solution(idx, taskId, c.ops))
@@ -973,8 +973,8 @@ cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262
 arrangeTasks = [152,307,440,498,523,558,622,652,676]
 arrangeToDoTasks = [21,29,45,95,125,158,200,232,237,252,263,295,365,414,434,475,535,\
                 588,589,699,759,760]
-replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,208,360,367,421,500,524,540,597,624,645,650]
-replicateToDoTasks = [4,53,74,88,132,190,196,207,362,424,474,509,539,659,683,779,795]
+replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,471,474,500,524,540,597,624,645,650,795]
+replicateToDoTasks = [4,53,74,88,132,190,196,207,362,424,509,539,659,683,779]
 
 separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,429,\
                     432,455,469,496,497,502,504,513,517,525,528,531,552,599,602,\
@@ -986,8 +986,8 @@ separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,75
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm([360], position=0, leave=True):
-    taskId = index[749]
+for idx in tqdm(range(800), position=0, leave=True):
+    taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
