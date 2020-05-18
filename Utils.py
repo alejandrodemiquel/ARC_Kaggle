@@ -3614,6 +3614,8 @@ def deletePixels(matrix, diagonals=False):
     surrounds most of that pixel.
     """
     m = matrix.m.copy()
+    if m.shape[0]==1 and m.shape[1]==1:
+        return m
     if diagonals:
         shapes = matrix.dShapes
     else:
