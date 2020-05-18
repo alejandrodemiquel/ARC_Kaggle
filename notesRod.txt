@@ -14,7 +14,7 @@ add function to startOps + Crop: 624, 588
 - delete shapes: 654, 96, 129 (holes)
 - symmetrize: 61
 - arrange: 438, 414
-
+- 129
 ------------ArrangeShapes---------
 solves: 152, 440, 558, 588, 622
 ignore grid + lay: 414
