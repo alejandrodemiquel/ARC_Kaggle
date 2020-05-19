@@ -1,5 +1,7 @@
 IDEAS:
 
+- ignore grid and recover (just keep cells): 74, 461, 776
+
 Check if out matrix always has the same shapes in it
 
 CONFLICT DELETE SHAPES and CROPSHAPE, 776 s'hauria de solucionar. i altres també.....
