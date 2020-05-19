@@ -136,28 +136,26 @@ def detectFrontiers(m):
     frontiers = []
     
     # Horizontal lines
-    if m.shape[0]>1:
-        for i in range(m.shape[0]):
-            color = m[i, 0]
-            isFrontier = True
-            for j in range(m.shape[1]):
-                if color != m[i,j]:
-                    isFrontier = False
-                    break
-            if isFrontier:
-                frontiers.append(Frontier(color, 'h', i))
+    for i in range(m.shape[0]):
+        color = m[i, 0]
+        isFrontier = True
+        for j in range(m.shape[1]):
+            if color != m[i,j]:
+                isFrontier = False
+                break
+        if isFrontier:
+            frontiers.append(Frontier(color, 'h', i))
             
     # Vertical lines
-    if m.shape[1]>1:
-        for j in range(m.shape[1]):
-            color = m[0, j]
-            isFrontier = True
-            for i in range(m.shape[0]):
-                if color != m[i,j]:
-                    isFrontier = False
-                    break
-            if isFrontier:
-                frontiers.append(Frontier(color, 'v', j))
+    for j in range(m.shape[1]):
+        color = m[0, j]
+        isFrontier = True
+        for i in range(m.shape[0]):
+            if color != m[i,j]:
+                isFrontier = False
+                break
+        if isFrontier:
+            frontiers.append(Frontier(color, 'v', j))
             
     return frontiers
 
@@ -1520,6 +1518,23 @@ class Task():
             if addShape:
                 self.commonInDShapes.append(sh1)
                 
+        #Does the input always consist in two shapes?
+        self.twoShapeTask = (False, False, False, False)
+        if all(len(s.inMatrix.multicolorDShapes)==2 for s in self.trainSamples):
+            self.twoShapeTask = (True, True, True, False)
+            if all(s.inMatrix.multicolorDShapes[0].shape == s.inMatrix.multicolorDShapes[1].shape for s in self.trainSamples):
+                self.twoShapeTask = (True, True, True, True)
+                
+        elif all(len(s.inMatrix.multicolorShapes)==2 for s in self.trainSamples):
+            self.twoShapeTask = (True, True, False, False)
+            if all(s.inMatrix.multicolorShapes[0].shape == s.inMatrix.multicolorShapes[1].shape for s in self.trainSamples):
+                self.twoShapeTask = (True, True, False, True)
+                
+        elif all(len(s.inMatrix.dShapes)==2 for s in self.trainSamples):
+            self.twoShapeTask = (True, False, True, False)
+            if all(s.inMatrix.dShapes[0].shape == s.inMatrix.dShapes[1].shape for s in self.trainSamples):
+                self.twoShapeTask = (True, False, True, True)
+                
         # Frames
         self.hasFullFrame = all([len(s.inMatrix.fullFrames)>0 for s in self.trainSamples])
 
@@ -1536,10 +1551,7 @@ class Task():
         
         # Full Borders / Requires vertical-horizontal rotation
         if self.sameIOShapes:
-            if self.submission:
-                self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples])
-            else:
-                self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples+self.testSamples])
+            self.hasOneFullBorder = all([len(s.commonFullBorders)==1 for s in self.trainSamples])
             self.requiresHVRotation = False
             if not (self.allEqual([s.isHorizontal for s in self.trainSamples]) or \
                     self.allEqual([s.isVertical for s in self.trainSamples])):    
@@ -6540,71 +6552,71 @@ def cropAllShapes(matrix, background, diagonal=False):
     return m
 
 # %% Stuff added by Roderic
-#delete shape with x properties
-def getBestColorByPixels(t):
-    delPix = False
-    if isDeleteTask(t) or t.outSmallerThanIn:
-        delPix = True
-    bestScore = 1000
-    bestFunction = partial(identityM)
-    bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, deletePixels=delPix), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, colorMap=True, deletePixels=delPix), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(colorByPixels, oneColor=True, deletePixels=delPix), bestScore, bestFunction)
-    return bestFunction
-    
-def colorByPixels(matrix, colorMap=False, oneColor=False, deletePixels=False):
+def paintGridLikeBackground(matrix):
+    m = matrix.m.copy()
+    bC = max(matrix.colorCount,key=matrix.colorCount.get)
+    if matrix.isGrid:
+        m[m==matrix.grid.color] = bC
+    elif matrix.isAsymmetricGrid:
+        m[m==matrix.asymmetricGrid.color] = bC
+    return m    
+
+def downsizeMode(matrix, newShape, falseColor=None):
     """
-    Attempts to find color changes dictated by pixels. Be it pixels determine the color of the closest shape,\
-    be it adjacent pixels determine a color map. 
+    Given a matrix and a shape, this function returns a new matrix with the
+    given shape. The elements of the return matrix are given by the colors of 
+    each of the submatrices. If a submatrix has more than one color the mode is
+    chosen.
     """
+    if (matrix.shape[0]%newShape[0])!=0 or (matrix.shape[1]%newShape[1])!=0:
+        return matrix.m.copy()
+    xBlock = int(matrix.shape[0]/newShape[0])
+    yBlock = int(matrix.shape[1]/newShape[1])
+    m = np.full(newShape, matrix.backgroundColor, dtype=np.uint8)
+    for i,j in np.ndindex(newShape[0], newShape[1]):
+        colorCount = Counter(matrix.m[i*xBlock: (i+1)*xBlock, j*yBlock: (j+1)*yBlock].flatten())
+        m[i,j] = max(colorCount, key=colorCount.get)
+    return m    
+
+def colorByPixels(matrix, colorMap=False, oneColor=False):    
     m = matrix.m.copy()
     shList = [sh for sh in matrix.shapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)>1]
     pixList = [sh for sh in matrix.shapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)==1]
-    if len(shList)==0 or len(pixList)==0 or len(pixList)>10:
+    if len(shList)==0 or len(pixList)==0:
         return m
     if colorMap:
-        cMap = dict()
-        seenP = []
-        for p1 in pixList:
-            for p2 in pixList:
-                if abs(p1.position[1]-p2.position[1])==1 and p1.position[0]==p2.position[0] and p1.color not in cMap.keys():
-                    cMap[p1.color] = p2.color
-                    seenP.append(p1.position)                   
-        if deletePixels:
+        if all(any(abs(p1.position[0]-p2.position[0])+abs(p1.position[1]-p2.position[1])==1 for p1 in pixList) for p2 in pixList):
+            cMap = dict()
+            for p1 in pixList:
+                for p2 in pixList:
+                    if abs(p1.position[0]-p2.position[0])+abs(p1.position[1]-p2.position[1])==1:
+                        cMap[p1.color] = p2.color
             for pix in pixList:
                 m[pix.position[0], pix.position[1]] = matrix.backgroundColor
-        for i,j in np.ndindex(m.shape):
-            if m[i,j] in cMap.keys() and (i,j) not in seenP:
-                m[i,j] = cMap[m[i,j]]
+            for i,j in np.ndindex(m.shape):
+                if m[i,j] in cMap.keys():
+                    m[i,j] = cMap[m[i,j]]
     else:
         if oneColor:
             cc = Counter([sh.color for sh in pixList])
             newC = max(cc, key=cc.get)
-            if deletePixels:
-                m[m==newC]=matrix.backgroundColor
+            m[m==newC]=matrix.backgroundColor
             m[m!=matrix.backgroundColor]=newC
         else:
-            if len(pixList) != len(shList):
-                return m
-            for i in range(len(pixList)):
+            for pix in pixList:
                 minD, newD = 1000, 1000
-                bestSh, bestPix = None, None
-                for pix in pixList:
-                    for sh in shList:
-                        newD = min(np.linalg.norm(np.subtract(pix.position,np.add(p, sh.position))) for p in sh.pixels) 
-                        if newD < minD:
-                            minD = newD
-                            bestSh = sh
-                            bestPix = pix
+                bestSh = None
+                for sh in shList:
+                    newD = min(np.linalg.norm(np.subtract(pix.position,np.add(p, sh.position))) for p in sh.pixels) 
+                    if newD < minD:
+                        minD = newD
+                        bestSh = sh
                 if bestSh != None:
                     for i,j in np.ndindex(bestSh.shape):
                         if bestSh.m[i,j] != 255:
-                            m[bestSh.position[0]+i, bestSh.position[1]+j]=bestPix.color
-                    if deletePixels:
-                        m[bestPix.position[0], bestPix.position[1]] = matrix.backgroundColor
-                    shList.remove(bestSh)
-                    pixList.remove(bestPix)
-    return m   
+                            m[bestSh.position[0]+i, bestSh.position[1]+j]=pix.color
+                    m[pix.position[0], pix.position[1]] = matrix.backgroundColor
+    return m    
 
 def isDeleteTask(t):    
     if hasattr(t, 'colorChanges') and t.backgroundColor in [c[1] for c in t.colorChanges]:
@@ -6684,25 +6696,41 @@ def deleteShapes(matrix, attributes, diagonal, multicolor):
 def getBestArrangeShapes(t):
     bestScore = 1000
     bestFunction = partial(identityM)
-    #if len(set(len(s.inMatrix.multicolorDShapes) for s in t.trainSamples)) == 1:
-    if all(len(set([sh.shape for sh in s.inMatrix.multicolorDShapes])) == 1 for s in t.trainSamples):
-        if len(set([s.outMatrix.shape for s in t.trainSamples])) == 1:
-            bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='lay',outShape=t.trainSamples[0].outMatrix.shape,\
-                                                        diagonal=True, multicolor=False, overlap=0), bestScore, bestFunction)
-            bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='lay',outShape=t.trainSamples[0].outMatrix.shape,\
-                                                        diagonal=True, multicolor=False, overlap=-1), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='lay',\
-                                                        diagonal=True, multicolor=False), bestScore, bestFunction)
-    if len(set([s.outMatrix.shape for s in t.trainSamples])) == 1:
-        bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='fit', outShape=t.trainSamples[0].outMatrix.shape,\
-                                                                diagonal=True, multicolor=False), bestScore, bestFunction)
+    if hasattr(t, 'outShape'):
+        bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, outShape=t.outShape,\
+                                                            diagonal=True, multicolor=False), bestScore, bestFunction)
     elif t.outIsInMulticolorShapeSize:
-        bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, arrange='fit',\
-                                                                diagonal=True, multicolor=True), bestScore, bestFunction)
-    bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes,arrange='fit',shByColor=True), bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes, diagonal=True,\
+                                                                multicolor=True,outShape='LaSh'), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes,shByColor=True,outShape='LaSh'), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes,shByColor=True, fullFrames=True,outShape='LaSh'), bestScore, bestFunction)
     return bestFunction
 
-def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=True, diagonal=True, shByColor=False):
+def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shByColor=False, fullFrames=False):
+    def completeFrames(shape,rotate=False,fill=False):
+        'version of symmetrize shape intended for frame-like shapes' 
+        m = shape.m.copy()
+        if m.shape[0]>m.shape[1]:
+            newm = np.full((m.shape[0], m.shape[0]), fill_value=255)
+            sideL = m.shape[0]
+        else:
+            newm = np.full((m.shape[1], m.shape[1]), fill_value=255)
+            sideL = m.shape[1]
+        for i,j in np.ndindex(m.shape):
+            if m[i,j] != 255:
+                if newm[i,j] == 255:
+                    newm[i,j] = m[i,j]
+                if newm[sideL - j - 1,i] == 255:
+                    newm[sideL - j - 1,i] = m[i,j]
+                if newm[sideL - i - 1,sideL - j - 1] == 255:
+                    newm[sideL - i - 1,sideL - j - 1] = m[i,j]
+                if newm[j,sideL - i - 1] == 255 and m[i,j]:
+                    newm[j,sideL - i - 1] = m[i,j]
+        newSh = copy.deepcopy(shape)
+        newSh.m = newm
+        newSh.shape = newm.shape
+        return newSh
+    
     def tessellateShapes (mat, shL, n, bC, rotation=False):
         m = mat.copy()
         arrFound = False
@@ -6740,6 +6768,8 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
     
     if shByColor:
         shList = [sh for sh in matrix.shapesByColor]
+        if fullFrames:
+            shList = [completeFrames(sh) for sh in matrix.shapesByColor]
     else:
         if not multicolor: 
             if diagonal:   
@@ -6754,89 +6784,221 @@ def arrangeShapes (matrix, overlap=0, arrange=None, outShape = None, multicolor=
     
     if len(shList) < 2 or len(shList)>10:
         return matrix.m.copy()
-    
-    if arrange=='lay':
-        if outShape == None:
-            m = matrix.m.copy()
-            for sh in shList:
-                m = deleteShape(m, sh, matrix.backgroundColor)           
-        else:
-            shList = [sh for sh in shList if all(sh.shape[i]<= outShape[i] for i in [0,1])]
-            m = np.full(outShape, fill_value=matrix.backgroundColor)
-        shList.sort(key=lambda x: x.position[1])
-        arrFound = False
-        if all(shList[i].position[1]+shList[i].shape[1] <= shList[i+1].position[1] for i in range(len(shList)-1)):
-            shSorted = [[sh for sh in shList]]
-            arrFound = True
-        shList.sort(key=lambda x: x.position[0])
-        if not arrFound and all(shList[i].position[0]+shList[i].shape[0] <= shList[i+1].position[0] for i in range(len(shList)-1)):
-            shSorted = [[sh] for sh in shList]
-            arrFound = True
-        if not arrFound:  
-            if len(shList) == 4:
-                shSorted = [sorted(shList[:2],key=lambda x: x.position[1]), sorted(shList[2:],key=lambda x: x.position[1])]
-                arrFound = True
-        if arrFound and len(shSorted)>0 and len(shSorted[0])>0 and len(shSorted[0][0].shape)>0:
-            shX, shY = shSorted[0][0].shape[0], shSorted[0][0].shape[1]
-            vCount = 0
-            for vShs in shSorted:
-                hCount = 0 
-                for hSh in vShs:
-                    newInsert = copy.deepcopy(hSh)
-                    newInsert.position = (vCount*(shX-overlap), hCount*(shY-overlap))
-                    m = insertShape(m, newInsert)
-                    hCount += 1
-                vCount += 1
-            if outShape == None:
-                return m[:(vCount)*(shX-overlap),\
-                         :(hCount)*(shY-overlap)]
-            else:
-                return m
         
-    elif arrange=='fit':
-        shList.sort(key=lambda x: len(x.pixels), reverse=True)
-        if outShape == None:
-            outShape = shList[0].shape
-        """    
-        if all(sh.shape == outShape for sh in shList):
-            m = np.full(outShape, fill_value=matrix.backgroundColor)
-            for sh in shList:
-                for i, j in np.ndindex(m.shape):
-                    if sh.m[i,j]!= 255:
-                        m[i,j] = max(m[i,j],sh.m[i,j])
+    shList.sort(key=lambda x: x.shape[0]*x.shape[1], reverse=True)
+    if outShape == 'LaSh':
+        outShape = shList[0].shape
+    """    
+    if all(sh.shape == outShape for sh in shList):
+        m = np.full(outShape, fill_value=matrix.backgroundColor)
+        for sh in shList:
+            for i, j in np.ndindex(m.shape):
+                if sh.m[i,j]!= 255:
+                    m[i,j] = max(m[i,j],sh.m[i,j])
+        return m
+    """
+    if outShape == None:
+        outShape = matrix.shape
+    if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
+        m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
+                                         0,matrix.backgroundColor)
+        if tessellate:
+            return m
+        m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
+                                         0,matrix.backgroundColor,rotation=True)
+        if tessellate:
             return m
         """
-        if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
-            m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
-                                             0,matrix.backgroundColor)
-            if tessellate:
-                return m
-            m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
-                                             0,matrix.backgroundColor,rotation=True)
-            if tessellate:
-                return m
+        else:
+            m = np.full(outShape, fill_value=matrix.backgroundColor)
+            for i, j in np.ndindex(shList[0].shape):
+                if shList[0].m[i,j]!=255:
+                    m[i,j]=shList[0].m[i,j]
+            mSeen = np.zeros(m.shape)
+            for sh in shList[1:]:
+                score = 0
+                bestX, bestY = 0, 0
+                for i,j in np.ndindex(tuple(np.add(np.subtract(m.shape,sh.shape),(1,1)))):
+                    if np.all (mSeen[i: i+sh.shape[0], j:j+sh.shape[1]] == 0):
+                        newScore = np.count_nonzero(m[i: i+sh.shape[0], j:j+sh.shape[1]] == sh.m)
+                        if newScore > score:
+                            bestX, bestY = i, j
+                            score = newScore
+                if score > 0:
+                    for i,j in np.ndindex(sh.shape):
+                        mSeen[bestX+i,bestY+j] = 1
+                        if sh.m[i,j] != 255:
+                            m[bestX+i,bestY+j] = sh.m[i,j]
+            return m
+        """
+    return matrix.m.copy()
+
+def getBestLayShapes(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    if t.outSmallerThanIn:
+        bestFunction, bestScore = updateBestFunction(t, partial(layShapes,completeRect=True,diagonal=True,\
+                                        direction=(0,0),sortBy='largeToSmall', outShape='LaSh',multicolor=False), bestScore, bestFunction)
+    if hasattr(t, 'outShape'):
+        outShape = t.outShape
+        for sortBy in ['grid','lr','ud','largeToSmall','smallToLarge']:
+            for direction in [(1,0), (0,1), (1,1)]:
+                for overlap in [(0,0), (1,1), (-1,-1)]:
+                    bestFunction, bestScore = updateBestFunction(t, partial(layShapes, diagonal=True, multicolor=False,\
+                                                outShape=outShape, overlap=overlap, direction=direction, sortBy=sortBy), bestScore, bestFunction)
+    elif t.sameIOShapes:
+        outShape = 'inShape'
+        for sortBy in ['grid','lr','ud','largeToSmall','smallToLarge']:
+            for direction in [(1,0), (0,1), (1,1)]:
+                for overlap in [(0,0), (1,1), (-1,-1)]:
+                    bestFunction, bestScore = updateBestFunction(t, partial(layShapes, diagonal=True, multicolor=False,\
+                                                outShape=outShape, overlap=overlap, direction=direction, sortBy=sortBy), bestScore, bestFunction)
+    return bestFunction
+
+def layShapes(matrix, overlap=(0,0), outShape = None, multicolor=True,\
+              diagonal=True, direction=(0,1), sortBy='lrud', completeRect=False):
+    def completeRectangles(shape):
+        'version of complete rectangles shape intended for frame-like shapes' 
+        newSh = copy.deepcopy(shape)
+        newSh.m = np.full(shape.shape, fill_value=shape.color)
+        newSh.shape = newSh.m.shape
+        return newSh
+    m = matrix.m.copy()
+    """Moves all shapes and lays them in an appropriate way."""
+    if not multicolor: 
+        if diagonal:   
+            shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
+        else:   
+            shList = [sh for sh in matrix.shapes if sh.color != matrix.backgroundColor]
+    else:
+        if diagonal: 
+            shList = [sh for sh in matrix.multicolorDShapes]
+        else:
+            shList = [sh for sh in matrix.multicolorShapes]
+    if completeRect and (not multicolor):
+        shList = [completeRectangles(sh) for sh in shList]
+    if sortBy == 'largeToSmall':
+        shList.sort(key=lambda x: len(x.pixels), reverse=True)
+    if sortBy == 'smallToLarge':
+        shList.sort(key=lambda x: len(x.pixels))
+    elif sortBy == 'lr':
+        shList.sort(key=lambda x: x.position[1])
+    elif sortBy == 'ud':
+        shList.sort(key=lambda x: x.position[0])
+    elif sortBy == 'grid':
+        shList.sort(key=lambda x: x.position[0])
+        newList = []
+        shList.sort(key=lambda x: x.position[0])
+        gridD = int(len(shList)**(1/2))
+        for i in range(gridD):
+            newList += sorted(shList[i*gridD: (i + 1)*gridD], key=lambda x: x.position[1])
+        shList = [sh for sh in newList]
+    if len(shList) == 0:
+        return m
+    #if outShape can't be determined, then
+    if outShape != None:
+        if outShape == 'inShape':
+            m = np.full(matrix.shape, fill_value=matrix.backgroundColor)
+        elif outShape == 'LaSh' and sortBy == 'largeToSmall':
+            m = np.full(shList[0].m.shape, fill_value=matrix.backgroundColor)
+        else:
+            m = np.full(outShape, fill_value=matrix.backgroundColor)
+        shList = [sh for sh in shList if (sh.shape[0] <= m.shape[0] and sh.shape[1] <= m.shape[1])]
+        (currentX, currentY) = (0, 0)
+        for sh in shList:
+            if currentX + sh.shape[0] > m.shape[0]:
+                (currentX, currentY) = (0, currentY + sh.shape[1] - overlap[1])
+            if currentY + sh.shape[1] > m.shape[1]:
+                (currentX, currentY) = (currentX + sh.shape[0] - overlap[0], 0)
+            newInsert = copy.deepcopy(sh)
+            newInsert.position = (currentX, currentY)
+            m = insertShape(m, newInsert)
+            currentX, currentY = (currentX + (sh.shape[0]- overlap[0])*direction[0] , currentY + (sh.shape[1]- overlap[1])*direction[1])
+    return m
+
+def getBestAlignShapes(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    if t.sameIOShapes:
+        for cc in set.intersection(*t.inColors):
+            bestFunction, bestScore = updateBestFunction(t, partial(alignShapes, refColor=cc), bestScore, bestFunction)
+    elif t.outSmallerThanIn:
+        bestFunction, bestScore = updateBestFunction(t, partial(alignShapes, compress=True, crop=True), bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, partial(alignShapes, compress=False, crop=True), bestScore, bestFunction)
+    return bestFunction
+        
+
+def alignShapes(matrix, compress=True, diagonal=True, multicolor=False, refColor=None, crop=False):
+    """
+    Attempts to align the shapes in matrix, maybe with a reference unmoved shape, maybe cropping.
+    """
+    m = matrix.m.copy()
+    if not multicolor: 
+        if diagonal:   
+            shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
+        else:   
+            shList = [sh for sh in matrix.shapes if sh.color != matrix.backgroundColor]
+    else:
+        if diagonal: 
+            shList = [sh for sh in matrix.multicolorDShapes]
+        else:
+            shList = [sh for sh in matrix.multicolorShapes]
+    if len(shList) < 2:
+        return m
+    shList.sort(key=lambda x: x.position[1])
+    arrFound = False
+    if all(shList[i].position[1]+shList[i].shape[1] <= shList[i+1].position[1] for i in range(len(shList)-1)):
+        arrFound = (0,1)
+    if arrFound == False:
+        shList.sort(key=lambda x: x.position[0])
+        if all(shList[i].position[0]+shList[i].shape[0] <= shList[i+1].position[0] for i in range(len(shList)-1)):
+           arrFound = (1,0)
+    if arrFound == False:
+        return m  
+    for sh in shList:
+        m = deleteShape(m, sh, matrix.backgroundColor)
+    (currentX, currentY) = (0, 0)
+    if refColor != None and not crop:
+        refPos = -1
+        for sh in shList:
+            if sh.color == refColor:
+                refPos = sh.position
+                break
+        if refPos == -1:
+            return matrix.m.copy()
+        for sh in shList:
+            newInsert = copy.deepcopy(sh)
+            if arrFound == (0,1):
+                newInsert.position = (refPos[0], sh.position[1])
+            elif arrFound == (1,0):
+                newInsert.position = (sh.position[0], refPos[1])
+            m = insertShape(m, newInsert)
+    else:
+        for sh in shList:
+            newInsert = copy.deepcopy(sh)
+            if compress:
+                newInsert.position = (currentX, currentY)
+                (currentX, currentY) = (currentX + sh.shape[0]*arrFound[0], currentY + sh.shape[1]*arrFound[1])
             else:
-                m = np.full(outShape, fill_value=matrix.backgroundColor)
-                for i, j in np.ndindex(shList[0].shape):
-                    if shList[0].m[i,j]!=255:
-                        m[i,j]=shList[0].m[i,j]
-                mSeen = np.zeros(m.shape)
-                for sh in shList[1:]:
-                    score = 0
-                    bestX, bestY = 0, 0
-                    for i,j in np.ndindex(tuple(np.add(np.subtract(m.shape,sh.shape),(1,1)))):
-                        if np.all (mSeen[i: i+sh.shape[0], j:j+sh.shape[1]] == 0):
-                            newScore = np.count_nonzero(m[i: i+sh.shape[0], j:j+sh.shape[1]] == sh.m)
-                            if newScore > score:
-                                bestX, bestY = i, j
-                                score = newScore
-                    if score > 0:
-                        for i,j in np.ndindex(sh.shape):
-                            mSeen[bestX+i,bestY+j] = 1
-                            if sh.m[i,j] != 255:
-                                m[bestX+i,bestY+j] = sh.m[i,j]
-                return m
-    return matrix.m
+                newInsert.position = (0,0)
+            m = insertShape(m, newInsert)
+        
+    if crop:
+        bC = matrix.backgroundColor
+        if np.all(m == bC):
+            return m
+        x1, x2, y1, y2 = 0, m.shape[0]-1, 0, m.shape[1]-1
+        while x1 <= x2 and np.all(m[x1,:] == bC):
+            x1 += 1
+        while x2 >= x1 and np.all(m[x2,:] == bC):
+            x2 -= 1
+        while y1 <= y2 and np.all(m[:,y1] == bC):
+            y1 += 1
+        while y2 >= y1 and np.all(m[:,y2] == bC):
+            y2 -= 1
+        return(m[x1:x2+1,y1:y2+1])
+    else:
+        return m
 
 #replicate shape
 def isReplicateTask(t):
@@ -7049,8 +7211,110 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
         for sh in delList:
             m = deleteShape(m, sh, matrix.backgroundColor)
     return(m)
+    
+def getBestReplicateAtPixels(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    deleteOriginal = False
+    if t.outSmallerThanIn:
+        deleteOriginal = True
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateAtPixels, deleteOriginal=deleteOriginal,\
+                                                            multicolor=True, diagonal=True), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateAtPixels, deleteOriginal=deleteOriginal,\
+                                                            multicolor=False, diagonal=True), bestScore, bestFunction)
+    if t.outIsInMulticolorShapeSize:
+        bestFunction, bestScore = updateBestFunction(t, partial(replicateAtPixels, deleteOriginal=deleteOriginal,\
+                                                multicolor=True, diagonal=True, cropPanel=True), bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, partial(replicateAtPixels, deleteAnchor=True,deleteOriginal=deleteOriginal,\
+                                                multicolor=False, diagonal=True, cropPanel=True), bestScore, bestFunction)
+    if isDeleteTask(t):
+        bestFunction, bestScore = updateBestFunction(t, partial(replicateAtPixels, deleteAnchor=True, deleteOriginal=False,\
+                                                            multicolor=True, diagonal=True), bestScore, bestFunction)
+        bestFunction, bestScore = updateBestFunction(t, partial(replicateAtPixels, deleteAnchor=True, deleteOriginal=True,\
+                                                            multicolor=True, diagonal=True), bestScore, bestFunction)
+    return bestFunction
+
+def replicateAtPixels(matrix, diagonal=True, multicolor=True, deleteOriginal=False,\
+                      deleteAnchor=False, matchPixels=False, cropPanel=False):
+    m = matrix.m.copy()
+    #first find the shape or shapes to replicate
+    if diagonal:
+        if multicolor:
+            shList = [sh for sh in matrix.multicolorDShapes if len(sh.pixels)>1]
+        else:
+            shList = [sh for sh in matrix.dShapes if len(sh.pixels)>1]
+    else:
+        if multicolor:
+            shList = [sh for sh in matrix.multicolorShapes if len(sh.pixels)>1]
+        else:
+            shList = [sh for sh in matrix.shapes if len(sh.pixels)>1]
+    pixList = [pix for pix in matrix.dShapes if len(pix.pixels)==1]
+    if len(shList)==0 or len(pixList)==0:
+        return m
+    #if matchPixels:
+    #    pixList = [pixList[1] for p in pixList]
+    seenPix = []
+    for pix in pixList:
+        if pix in seenPix:
+            continue
+        for sh in shList:
+            if (pix.position[0] >= sh.position[0]) and (pix.position[1] >= sh.position[1]) \
+                and (pix.position[0] < sh.position[0]+sh.shape[0]) and (pix.position[1] < sh.position[1]+sh.shape[1]):
+                continue
+            if pix.m[0,0] in sh.m:
+                newInsert = copy.deepcopy(sh)
+                if not multicolor:
+                    newInsert.position = (pix.position[0] - (sh.shape[0]-1)//2, pix.position[1] - (sh.shape[1]-1)//2)
+                else:
+                    for i, j in np.ndindex(sh.shape):
+                        if sh.m[i,j] == pix.m[0,0]:
+                            newInsert.position = (pix.position[0]-i, pix.position[1]-j)
+                            break
+                if matchPixels or not len(np.unique(m[newInsert.position[0]:newInsert.position[0]+newInsert.shape[0],\
+                                    newInsert.position[1]:newInsert.position[1]+newInsert.shape[1]])) == 2:
+                    if deleteAnchor and not multicolor:
+                        m = deleteShape(m, pix, matrix.backgroundColor)            
+                    m = insertShape(m, newInsert)                
+                    if deleteOriginal:
+                        m = deleteShape(m, sh, matrix.backgroundColor)
+                    if deleteAnchor and multicolor:
+                        m = deleteShape(m, pix, matrix.backgroundColor)
+                    for pix2 in pixList:
+                        if (pix2.position[0] >= sh.position[0]) and (pix2.position[1] >= sh.position[1]) \
+                            and (pix2.position[0] < sh.position[0]+sh.shape[0]) and (pix2.position[1] < sh.position[1]+sh.shape[1]):
+                            seenPix.append(pix2)
+                if not matchPixels:
+                    break
+    if cropPanel:
+        shList.sort(key=lambda x: x.shape[0]*x.shape[1], reverse=True)
+        if not multicolor:
+            shList = [sh for sh in shList if sh.color != matrix.backgroundColor]
+            if len(shList) == 0:
+                return m
+        shPan = shList[0]
+        return m[shPan.position[0]:shPan.position[0]+shPan.shape[0],\
+                 shPan.position[1]:shPan.position[1]+shPan.shape[1] ]
+    return m
         
 #overlapSubmatrices 
+def printShapes(matrices, base=0, backgroundColor=0):
+    """
+    This function returns the result of printing one matrices on the other.
+    The matrices are shape matrices and may contain 255.
+    """
+    if base == 1:
+        matrices = matrices[::-1]
+    m = np.zeros(matrices[0].shape, dtype=int)
+    for i,j in np.ndindex(m.shape):
+        if matrices[0][i,j] != 255:
+            if matrices[1][i,j] != 255:
+                m[i,j] = matrices[1][i,j]
+            else:
+                m[i,j] = matrices[0][i,j]
+        else:
+            m[i,j] = backgroundColor
+    return m    
+
 def overlapSubmatrices(matrix, colorHierarchy, shapeFactor=None):
     """
     This function returns the result of overlapping all submatrices of a given
@@ -7308,6 +7572,98 @@ def cropFullFrame(matrix, includeBorder=True, bigOrSmall = None):
     else:
         return m[frame.position[0]+1:frame.position[0]+frame.shape[0]-1, \
                  frame.position[1]+1:frame.position[1]+frame.shape[1]-1]
+        
+def getBestTwoShapeFunction(t):
+    """
+    Inputs a task with two input shapes and tries a series of operations that make sense.
+    """
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    multicolor = t.twoShapeTask[1]
+    diagonal = t.twoShapeTask[2]
+    cropAfter = [False] 
+    if t.outSmallerThanIn:
+        cropAfter += [True]
+    #try possible operations
+    for crop in cropAfter:
+        #this confirms that the shapes have the same size. 
+        if t.twoShapeTask[3]:
+            #pixelwise and/or
+            for c in permutations(t.totalOutColors,2):
+                for target in [None]:# t.totalInColors
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
+                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor, crop=crop), bestScore, bestFunction)
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
+                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor, crop=crop), bestScore, bestFunction)
+        else:
+            if hasattr(t, 'backgroundColor'):
+                for base in [0,1]:
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
+                                backgroundColor=t.backgroundColor),diagonal=diagonal, multicolor=multicolor, crop=crop, downSizeLarger=True), bestScore, bestFunction)
+            #here shapes have different sizes. Maybe one is a factor? 
+            #downsizeShape?
+            #scaleShape?
+            #fitShapes?
+    return bestFunction
+
+def twoShapeFun(matrix, f=partial(identityM), diagonal=True, multicolor=True, downSizeLarger=False, scaleSmaller=False, crop=False):
+    """
+    Apply function f to the shapes of matrix. By default, this function should only be called when matrix has two shapes. 
+    """
+    def cropAllBackgroundM(m, background):
+        """
+        Same as above but for a np matrix and specified background color
+        """
+        if np.all(m == background):
+            return m
+        x1, x2, y1, y2 = 0, m.shape[0]-1, 0, m.shape[1]-1
+        while x1 <= x2 and np.all(m[x1,:] == background):
+            x1 += 1
+        while x2 >= x1 and np.all(m[x2,:] == background):
+            x2 -= 1
+        while y1 <= y2 and np.all(m[:,y1] == background):
+            y1 += 1
+        while y2 >= y1 and np.all(m[:,y2] == background):
+            y2 -= 1
+        return(m[x1:x2+1,y1:y2+1])
+    def minimizeM(m):
+        x = 1
+        for i in range(1, m.shape[0]):
+            if np.array_equal(m[x,:],m[x-1,:]):
+                m = np.delete(m, (x), axis=0)
+            else:
+                x+=1
+        x = 1
+        for i in range(1, m.shape[1]):
+            if np.array_equal(m[:,x],m[:,x-1]):
+                m = np.delete(m, (x), axis=1)
+            else:
+                x+=1
+        return m
+    def scaleM(m):
+        return m
+    if not multicolor: 
+            if diagonal:   
+                shList = [sh.m for sh in matrix.dShapes]
+            else:   
+                shList = [sh.m for sh in matrix.shapes]
+    else:
+        if diagonal: 
+            shList = [sh.m for sh in matrix.multicolorDShapes]
+        else:
+            shList = [sh.m for sh in matrix.multicolorShapes]
+    if len(shList)  != 2:
+        return matrix.m.copy()
+    shList.sort(key=lambda x: x.shape[0]*x.shape[1], reverse=True)
+    if downSizeLarger:
+        shList[0] = minimizeM(shList[0])
+    if scaleSmaller:
+        shList[1] = scaleM(shList[1])
+    if shList[0].shape != shList[1].shape:
+        return matrix.m.copy()
+    if crop:
+        return cropAllBackgroundM(f(shList),matrix.backgroundColor)
+    return f(shList)
 
 # %% Main function: getPossibleOperations
 def getPossibleOperations(t, c):
@@ -7335,6 +7691,7 @@ def getPossibleOperations(t, c):
     if candTask.sameOutShape:
         outShape = candTask.outShape
         x.append(partial(downsize, newShape=outShape))
+        x.append(partial(downsizeMode,newShape=outShape))
         if t.backgroundColor!=-1:
             x.append(partial(downsize, newShape=outShape, falseColor=t.backgroundColor))
         
@@ -7401,6 +7758,9 @@ def getPossibleOperations(t, c):
                 for border, bs in product([True, False, None], ["big", "small", None]):
                     x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                      bigOrSmall=bs, isBorder=border))
+                    
+            if isReplicateTask(candTask)[0]:
+                x.append(getBestReplicateShapes(candTask))
             
             return x
         
@@ -7548,9 +7908,19 @@ def getPossibleOperations(t, c):
                                      bigOrSmall=bs, isBorder=border))
         
         #replicate/symmterize/other shape related tasks
+        x.append(getBestAlignShapes(candTask))
         x.append(getBestSymmetrizeSubmatrix(candTask))
-        x.append(getBestReplicateShapes(candTask))
-        x.append(getBestColorByPixels(candTask))
+        x.append(partial(replicateShapes,diagonal=True, multicolor=True, allCombs=False,anchorType='subframe', scale=False))
+        x.append(partial(replicateShapes,diagonal=True, multicolor=True, allCombs=True,anchorType='subframe', scale=False, deleteOriginal=True))
+        if isReplicateTask(candTask)[0]:
+            x.append(getBestReplicateShapes(candTask))
+        #x.append(getBestReplicateAtPixels(candTask))
+        #x.append(partial(replicateAtPixels,deleteOriginal=True, multicolor=True, diagonal=True, matchPixels=True))    
+        
+        #if len(candTask.colorChanges) == 1:
+        #    x.append(partial(replicateShapes,diagonal=True, multicolor=False, allCombs=True,\
+        #                     anchorColor = list(candTask.colorChanges)[0][0], anchorType='all', attributes=set(['UnCo'])))
+
         #delete shapes
         if isDeleteTask(candTask) and all(t.backgroundColor == c[1] for c in candTask.colorChanges):
             x.append(getBestDeleteShapes(candTask, True, True))
@@ -7770,13 +8140,16 @@ def getPossibleOperations(t, c):
                 x.append(partial(colorAppearingXTimes, times=times))
             x.append(partial(maxColorFromCell))
                
+    x.append(getBestLayShapes(candTask)) 
     # Cropshape
+    x.append(partial(colorByPixels))
+    x.append(partial(colorByPixels, colorMap=True))
+    x.append(partial(colorByPixels, oneColor=True))
     if candTask.outSmallerThanIn:
+        x.append(getBestAlignShapes(candTask))
         x.append(partial(deleteShapes, attributes = getDeleteAttributes(candTask, diagonal = False), diagonal = False, multicolor=False))
         x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
-        x.append(partial(colorByPixels, deletePixels=True))
-        x.append(partial(colorByPixels, colorMap=True, deletePixels=True))
         x.append(getBestArrangeShapes(candTask))
         if candTask.backgroundColor!=-1:
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=True))
@@ -7815,307 +8188,20 @@ def getPossibleOperations(t, c):
         x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=False))
         x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=False))
     
+    # startOps
+
+    x.append(partial(paintGridLikeBackground))
+    x.append(partial(cropAllBackground))
+    
     # minimize
     if not candTask.sameIOShapes:
         x.append(partial(minimize))
+        
+    #tasks with two shapes
+    if candTask.twoShapeTask[0]:
+        x.append(getBestTwoShapeFunction(t))
     
     return x
-
-###############################################################################
-###############################################################################
-# Adityaork
-
-# 1
-def getiorc(pair):
-    inp = pair["input"]
-    return pair["input"],pair["output"],len(inp),len(inp[0])
-    
-def getAround(i,j,inp,size=1):
-    #v = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
-    r,c = len(inp),len(inp[0])
-    v = []
-    sc = [0]
-    for q in range(size):
-        sc.append(q+1)
-        sc.append(-(q+1))
-    for idx,(x,y) in enumerate(product(sc,sc)):
-        ii = (i+x)
-        jj = (j+y)
-        v.append(-1)
-        if((0<= ii < r) and (0<= jj < c)):
-            v[idx] = (inp[ii][jj])
-    return v        
-    
-def getX(inp,i,j,size):
-    z = []
-    n_inp = np.array(inp)
-    z.append(i)
-    z.append(j)
-    r,c = len(inp),len(inp[0])
-    for m in range(5):
-        z.append(i%(m+1))
-        z.append(j%(m+1))
-    z.append(i+j)
-    z.append(i*j)
-#     z.append(i%j)
-#     z.append(j%i)
-    z.append((i+1)/(j+1))
-    z.append((j+1)/(i+1))
-    z.append(r)
-    z.append(c)
-    z.append(len(np.unique(n_inp[i,:])))
-    z.append(len(np.unique(n_inp[:,j])))
-    arnd = getAround(i,j,inp,size)
-    z.append(len(np.unique(arnd)))
-    z.extend(arnd)
-    return z
-
-def getXy(inp,oup,size):
-    x = []
-    y = []
-    r,c = len(inp),len(inp[0])
-    for i in range(r):
-        for j in range(c):
-            x.append(getX(inp,i,j,size))
-            y.append(oup[i][j])
-    return x,y
-    
-def getBkgColor(task_json):
-    color_dict = defaultdict(int)
-    
-    for pair in task_json['train']:
-        inp,oup,r,c = getiorc(pair)
-        for i in range(r):
-            for j in range(c):
-                color_dict[inp[i][j]]+=1
-    color = -1
-    max_count = 0
-    for col,cnt in color_dict.items():
-        if(cnt > max_count):
-            color = col
-            max_count = cnt
-    return color
-
-# 2
-def replace(inp,uni,perm):
-    # uni = '234' perm = ['5','7','9']
-    #print(uni,perm)
-    r_map = { int(c):int(s) for c,s in zip(uni,perm)}
-    r,c = len(inp),len(inp[0])
-    rp = np.array(inp).tolist()
-    for i in range(r):
-        for j in range(c):
-            if(rp[i][j] in r_map):
-                rp[i][j] = r_map[rp[i][j]]
-    return rp
-    
-def augment(inp,oup,bl_cols):
-    cols = "0123456789"
-    npr_map = [1,9,72,3024,15120,60480,181440,362880,362880]
-    uni = "".join([str(x) for x in np.unique(inp).tolist()])
-    for c in bl_cols:
-        cols=cols.replace(str(c),"")
-        uni=uni.replace(str(c),"")
-
-    exp_size = len(inp)*len(inp[0])*npr_map[len(uni)]
-    
-    mod = floor(exp_size/120000)
-    mod = 1 if mod==0 else mod
-    
-    result = []
-    count = 0
-    for comb in combinations(cols,len(uni)):
-        for perm in permutations(comb):
-            count+=1
-            if(count % mod == 0):
-                result.append((replace(inp,uni,perm),replace(oup,uni,perm)))
-    return result
-            
-def get_flips(inp,oup):
-    result = []
-    result.append((np.fliplr(inp).tolist(),np.fliplr(oup).tolist()))
-    result.append((np.rot90(np.fliplr(inp),1).tolist(),np.rot90(np.fliplr(oup),1).tolist()))
-    result.append((np.rot90(np.fliplr(inp),2).tolist(),np.rot90(np.fliplr(oup),2).tolist()))
-    result.append((np.rot90(np.fliplr(inp),3).tolist(),np.rot90(np.fliplr(oup),3).tolist()))
-    result.append((np.flipud(inp).tolist(),np.flipud(oup).tolist()))
-    result.append((np.rot90(np.flipud(inp),1).tolist(),np.rot90(np.flipud(oup),1).tolist()))
-    result.append((np.rot90(np.flipud(inp),2).tolist(),np.rot90(np.flipud(oup),2).tolist()))
-    result.append((np.rot90(np.flipud(inp),3).tolist(),np.rot90(np.flipud(oup),3).tolist()))
-    result.append((np.fliplr(np.flipud(inp)).tolist(),np.fliplr(np.flipud(oup)).tolist()))
-    result.append((np.flipud(np.fliplr(inp)).tolist(),np.flipud(np.fliplr(oup)).tolist()))
-    return result
-    
-def gettaskxy(task_json,aug,around_size,bl_cols,flip=True):    
-    X = []
-    Y = []
-    for pair in task_json['train']:
-        inp,oup=pair["input"],pair["output"]
-        tx,ty = getXy(inp,oup,around_size)
-        X.extend(tx)
-        Y.extend(ty)
-        if(flip):
-            for ainp,aoup in get_flips(inp,oup):
-                tx,ty = getXy(ainp,aoup,around_size)
-                X.extend(tx)
-                Y.extend(ty)
-                if(aug):
-                    augs = augment(ainp,aoup,bl_cols)
-                    for ainp,aoup in augs:
-                        tx,ty = getXy(ainp,aoup,around_size)
-                        X.extend(tx)
-                        Y.extend(ty)
-        if(aug):
-            augs = augment(inp,oup,bl_cols)
-            for ainp,aoup in augs:
-                tx,ty = getXy(ainp,aoup,around_size)
-                X.extend(tx)
-                Y.extend(ty)
-    return X,Y
-
-def test_predict(task_json,model,size):
-    inp = task_json['test'][0]['input']
-    eoup = task_json['test'][0]['output']
-    oup = predict(inp,model,size)
-    return inp,eoup,oup
-
-def predict(inp,model,size):
-    r,c = len(inp),len(inp[0])
-    oup = np.zeros([r,c],dtype=int)
-    for i in range(r):
-        for j in range(c):
-            x = getX(inp,i,j,size)
-            o = int(model.predict([x]))
-            o = 0 if o<0 else o
-            oup[i][j]=o
-    return oup
-
-def submit_predict(task_json,model,size):
-    pred_map = {}
-    idx=0
-    for pair in task_json['test']:
-        inp = pair["input"]
-        oup = predict(inp,model,size)
-        pred_map[idx] = oup.tolist()
-        idx+=1
-    return pred_map
-
-def dumb_predict(task_json):
-    pred_map = {}
-    idx=0
-    for pair in task_json['test']:
-        pred_map[idx] = [[0,0],[0,0]]
-        idx+=1
-    return pred_map
-
-# 3
-def get_loss(model,task_json,size):
-    total = 0
-    for pair in task_json['train']:
-        inp,oup=pair["input"],pair["output"]
-        eoup = predict(inp,model,size)
-        total+= np.sum((np.array(oup) != np.array(eoup)))
-    return total
-
-def get_test_loss(model,task_json,size):
-    total = 0
-    for pair in task_json['test']:
-        inp,oup=pair["input"],pair["output"]
-        eoup = predict(inp,model,size)
-        total+= np.sum((np.array(oup) != np.array(eoup)))
-    return total
-
-def get_a_size(task_json):
-    return 4;
-
-def get_bl_cols(task_json):
-    result = []
-    bkg_col = getBkgColor(task_json);
-    result.append(bkg_col)
-    # num_input,input_cnt,num_output,output_cnt
-    met_map = {}
-    for i in range(10):
-        met_map[i] = [0,0,0,0]
-        
-    total_ex = 0
-    for pair in task_json['train']:
-        inp,oup=pair["input"],pair["output"]
-        u,uc = np.unique(inp, return_counts=True)
-        inp_cnt_map = dict(zip(u,uc))
-        u,uc = np.unique(oup, return_counts=True)
-        oup_cnt_map = dict(zip(u,uc))
-        
-        for col,cnt in inp_cnt_map.items():
-            met_map[col][0] = met_map[col][0] + 1
-            met_map[col][1] = met_map[col][1] + cnt
-        for col,cnt in oup_cnt_map.items():
-            met_map[col][2] = met_map[col][2] + 1
-            met_map[col][3] = met_map[col][3] + cnt
-        total_ex+=1
-    
-    for col,met in met_map.items():
-        num_input,input_cnt,num_output,output_cnt = met
-        if(num_input == total_ex or num_output == total_ex):
-            result.append(col)
-        elif(num_input == 0 and num_output > 0):
-            result.append(col)
-    
-    result = np.unique(result).tolist()
-    if(len(result) == 10):
-        result.append(bkg_col)
-    return np.unique(result).tolist()
-
-# 4
-def combine_preds(tid,pm1,pm3,pm5):
-    result = []
-    for i in range(len(pm1)):
-        tk_s = tid+"_"+str(i)
-        str_pred = flattener(pm1[i])+" "+flattener(pm3[i])+" "+flattener(pm5[i])
-        result.append([tk_s,str_pred])
-    return result
-
-# 5
-def inp_oup_dim_same(task_json):
-    return all([ len(pair["input"]) == len(pair["output"]) and len(pair["input"][0]) == len(pair["output"][0])
-                for pair in task_json['train']])
-    
-
-def getTreeModelSolutions(task_json):
-    if(inp_oup_dim_same(task_json)):
-        bl_cols = get_bl_cols(task_json)
-        
-        isflip = False
-        X1,Y1 = gettaskxy(task_json,True,1,bl_cols,isflip)
-        X3,Y3 = gettaskxy(task_json,True,3,bl_cols,isflip)
-        X5,Y5 = gettaskxy(task_json,True,5,bl_cols,isflip)
-        
-        model_1 = BaggingClassifier(base_estimator=DecisionTreeClassifier(),n_estimators=100).fit(X1, Y1)
-        model_3 = BaggingClassifier(base_estimator=DecisionTreeClassifier(),n_estimators=100).fit(X3, Y3)
-        model_5 = BaggingClassifier(base_estimator=DecisionTreeClassifier(),n_estimators=100).fit(X5, Y5)
-        
-        pred_map_1 = submit_predict(task_json,model_1,1)
-        pred_map_3 = submit_predict(task_json,model_3,3)
-        pred_map_5 = submit_predict(task_json,model_5,5)
-        
-        """
-        for tks,str_pred in combine_preds(tk_id,pred_map_1,pred_map_3,pred_map_5):
-            task_ids.append(tks)
-            task_preds.append(str_pred)
-        solved_task+=1
-        #break
-        """
-    else:
-        pred_map_1 = 0 #dumb_predict(task_json)
-        pred_map_3 = 0 #dumb_predict(task_json)
-        pred_map_5 = 0 #dumb_predict(task_json)
-        
-        """
-        for tks,str_pred in combine_preds(tk_id,pred_map_1,pred_map_3,pred_map_5):
-            task_ids.append(tks)
-            task_preds.append(str_pred)
-        """
-        
-    solutions = [pred_map_1, pred_map_3, pred_map_5]
-    return solutions
 
 ###############################################################################
 ###############################################################################
@@ -8670,7 +8756,8 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
     if c.score==0 or b3c.allPerfect():
         return
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
-                "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels") # applyEvolve?
+                "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels",\
+                "paintGridLikeBackground") # applyEvolve?
     repeatIfPerfect = ("extendColor")
     possibleOps = getPossibleOperations(t, c)
     for op in possibleOps:
@@ -8816,10 +8903,6 @@ for output_id in submission.index:
     f = str(test_path / str(task_id + '.json'))
     with open(f, 'r') as read_file:
         task = json.load(read_file)
-        
-    #treeModelSolutions = getTreeModelSolutions(task)
-        
-    #predictions = []
             
     originalT = Task(task, task_id, submission=True)
     
