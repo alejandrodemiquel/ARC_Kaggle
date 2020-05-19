@@ -4891,6 +4891,7 @@ def paintGridLikeBackground(matrix):
     elif matrix.isAsymmetricGrid:
         m[m==matrix.asymmetricGrid.color] = bC
     return m
+
 def downsizeMode(matrix, newShape, falseColor=None):
     """
     Given a matrix and a shape, this function returns a new matrix with the
