@@ -31,6 +31,8 @@ valid_tasks = { task.stem: json.load(task.open()) for task in valid_path.iterdir
 test_tasks = { task.stem: json.load(task.open()) for task in test_path.iterdir() }
 
 # Correct wrong cases:
+# 3ee1011a
+valid_tasks['3ee1011a']['train'][0]['input'][12][8] = 0
 # 025d127b
 for i in range(9, 12):
     for j in range(3, 8):
@@ -41,6 +43,8 @@ for i in range(7, 10):
 train_tasks['025d127b']['train'][0]['output'][8][4] = 0
 # ef135b50
 train_tasks['ef135b50']['test'][0]['output'][6][4] = 9
+# 20818e16
+valid_tasks['20818e16']['train'][2]['output'] = valid_tasks['20818e16']['train'][2]['output'][:-1]
 # bd14c3bf
 for i in range(3):
     for j in range(5):
@@ -796,11 +800,11 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
     if c.score==0 or b3c.allPerfect():
         return
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
-                "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels") # applyEvolve?
+                "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels", \
+                "paintGridLikeBackground") # applyEvolve?
     repeatIfPerfect = ("extendColor")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
-        
         for s in range(t.nTrain):
             cTask["train"][s]["input"] = op(c.t.trainSamples[s].inMatrix).tolist()
             if c.t.sameIOShapes and len(c.t.fixedColors) != 0:
@@ -973,12 +977,14 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
 
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
              299,345,364,383,395,488,576,578,635,712,727,768,785]
-arrangeTasks = [29,152,307,403,440,523,552,558,622,652,676,707,746]
-arrangeToDoTasks = [21,45,95,125,158,200,232,237,252,263,295,300,315,365,414,434,475,498,535,\
-                588,589,699,759,760]
-replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,471,500,524,540,597,624,645,650,795]
+arrangeTasks = [29,152,307,403,414,440,455,495,523,558,622,652,676,699,707,746]
+arrangeToDoTasks = [45,95,158,200,232,237,252,263,295,300,315,365,475,535,\
+                588,759]
+twoShapeTasks = [70,158,169,244,274,453,674,760,484] 
+replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,471,474,498,\
+                  500,524,540,597,624,645,650,795]
 replicateToDoTasks = [4,53,74,88,132,190,196,207,362,424,509,539,659,683,779]
-replicateAtPixelsTasks = [21,53,74,88,424,272,509,589,498]
+replicateAtPixelsTasks = [21,53,74,88,424,509,589]
 
 separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,429,\
                     432,455,469,496,497,502,504,513,517,525,528,531,552,599,602,\
@@ -993,7 +999,7 @@ evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(800), position=0, leave=True):
+for idx in tqdm(range(550,600), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)

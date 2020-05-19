@@ -1443,7 +1443,23 @@ class Task():
                     break
             if addShape:
                 self.commonInDShapes.append(sh1)
+        #Does the input always consist in two shapes?
+        self.twoShapeTask = (False, False, False, False)
+        if all(len(s.inMatrix.multicolorDShapes)==2 for s in self.trainSamples):
+            self.twoShapeTask = (True, True, True, False)
+            if all(s.inMatrix.multicolorDShapes[0].shape == s.inMatrix.multicolorDShapes[1].shape for s in self.trainSamples):
+                self.twoShapeTask = (True, True, True, True)
                 
+        elif all(len(s.inMatrix.multicolorShapes)==2 for s in self.trainSamples):
+            self.twoShapeTask = (True, True, False, False)
+            if all(s.inMatrix.multicolorShapes[0].shape == s.inMatrix.multicolorShapes[1].shape for s in self.trainSamples):
+                self.twoShapeTask = (True, True, False, True)
+                
+        elif all(len(s.inMatrix.dShapes)==2 for s in self.trainSamples):
+            self.twoShapeTask = (True, False, True, False)
+            if all(s.inMatrix.dShapes[0].shape == s.inMatrix.dShapes[1].shape for s in self.trainSamples):
+                self.twoShapeTask = (True, False, True, True)
+        
         # Frames
         self.hasFullFrame = all([len(s.inMatrix.fullFrames)>0 for s in self.trainSamples])
 
