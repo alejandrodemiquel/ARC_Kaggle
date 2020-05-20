@@ -4,16 +4,11 @@ IDEAS:
 
 Check if out matrix always has the same shapes in it
 
-CONFLICT DELETE SHAPES and CROPSHAPE, 776 s'hauria de solucionar. i altres també.....
-219 same stuffff
-add function to startOps + Crop: 624, 588
-
 - replicateShape + changing color
 - 194: crop, minimize, 
 - 108: symmetrize, colormap, deleteshape
-- 424, 475, 498, 624: replicate + crop
+- 475, 498: replicate + crop
 
-- can i remove the line to crop the largest shape? i think i can for 133 but what about 28
 - 774 add cropshape options???
 
 - delete shapes: 654, 96, 129 (holes)
@@ -21,7 +16,12 @@ add function to startOps + Crop: 624, 588
 - arrange: 438, 414
 - 129
 ------------Counting--------------
-238
+238, 595, 704, 754, 781, 675,554, 392, 390, 338, 324
+------------Symmetrize-----
+solved: 26, 111, 116, 360
+108,284,542, 464, 472, 423, 623, 461, 437
+--------Extend color:
+506
 ------------ArrangeShapes---------
 solves: 29,152,307,403,440,523,552,558,622,652,676,707,746
 weirdFit 156, 560, 434
@@ -39,12 +39,10 @@ solves: 96, 652
 TODOs:
 - More examples
 ------------ColorByPixels------
-353,415,523,768
+266,353,415,523,568,768
 
-todo 182
-------------Symmetrize-----
-solved: 26, 111, 116, 360
-108,284,542, 464, 472
+536, 182, 450
+
 ------------Replicate--------
 TODOs:
 - at pixels
@@ -60,7 +58,7 @@ add 'all' + context? eg 583
 solved: 17,68,75,79,100,111,116,157,172,208,360,367,421,500,524,540,624,645
 
 same:
-- grid: 4, 140, 369, 326, 539
+- grid: 4, 140, 369, 326, 539, 620
 - at pixels: 21, 53, 74, 88, 205, 474, 424, 272, 509, 589, 498, 636
 - at subshapes: 132, 190, 196, 365, 431, 475,494,659, 683, 779, 795
 - everywhere: 207, 362, 539, 650
@@ -74,7 +72,7 @@ solved: 453
 70,158,169,244,274,674,760,484
 
 ------------References---------
-reference:  142, 181, 205, 244q
+reference:  142, 181, 205, 244q, 423
 other ref: 153, 158, 208, 223, 229, 389
 
 
