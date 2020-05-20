@@ -4897,7 +4897,6 @@ def paintGridLikeBackground(matrix):
         m[m==matrix.asymmetricGrid.color] = bC
     return m
 
-<<<<<<< HEAD
 #HOW DO I PASS THE ARGUMENTS????
 def paintGridLikeOriginal(matrix, grid):
     """
@@ -4906,9 +4905,7 @@ def paintGridLikeOriginal(matrix, grid):
     m = matrix.m.copy()
     m = insertShape(m, grid)
     return m
-#
-=======
->>>>>>> 8476aedb0d601672babd392f9a072e2d696b3320
+
 def downsizeMode(matrix, newShape, falseColor=None):
     """
     Given a matrix and a shape, this function returns a new matrix with the
