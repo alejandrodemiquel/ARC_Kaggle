@@ -3405,6 +3405,8 @@ def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None):
     if direction == 'd':
         shapesToMove.sort(key=lambda x: x.position[0]+x.shape[0], reverse=True)
     m = matrix.m.copy()
+    if len(shapesToMove) > 15:
+        return m
     for s in shapesToMove:
         newMatrix = m.copy()
         if direction == "any":
@@ -3487,6 +3489,8 @@ def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, \
     closest shape with color "until".
     """
     m = matrix.m.copy()
+    if len(matrix.shapes) > 25:
+        return m
     fixedShapes = []
     if until == None:
         colorsToMove = []
@@ -6223,7 +6227,7 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
-        #x.append(getBestMoveShapes(candTask))
+        x.append(getBestMoveShapes(candTask))
         
         pr = pixelRecolor(candTask)
         if len(pr)!=1:
