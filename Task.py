@@ -698,7 +698,7 @@ class Matrix():
         # Define multicolor shapes based on the background color
         self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
-        
+        self.dummyMatrix = (self.m!=self.backgroundColor).astype(np.uint8) 
         # Symmetries
         self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
         # Up-Down
@@ -1475,7 +1475,9 @@ class Task():
             self.twoShapeTask = (True, False, True, False)
             if all(s.inMatrix.dShapes[0].shape == s.inMatrix.dShapes[1].shape for s in self.trainSamples):
                 self.twoShapeTask = (True, False, True, True)
-        
+        #Are all output matrices equal mod nonBackgroundColor?
+        if self.sameOutShape:
+            self.sameOutDummyMatrix = all(np.all(self.trainSamples[0].outMatrix.dummyMatrix==s.outMatrix.dummyMatrix) for s in self.trainSamples)
         # Frames
         self.hasFullFrame = all([len(s.inMatrix.fullFrames)>0 for s in self.trainSamples])
 

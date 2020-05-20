@@ -4946,7 +4946,8 @@ def colorByPixels(matrix, colorMap=False, oneColor=False, deletePixels=False):
     m = matrix.m.copy()
     shList = [sh for sh in matrix.shapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)>1]
     pixList = [sh for sh in matrix.dShapes if (sh.color != matrix.backgroundColor) and len(sh.pixels)==1]
-    if len(shList)==0 or len(pixList)==0 or len(pixList)>10:
+    ogPixList = [p for p in pixList]
+    if len(shList)==0 or len(pixList)==0 or len(pixList)>15:
         return m
     if colorMap:
         cMap = dict()
@@ -4961,7 +4962,7 @@ def colorByPixels(matrix, colorMap=False, oneColor=False, deletePixels=False):
                 m[pix.position[0], pix.position[1]] = matrix.backgroundColor
         for i,j in np.ndindex(m.shape):
             if m[i,j] in cMap.keys() and (i,j) not in seenP:
-                m[i,j] = cMap[m[i,j]]
+                m[i,j] = cMap[m[i,j]]     
     else:
         if oneColor:
             cc = Counter([sh.color for sh in pixList])
@@ -4970,26 +4971,31 @@ def colorByPixels(matrix, colorMap=False, oneColor=False, deletePixels=False):
                 m[m==newC]=matrix.backgroundColor
             m[m!=matrix.backgroundColor]=newC
         else:
-            if len(pixList) != len(shList):
+            if len(pixList) < len(shList):
                 return m
-            for i in range(len(pixList)):
+            c = 0
+            nSh = len(shList)
+            while c < nSh:
                 minD, newD = 1000, 1000
                 bestSh, bestPix = None, None
                 for pix in pixList:
-                    for sh in shList:
-                        newD = min(np.linalg.norm(np.subtract(pix.position,np.add(p, sh.position))) for p in sh.pixels) 
-                        if newD < minD:
-                            minD = newD
-                            bestSh = sh
-                            bestPix = pix
+                    for i in range(len(pixList)):
+                        for sh in shList:
+                            newD = min(np.linalg.norm(np.subtract(pix.position,np.add(p, sh.position))) for p in sh.pixels) 
+                            if newD < minD:
+                                minD = newD
+                                bestSh = sh
+                                bestPix = pix
                 if bestSh != None:
                     for i,j in np.ndindex(bestSh.shape):
                         if bestSh.m[i,j] != 255:
                             m[bestSh.position[0]+i, bestSh.position[1]+j]=bestPix.color
-                    if deletePixels:
-                        m[bestPix.position[0], bestPix.position[1]] = matrix.backgroundColor
+                    c += 1
                     shList.remove(bestSh)
                     pixList.remove(bestPix)
+    if deletePixels:
+        for pix in ogPixList:
+            m[pix.position] = matrix.backgroundColor
     return m
     
 def isDeleteTask(t):    
@@ -5081,7 +5087,7 @@ def getBestArrangeShapes(t):
     bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes,shByColor=True, fullFrames=True,outShape='LaSh'), bestScore, bestFunction)
     return bestFunction
 
-def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shByColor=False, fullFrames=False):
+def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shByColor=False, fullFrames=False, outDummyMatrix=-1, outDummyColor=0):
     def completeFrames(shape,rotate=False,fill=False):
         'version of symmetrize shape intended for frame-like shapes' 
         m = shape.m.copy()
@@ -5158,53 +5164,66 @@ def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shBy
     
     if len(shList) < 2 or len(shList)>10:
         return matrix.m.copy()
-        
-    shList.sort(key=lambda x: x.shape[0]*x.shape[1], reverse=True)
-    if outShape == 'LaSh':
-        outShape = shList[0].shape
-    """    
-    if all(sh.shape == outShape for sh in shList):
-        m = np.full(outShape, fill_value=matrix.backgroundColor)
-        for sh in shList:
-            for i, j in np.ndindex(m.shape):
-                if sh.m[i,j]!= 255:
-                    m[i,j] = max(m[i,j],sh.m[i,j])
-        return m
-    """
-    if outShape == None:
-        outShape = matrix.shape
-    if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
-        m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
-                                         0,matrix.backgroundColor)
-        if tessellate:
-            return m
-        m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
-                                         0,matrix.backgroundColor,rotation=True)
-        if tessellate:
-            return m
-        """
-        else:
+    
+    if type(outDummyMatrix) == int:
+        shList.sort(key=lambda x: x.shape[0]*x.shape[1], reverse=True)
+        if outShape == 'LaSh':
+            outShape = shList[0].shape
+        """    
+        if all(sh.shape == outShape for sh in shList):
             m = np.full(outShape, fill_value=matrix.backgroundColor)
-            for i, j in np.ndindex(shList[0].shape):
-                if shList[0].m[i,j]!=255:
-                    m[i,j]=shList[0].m[i,j]
-            mSeen = np.zeros(m.shape)
-            for sh in shList[1:]:
-                score = 0
-                bestX, bestY = 0, 0
-                for i,j in np.ndindex(tuple(np.add(np.subtract(m.shape,sh.shape),(1,1)))):
-                    if np.all (mSeen[i: i+sh.shape[0], j:j+sh.shape[1]] == 0):
-                        newScore = np.count_nonzero(m[i: i+sh.shape[0], j:j+sh.shape[1]] == sh.m)
-                        if newScore > score:
-                            bestX, bestY = i, j
-                            score = newScore
-                if score > 0:
-                    for i,j in np.ndindex(sh.shape):
-                        mSeen[bestX+i,bestY+j] = 1
-                        if sh.m[i,j] != 255:
-                            m[bestX+i,bestY+j] = sh.m[i,j]
+            for sh in shList:
+                for i, j in np.ndindex(m.shape):
+                    if sh.m[i,j]!= 255:
+                        m[i,j] = max(m[i,j],sh.m[i,j])
             return m
         """
+        if outShape == None:
+            outShape = matrix.shape
+        if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
+            m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
+                                             0,matrix.backgroundColor)
+            if tessellate:
+                return m
+            m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
+                                             0,matrix.backgroundColor,rotation=True)
+            if tessellate:
+                return m
+            """
+            else:
+                m = np.full(outShape, fill_value=matrix.backgroundColor)
+                for i, j in np.ndindex(shList[0].shape):
+                    if shList[0].m[i,j]!=255:
+                        m[i,j]=shList[0].m[i,j]
+                mSeen = np.zeros(m.shape)
+                for sh in shList[1:]:
+                    score = 0
+                    bestX, bestY = 0, 0
+                    for i,j in np.ndindex(tuple(np.add(np.subtract(m.shape,sh.shape),(1,1)))):
+                        if np.all (mSeen[i: i+sh.shape[0], j:j+sh.shape[1]] == 0):
+                            newScore = np.count_nonzero(m[i: i+sh.shape[0], j:j+sh.shape[1]] == sh.m)
+                            if newScore > score:
+                                bestX, bestY = i, j
+                                score = newScore
+                    if score > 0:
+                        for i,j in np.ndindex(sh.shape):
+                            mSeen[bestX+i,bestY+j] = 1
+                            if sh.m[i,j] != 255:
+                                m[bestX+i,bestY+j] = sh.m[i,j]
+                return m
+            """
+    else:
+        m = np.full(outDummyMatrix.shape,fill_value=outDummyColor)
+        if any(sh.shape[0]>m.shape[0] or sh.shape[1]>m.shape[1] for sh in shList):
+            return matrix.m.copy()
+        for sh in shList:
+            for i,j, in np.ndindex((m.shape[0]-sh.shape[0]+1,m.shape[1]-sh.shape[1]+1)):
+                if np.all((outDummyMatrix[i:i+sh.shape[0],j:j+sh.shape[1]]==0) == np.logical_or(sh.m==255,sh.m==outDummyColor)):
+                    for k,l in np.ndindex(sh.shape):
+                        if sh.m[k,l]!=255:
+                            m[i+k,j+l] = sh.m[k,l]
+                    break
+        return m
     return matrix.m.copy()
 
 def getBestLayShapes(t):
@@ -6203,6 +6222,8 @@ def getPossibleOperations(t, c):
         x.append(partial(downsizeMode,newShape=outShape))
         if t.backgroundColor!=-1:
             x.append(partial(downsize, newShape=outShape, falseColor=t.backgroundColor))
+        if candTask.sameOutDummyMatrix and candTask.backgroundColor != -1:
+            x.append(partial(arrangeShapes,outDummyMatrix=candTask.trainSamples[0].outMatrix.dummyMatrix, outDummyColor=candTask.backgroundColor))
         
     ###########################################################################
     # sameIOShapes
@@ -6411,6 +6432,7 @@ def getPossibleOperations(t, c):
                 for border, bs in product([True, False, None], ["big", "small", None]):
                     x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                      bigOrSmall=bs, isBorder=border))
+        
         
         #replicate/symmterize/other shape related tasks
         x.append(getBestAlignShapes(candTask))
