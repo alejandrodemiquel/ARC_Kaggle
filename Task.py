@@ -208,11 +208,10 @@ class Shape:
         self.nColors = len(self.colors)
         if self.nColors==1:
             self.color = next(iter(self.colors))
-        
+            
         self.colorCount = Counter(self.m.flatten()) + Counter({0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0})
         del self.colorCount[255]
-        
-        
+
         # Symmetries
         self.lrSymmetric = np.array_equal(self.m, np.fliplr(self.m))
         self.udSymmetric = np.array_equal(self.m, np.flipud(self.m))
@@ -604,7 +603,20 @@ class GeneralShape(Shape):
         self.nHoles = self.getNHoles()
         
     """
-        
+def detectIsolatedPixels(matrix, dShapeList):
+    pixList = []
+    for sh in dShapeList:
+        if sh.nPixels > 1 or sh.color == matrix.backgroundColor:
+            continue
+        else:
+            cc = set()
+            for i,j in np.ndindex(3, 3):
+                if i - 1 + sh.position[0] < matrix.shape[0] and i - 1 + sh.position[0] >= 0 \
+                        and j - 1 + sh.position[1] < matrix.shape[1] and j - 1 + sh.position[1] >= 0:
+                    cc  = cc.union(set([matrix.m[i - 1 + sh.position[0],j - 1 + sh.position[1]]]))
+            if len(cc) == 2:
+                pixList.append(sh)
+    return pixList
 # %% Class Matrix
 class Matrix():
     def __init__(self, m, detectGrid=True):
@@ -635,6 +647,8 @@ class Matrix():
         self.fullFrames = [shape for shape in self.shapes if shape.isFullFrame]
         self.fullFrames = sorted(self.fullFrames, key=lambda x: x.shape[0]*x.shape[1], reverse=True)
         self.shapesByColor = detectShapesByColor(self.m, self.backgroundColor)
+        self.isolatedPixels = detectIsolatedPixels(self, self.dShapes)
+        self.nIsolatedPixels = len(self.isolatedPixels)
         #self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
         #self.multicolorDShapes = detectShapes(self.m, self.backgroundColor, diagonals=True)
         #R: Since black is the most common background color. 
@@ -787,7 +801,7 @@ class Matrix():
                 if isPattern:
                     return i
         return False
-    
+
     """
     def shapeHasFeatures(self, index, features):
         for i in range(len(features)):
@@ -1443,6 +1457,8 @@ class Task():
                     break
             if addShape:
                 self.commonInDShapes.append(sh1)
+        #Does the task use the information of isolated pixels?
+        #if all(s.inMatrix.nIsolatedPixels)
         #Does the input always consist in two shapes?
         self.twoShapeTask = (False, False, False, False)
         if all(len(s.inMatrix.multicolorDShapes)==2 for s in self.trainSamples):
