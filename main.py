@@ -682,6 +682,123 @@ def recoverAsymmetricGrid(t, x, s):
                 realX[position[0]+k, position[1]+l] = x[cellI,cellJ]
     return realX
 
+def ignoreGeneralGrid(t, task, inMatrix=True, outMatrix=True):
+    for s in range(t.nTrain):
+        if inMatrix:
+            cellShape = t.trainSamples[s].inMatrix.grid.cellShape
+            m = np.zeros((t.trainSamples[s].inMatrix.grid.shape[0]*cellShape[0],\
+                          t.trainSamples[s].inMatrix.grid.shape[1]*cellShape[1]),dtype=np.uint8)
+            for i,j in np.ndindex(t.trainSamples[s].inMatrix.grid.shape):
+                m[i*cellShape[0]:(i+1)*cellShape[0],j*cellShape[1]:(j+1)*cellShape[1]] = t.trainSamples[s].inMatrix.grid.cells[i][j][0].m
+            task["train"][s]["input"] = m.tolist()
+        if outMatrix:
+            cellShape = t.trainSamples[s].outMatrix.grid.cellShape
+            m = np.zeros((t.trainSamples[s].outMatrix.grid.shape[0]*cellShape[0],\
+                          t.trainSamples[s].outMatrix.grid.shape[1]*cellShape[1]),dtype=np.uint8)
+            for i,j in np.ndindex(t.trainSamples[s].outMatrix.grid.shape):
+                m[i*cellShape[0]:(i+1)*cellShape[0],j*cellShape[1]:(j+1)*cellShape[1]] = t.trainSamples[s].outMatrix.grid.cells[i][j][0].m
+            task["train"][s]["output"] = m.tolist()
+    for s in range(t.nTest):
+        if inMatrix:
+            cellShape = t.trainSamples[s].inMatrix.grid.cellShape
+            m = np.zeros((t.trainSamples[s].inMatrix.grid.shape[0]*cellShape[0],\
+                          t.trainSamples[s].inMatrix.grid.shape[1]*cellShape[1]),dtype=np.uint8)
+            for i,j in np.ndindex(t.trainSamples[s].inMatrix.grid.shape):
+                m[i*cellShape[0]:(i+1)*cellShape[0],j*cellShape[1]:(j+1)*cellShape[1]] = t.trainSamples[s].inMatrix.grid.cells[i][j][0].m
+            task["test"][s]["input"] = m.tolist()
+        if outMatrix:
+            cellShape = t.trainSamples[s].outMatrix.grid.cellShape
+            m = np.zeros((t.trainSamples[s].outMatrix.grid.shape[0]*cellShape[0],\
+                          t.trainSamples[s].outMatrix.grid.shape[1]*cellShape[1]),dtype=np.uint8)
+            for i,j in np.ndindex(t.trainSamples[s].outMatrix.grid.shape):
+                m[i*cellShape[0]:(i+1)*cellShape[0],j*cellShape[1]:(j+1)*cellShape[1]] = t.trainSamples[s].outMatrix.grid.cells[i][j][0].m
+            task["test"][s]["output"] = m.tolist()
+
+def ignoreGeneralAsymmetricGrid(t, task):
+    for s in range(t.nTrain):
+        cellList = [cell for cell in t.trainSamples[s].inMatrix.asymmetricGrid.cells]
+        gridShape = t.trainSamples[0].inMatrix.asymmetricGrid.shape
+        newShape = (sum(cellList[i][0][0].shape[0] for i in range(gridShape[0])),sum(cellList[0][i][0].shape[1] for i in range(gridShape[1])))
+        m = np.zeros(newShape, dtype=np.uint8)
+        currX = 0
+        for i in range(gridShape[0]):
+            currY = 0
+            for j in range(gridShape[1]):
+                m[currX:currX + cellList[i][j][0].shape[0],currY:currY + cellList[i][j][0].shape[1]] = cellList[i][j][0].m
+                currY += cellList[i][j][0].shape[1]
+            currX += cellList[i][j][0].shape[0]
+        task["train"][s]["input"] = m.tolist()
+        
+        cellList = [cell for cell in t.trainSamples[s].outMatrix.asymmetricGrid.cells]
+        gridShape = t.trainSamples[0].outMatrix.asymmetricGrid.shape
+        newShape = (sum(cellList[i][0][0].shape[0] for i in range(gridShape[0])),sum(cellList[0][i][0].shape[1] for i in range(gridShape[1])))
+        m = np.zeros(newShape, dtype=np.uint8)
+        currX = 0
+        for i in range(gridShape[0]):
+            currY = 0
+            for j in range(gridShape[1]):
+                m[currX:currX + cellList[i][j][0].shape[0],currY:currY + cellList[i][j][0].shape[1]] = cellList[i][j][0].m
+                currY += cellList[i][j][0].shape[1]
+            currX += cellList[i][j][0].shape[0]
+        task["train"][s]["output"] = m.tolist()
+        
+    for s in range(t.nTest):
+        cellList = [cell for cell in t.testSamples[s].inMatrix.asymmetricGrid.cells]
+        gridShape = t.testSamples[0].inMatrix.asymmetricGrid.shape
+        newShape = (sum(cellList[i][0][0].shape[0] for i in range(gridShape[0])),sum(cellList[0][i][0].shape[1] for i in range(gridShape[1])))
+        m = np.zeros(newShape, dtype=np.uint8)
+        currX = 0
+        for i in range(gridShape[0]):
+            currY = 0
+            for j in range(gridShape[1]):
+                m[currX:currX + cellList[i][j][0].shape[0],currY:currY + cellList[i][j][0].shape[1]] = cellList[i][j][0].m
+                currY += cellList[i][j][0].shape[1]
+            currX += cellList[i][j][0].shape[0]
+        task["test"][s]["input"] = m.tolist()
+        
+        cellList = [cell for cell in t.testSamples[s].outMatrix.asymmetricGrid.cells]
+        gridShape = t.testSamples[0].outMatrix.asymmetricGrid.shape
+        newShape = (sum(cellList[i][0][0].shape[0] for i in range(gridShape[0])),sum(cellList[0][i][0].shape[1] for i in range(gridShape[1])))
+        m = np.zeros(newShape, dtype=np.uint8)
+        currX = 0
+        for i in range(gridShape[0]):
+            currY = 0
+            for j in range(gridShape[1]):
+                m[currX:currX + cellList[i][j][0].shape[0],currY:currY + cellList[i][j][0].shape[1]] = cellList[i][j][0].m
+                currY += cellList[i][j][0].shape[1]
+            currX += cellList[i][j][0].shape[0]
+        task["test"][s]["output"] = m.tolist()
+
+def recoverGeneralGrid(t, x, s):
+    realX = t.testSamples[s].inMatrix.m.copy()
+    cells = t.testSamples[s].inMatrix.grid.cells
+    currX = 0
+    for cellI in range(len(cells)):
+        currY = 0
+        for cellJ in range(len(cells[0])):
+            cellShape = cells[cellI][cellJ][0].shape
+            position = cells[cellI][cellJ][1]
+            realX[position[0]: position[0]+cellShape[0], position[1]:position[1]+cellShape[1]] =\
+                x[currX: currX+cellShape[0],currY: currY+cellShape[1]]
+            currY += cellShape[1]
+        currX += cellShape[0]
+    return realX
+
+def recoverGeneralAsymmetricGrid(t, x, s):
+    realX = t.testSamples[s].inMatrix.m.copy()
+    cells = t.testSamples[s].inMatrix.asymmetricGrid.cells
+    currX = 0
+    for cellI in range(len(cells)):
+        currY = 0
+        for cellJ in range(len(cells[0])):
+            cellShape = cells[cellI][cellJ][0].shape
+            position = cells[cellI][cellJ][1]
+            realX[position[0]: position[0]+cellShape[0], position[1]:position[1]+cellShape[1]] =\
+                x[currX: currX+cellShape[0],currY: currY+cellShape[1]]
+            currY += cellShape[1]
+        currX += cellShape[0]
+    return realX
+
 def rotateTaskWithOneBorder(t, task):
     rotTask = copy.deepcopy(task)
     rotations = {'train': [], 'test': []}
@@ -850,7 +967,6 @@ def getPredictionsFromTask(originalT, task):
         t = Task.Task(task, taskId, submission=False)
     else:
         t = originalT
-
     cTask = copy.deepcopy(task)
 
     if t.sameIOShapes:
@@ -872,6 +988,12 @@ def getPredictionsFromTask(originalT, task):
     elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
         ignoreAsymmetricGrid(t, cTask)
         t2 = Task.Task(cTask, taskId, submission=False)
+    #if t.hasUnchangedGrid:
+    #    ignoreGeneralGrid(t, cTask)
+    #    t2 = Task.Task(cTask, taskId, submission=False)
+    #if t.hasUnchangedAsymmetricGrid:
+    #    ignoreGeneralAsymmetricGrid(t, cTask)
+    #    t2 = Task.Task(cTask, taskId, submission=False)
     else:
         t2 = t
 
@@ -932,6 +1054,10 @@ def getPredictionsFromTask(originalT, task):
                 x = recoverGrid(t, x, s)
             elif t.hasUnchangedAsymmetricGrid and t.assymmetricGridCellsHaveOneColor:
                 x = recoverAsymmetricGrid(t, x, s)
+            #elif t.hasUnchangedGrid:
+            #    x = recoverGeneralGrid(t, x, s)
+            #elif t.hasUnchangedAsymmetricGrid:
+            #    x = recoverGeneralAsymmetricGrid(t, x, s)
             if taskNeedsRecoloring:
                 x = recoverOriginalColors(x, testRels[s])
 
@@ -999,7 +1125,7 @@ evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(arrangeTasks, position=0, leave=True):
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
