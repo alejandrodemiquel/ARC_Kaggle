@@ -962,6 +962,7 @@ class Solution():
 
 def getPredictionsFromTask(originalT, task):
     taskNeedsRecoloring = needsRecoloring(originalT)
+
     if taskNeedsRecoloring:
         task, trainRels, trainInvRels, testRels, testInvRels = orderTaskColors(originalT)
         t = Task.Task(task, taskId, submission=False)
@@ -1060,7 +1061,6 @@ def getPredictionsFromTask(originalT, task):
             #    x = recoverGeneralAsymmetricGrid(t, x, s)
             if taskNeedsRecoloring:
                 x = recoverOriginalColors(x, testRels[s])
-
             taskPredictions[s].append(x)
 
 
@@ -1111,13 +1111,13 @@ replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,424,
                   500,509,524,540,597,624,636,645,650,795]
 replicateToDoTasks = [4,88,132,190,196,207,362,539,659,683,779]
 replicateAtPixelsTasks = [21,53,74,88,498,509,589]
-
+symmetrizeAllShapesTasks = [61, 108, 284, 389, 542, 464, 472, 623, 461, 437]
 separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,429,\
                     432,455,469,496,497,502,504,513,517,525,528,531,552,599,602,\
                     610,611,613,640,650,654,657,673,681,697,729,750,777]
 separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,754,\
                     769,780,781]
-
+countingTasks = [238, 595, 704, 781, 675, 554, 392, 390, 338, 324]
 # Only unsolved tasks
 evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
                 298,322,357,429,449,457,577,585,605,693,703,731,748,793,797]

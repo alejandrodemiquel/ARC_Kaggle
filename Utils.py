@@ -4887,6 +4887,122 @@ def cropAllShapes(matrix, background, diagonal=False):
     return m
 
 # %% Stuff added by Roderic"
+def getBestCountColors(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    outShape = [None]
+    sliced = [False]
+    if t.sameOutShape:
+        outShape.append(t.trainSamples[0].outMatrix.shape)
+    if t.outSmallerThanIn or not t.sameIOShapes:
+        sliced += [True]
+    for byShape in [True,False]:
+        for outCol in [t.backgroundColor, t.trainSamples[0].outMatrix.backgroundColor, 0]:
+            for rotate in range(2):
+                for flip in [True, False]:
+                    for ignore in ['max', 'min', None]:
+                        for sl in sliced:
+                            for oSh in outShape:
+                                bestFunction, bestScore = updateBestFunction(t, partial(countColors,\
+                                            rotate=rotate,outBackgroundColor=outCol, flip=flip, sliced=sl,\
+                                            ignore=ignore, outShape=oSh, byShape=byShape), bestScore, bestFunction)
+                                bestFunction, bestScore = updateBestFunction(t, partial(countColors,\
+                                            rotate=rotate,outBackgroundColor=outCol, flip=flip, sliced=sl,\
+                                            ignore=ignore, outShape=oSh, byShape=byShape, sortByColor=True), bestScore, bestFunction)
+    return bestFunction
+
+def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=-1,\
+                ignore=False, sliced=False, rotate=0, flip=False, byShape=False, sortByColor=False):#diagonal, skip, lay
+    if byShape:
+        cc = Counter([sh.color for sh in matrix.shapes])
+        cc = sorted(cc.items(), key=lambda x: x[1], reverse=True)
+    else:
+        cc = matrix.colorCount
+        cc = sorted(cc.items(), key=lambda x: x[1], reverse=True)
+    if sortByColor:
+        cc = sorted(cc, key=lambda x: x[0])
+    if outBackgroundColor == -1:
+        bC = matrix.backgroundColor
+    else:
+        bC = outBackgroundColor
+    cc = [c for c in cc if c[0] != bC]
+    if ignore == 'max':
+        cc = [cc[i] for i in range(1,len(cc))]
+    elif ignore == 'min':
+        cc = [c for c in cc if c[1] == max([c[1] for c in cc]) ]
+    if len(cc) == 0:
+        return matrix.m.copy()
+    if outShape == None:
+        m = np.full((max([c[1] for c in cc]),len(cc)), fill_value=bC)
+        for j in range(len(cc)):
+            for i in range(cc[j][1]):
+                if i >= m.shape[0] or j >= m.shape[1]:
+                    break
+                m[i,j] = cc[j][0]
+    else:
+        m = np.full(outShape, fill_value=bC)
+        if outShape != matrix.shape:
+            cc = [c[0] for c in cc for j in range(c[1])]
+            i = 0
+            while i < m.shape[0]:
+                j = 0
+                while j < m.shape[1]:
+                    m[i,j] = cc[i*m.shape[1]+j]
+                    j += 1
+                    if i*m.shape[1]+j >= len(cc):
+                        break
+                i += 1 
+                if i*m.shape[1]+j >= len(cc):
+                    break    
+        else:
+            for j in range(len(cc)):
+                for i in range(cc[j][1]):
+                    if i >= m.shape[0] or j >= m.shape[1]:
+                        break
+                    m[i,j] = cc[j][0]
+    if sliced:
+        m = [m[0,:]]
+    m = np.rot90(m, rotate)
+    if flip:
+        m = np.flipud(m)
+    return m
+
+def getBestSymmetrizeAllShapes(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    for cc in set.intersection(*t.inColors).union(set([-1])):
+        bestFunction, bestScore = updateBestFunction(t, partial(symmetrizeAllShapes, targetColor = cc), bestScore, bestFunction)
+    return bestFunction
+def symmetrizeAllShapes(matrix, diagonal=True, multicolor=True, targetColor=-1, axis=None, lr = True, ud = True):
+    m = matrix.m.copy()
+    bC = matrix.backgroundColor
+    if not multicolor: 
+        if diagonal:   
+            shList = [sh for sh in matrix.dShapes]
+        else:   
+            shList = [sh for sh in matrix.shapes]
+    else:
+        if diagonal: 
+            shList = [sh for sh in matrix.multicolorDShapes]
+        else:
+            shList = [sh for sh in matrix.multicolorShapes]
+    if targetColor > -1:
+        shList = [sh for sh in shList if hasattr(sh, 'color') and sh.color == targetColor]
+    for sh in shList:
+        shM = m[sh.position[0]:sh.position[0]+sh.shape[0], sh.position[1]:sh.position[1]+sh.shape[1]]
+        if lr:
+            shMlr = np.fliplr(shM)
+            for i,j in np.ndindex(sh.shape):
+                if shM[i,j] == bC:
+                    shM[i,j] = shMlr[i,j]
+        if ud:
+            shMud = np.flipud(shM)
+            for i,j in np.ndindex(sh.shape):
+                if shM[i,j] == bC:
+                    shM[i,j] = shMud[i,j]
+        m[sh.position[0]:sh.position[0]+sh.shape[0], sh.position[1]:sh.position[1]+sh.shape[1]] = shM
+    return m
+    
 #paint grids
 def paintGridLikeBackground(matrix):
     """
@@ -6208,7 +6324,6 @@ def getPossibleOperations(t, c):
     """ 
     candTask = c.t
     x = [] # List to be returned
-    
     ###########################################################################
     # Fill the blanks
     if t.fillTheBlank:
@@ -6438,7 +6553,7 @@ def getPossibleOperations(t, c):
         x.append(getBestAlignShapes(candTask))
         x.append(getBestSymmetrizeSubmatrix(candTask))
         x.append(getBestReplicateShapes(candTask))
-        #x.append(getBestReplicateOneShape(candTask))
+        x.append(getBestSymmetrizeAllShapes(candTask))
         x.append(getBestColorByPixels(candTask))
         #delete shapes
         if isDeleteTask(candTask) and all(t.backgroundColor == c[1] for c in candTask.colorChanges):
@@ -6711,7 +6826,7 @@ def getPossibleOperations(t, c):
         x.append(partial(cropFullFrame, bigOrSmall="small"))
         x.append(partial(cropFullFrame, bigOrSmall="big", includeBorder=False))
         x.append(partial(cropFullFrame, bigOrSmall="small", includeBorder=False))
-    
+    x.append(getBestCountColors(candTask))
     
     # startOps
     x.append(partial(paintGridLikeBackground))
