@@ -3,6 +3,8 @@ IDEAS:
 - ignore grid and recover (just keep cells): 74, 461, 776
 
 Check if out matrix always has the same shapes in it
+- 
+- partial frame: 690
 
 - replicateShape + changing color
 - 194: crop, minimize, 
@@ -17,7 +19,7 @@ Check if out matrix always has the same shapes in it
 - 129
 ------------Counting--------------
 solved: 37, 99, 238, 300, 324, 338, 390, 392, 398, 465, 492, 527, 595, 704, 781
-countShapes: 466,726
+countShapes: 466,726,609,185, 246
 not: 554,675,726, 220,
 ------------Symmetrize-----
 solved: 26, 111, 116, 360
@@ -87,11 +89,10 @@ CropShape:
 - Identify characteristic attributes
 - Crop holes: 586, 354
 
-solves: 13, 28, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217, 258, 262, 270, 289, 299, 345, 364, 383, 395, 473, 488, 576, 578, 586, 635, 712, 727, 785, 690(sort)
-
+solves: 13, 28, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217, 258, 262, 270, 289, 299, 345, 364, 383, 395, 473, 488, 576, 578, 586, 635, 712, 727, 785, 690
 cropframe: 204, 443
 cropLargestNonbackgroudnFrame = 87, 194, 464
-reference: 318, 690
+reference: 318
 cropsomething? 354, 365
 
 color changes: 768, 774

@@ -5698,22 +5698,6 @@ def getBestReplicateShapes(t):
 def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, anchorType=None, anchorColor=0,\
                     mirror=None, rotate=0, allCombs=False, scale=False, deleteOriginal=False, perfectFit=False,
                     adoptAnchorColor=False, deleteAnchor=False):
-    """
-    def minimizer(m):
-        x = 1
-        for i in range(1, m.shape[0]):
-            if np.array_equal(m[x,:],m[x-1,:]):
-                m = np.delete(m, (x), axis=0)
-            else:
-                x+=1
-        x = 1
-        for i in range(1, m.shape[1]):
-            if np.array_equal(m[:,x],m[:,x-1]):
-                m = np.delete(m, (x), axis=1)
-            else:
-                x+=1
-        return m
-    """
     m = matrix.m.copy()
     #first find the shape or shapes to replicate
     if diagonal:
@@ -5777,16 +5761,6 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
                 newRep.shape = newRep.m.shape
                 newRep.pixels = set([(i,j) for i,j in np.ndindex(newRep.m.shape) if newRep.m[i,j]!=255])
                 newRepList.append(newRep)
-            """
-            downM = minimizer(repShape.m)
-            if repShape.m.shape[0]%downM.shape[0] == 0 and repShape.m.shape[0]%downM.shape[0] == repShape.m.shape[1]%downM.shape[1]\
-                        and repShape.m.shape[0]>downM.shape[0]:
-                newRep = copy.deepcopy(repShape)
-                newRep.m = downM.copy()
-                newRep.shape = newRep.m.shape
-                newRep.pixels = set([(i,j) for i,j in np.ndindex(newRep.m.shape) if newRep.m[i,j]!=255])
-                newRepList.append(newRep)
-            """
         repList = [sh for sh in newRepList]
     repList.sort(key=lambda x: len(x.pixels), reverse=True)
     if anchorType == 'subframe' and scale:
