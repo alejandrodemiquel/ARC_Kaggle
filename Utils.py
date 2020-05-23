@@ -4973,6 +4973,7 @@ def getBestSymmetrizeAllShapes(t):
     for cc in set.intersection(*t.inColors).union(set([-1])):
         bestFunction, bestScore = updateBestFunction(t, partial(symmetrizeAllShapes, targetColor = cc), bestScore, bestFunction)
     return bestFunction
+
 def symmetrizeAllShapes(matrix, diagonal=True, multicolor=True, targetColor=-1, axis=None, lr = True, ud = True):
     m = matrix.m.copy()
     bC = matrix.backgroundColor
