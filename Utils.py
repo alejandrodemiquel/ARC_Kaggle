@@ -18,7 +18,7 @@ def identityM(matrix):
     else:
         return matrix.m.copy()
 
-def correctFixedColors(inMatrix, x, fixedColors):
+def correctFixedColors(inMatrix, x, fixedColors, onlyChangedInColors):
     """
     Given an input matrix (inMatrix), an output matrix (x) and a set of colors
     that should not change between the input and the output (fixedColors),
@@ -30,6 +30,8 @@ def correctFixedColors(inMatrix, x, fixedColors):
     m = x.copy()
     for i,j in np.ndindex(m.shape):
         if inMatrix[i,j] in fixedColors:
+            m[i,j] = inMatrix[i,j]
+        if m[i,j] in onlyChangedInColors:
             m[i,j] = inMatrix[i,j]
     return m
                 
@@ -895,8 +897,6 @@ def getBestEvolve(t, cfn):
 # To be solved: 23,57,59,65,83,93,118,135,140,147,167,189,198,201,231,236,247,
 # 298,322,357,429,449,457,505,577,585,605,693,703,731,748,749,793,797
     
-# Solved: 46,344,573,629,679,749,790
-
 class EvolvingLine():
     def __init__(self, color, direction, position, cic, source=None, \
                  colorRules=None, stepSize=None, fixedDirection=True, turning=False,\

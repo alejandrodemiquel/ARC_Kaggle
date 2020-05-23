@@ -1322,6 +1322,7 @@ class Task():
             self.commonChangedInColors = set.intersection(*self.changedInColors)
             self.changedOutColors = [s.changedOutColors for s in self.trainSamples]
             self.commonChangedOutColors = set.intersection(*self.changedOutColors)
+            self.commonOnlyChangedInColors = self.commonChangedInColors - set.union(*self.changedOutColors)
             # Complete color changes
             self.completeColorChanges = [s.completeColorChanges for s in self.trainSamples]
             self.commonCompleteColorChanges = set.intersection(*self.completeColorChanges)
