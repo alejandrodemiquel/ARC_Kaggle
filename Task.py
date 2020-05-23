@@ -208,7 +208,7 @@ class Shape:
         self.nColors = len(self.colors)
         if self.nColors==1:
             self.color = next(iter(self.colors))
-            
+
         self.colorCount = Counter(self.m.flatten()) + Counter({0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0})
         del self.colorCount[255]
 
@@ -221,10 +221,13 @@ class Shape:
         else:
             self.d1Symmetric = False
             self.d2Symmetric = False
-            
+        
         self.isRectangle = 255 not in np.unique(m)
         self.isSquare = self.isRectangle and self.shape[0]==self.shape[1]
         
+        if self.isRectangle and self.nColors > 1:
+            self.subshapes = detectShapes(self.m, background=self.colorCount.most_common(1)[0][0],\
+                                              singleColor=True, diagonals=False)
         self.nHoles = self.getNHoles()
         
         if self.nColors==1:
@@ -296,7 +299,6 @@ class Shape:
                 
         return np.array_equal(m1,m2)
     
-
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             if self.shape != other.shape:
@@ -1153,7 +1155,7 @@ class Sample():
 
     def getCommonShapes(self, diagonal=True, multicolor=False, sameColor=False, samePosition=False, rotation=False, \
                      mirror=False, scaling=False):
-        comSh = []
+        comSh, countSh = [], []
         if diagonal:
             if not multicolor:
                 ishs = self.inMatrix.dShapes
@@ -1182,7 +1184,12 @@ class Sample():
             if outCount > 0:
                 comSh.append((ish, np.count_nonzero([ish.hasSameShape(ish2, sameColor=sameColor, samePosition=samePosition,\
                                     rotation=rotation, mirror=mirror, scaling=scaling) for ish2 in ishs]), outCount))
-        return comSh
+            #countSh.append((ish, np.count_nonzero([ish.hasSameShape(ish2, sameColor=True, samePosition=samePosition,\
+            #                        rotation=rotation, mirror=mirror, scaling=False) for ish2 in ishs])))
+        if multicolor:
+            return comSh
+        else:
+            return comSh#, countSh
 
 # %% Class Task
 class Task():
@@ -1443,7 +1450,7 @@ class Task():
                 if not any([sh1.pixels == sh2.pixels for sh2 in self.trainSamples[s].inMatrix.shapes]):
                     addShape = False
                     break
-            if addShape:
+            if addShape and sh1 not in self.commonInShapes:
                 self.commonInShapes.append(sh1)
 
         self.commonInDShapes = []
