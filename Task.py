@@ -221,7 +221,7 @@ class Shape:
         else:
             self.d1Symmetric = False
             self.d2Symmetric = False
-        
+
         self.isRectangle = 255 not in np.unique(m)
         self.isSquare = self.isRectangle and self.shape[0]==self.shape[1]
         
@@ -232,8 +232,10 @@ class Shape:
         
         if self.nColors==1:
             self.isFullFrame = self.isFullFrame()
+            self.isPartialFrame = self.isPartialFrame()
         else:
-            self.isFullFrame=False
+            self.isFullFrame = False
+            self.isPartialFrame = False
         
         if self.nColors==1:
             self.boolFeatures = []
@@ -398,6 +400,12 @@ class Shape:
             return True
         return False
     """
+    def isPartialFrame(self):
+        if self.shape[0] < 4 or self.shape[1] < 4 or len(self.pixels) < 4:
+            return False
+        if len(np.unique(self.m[1:-1,1:-1])) > 1 or self.color in np.unique(self.m[1:-1,1:-1]):
+            return False
+        return True
     
     def isFullFrame(self):
         if self.shape[0]<3 or self.shape[1]<3:
@@ -649,6 +657,7 @@ class Matrix():
         self.fullFrames = [shape for shape in self.shapes if shape.isFullFrame]
         self.fullFrames = sorted(self.fullFrames, key=lambda x: x.shape[0]*x.shape[1], reverse=True)
         self.shapesByColor = detectShapesByColor(self.m, self.backgroundColor)
+        self.partialFrames = [shape for shape in self.shapesByColor if shape.isPartialFrame]
         self.isolatedPixels = detectIsolatedPixels(self, self.dShapes)
         self.nIsolatedPixels = len(self.isolatedPixels)
         #self.multicolorShapes = detectShapes(self.m, self.backgroundColor)
@@ -928,7 +937,17 @@ class Matrix():
                     if shapeList[i].nHoles == maxH:
                         attrList[i].append('MoHo')
                     elif shapeList[i].nHoles == minH:
-                        attrList[i].append('LeHo')                    
+                        attrList[i].append('LeHo')           
+            #is referenced by a full/partial frame?
+                if any((shapeList[i].position[0] >= fr.position[0] and shapeList[i].position[1] >= fr.position[1]\
+                        and shapeList[i].position[0] + shapeList[i].shape[0] <= fr.position[0] + fr.shape[0] and\
+                        shapeList[i].position[1] + shapeList[i].shape[1] <= fr.position[1] + fr.shape[1] and\
+                        shapeList[i].color != fr.color) for fr in self.partialFrames) or \
+                        any((shapeList[i].position[0] >= fr.position[0] and shapeList[i].position[1] >= fr.position[1]\
+                        and shapeList[i].position[0] + shapeList[i].shape[0] <= fr.position[0] + fr.shape[0] and\
+                        shapeList[i].position[1] + shapeList[i].shape[1] <= fr.position[1] + fr.shape[1] and\
+                        shapeList[i].color != fr.color) for fr in self.fullFrames):
+                    attrList[i].append('IsRef')
     
         if len(ism) == 1:
             attrList[ism[0]].append('SmSh')
@@ -1488,7 +1507,7 @@ class Task():
             self.sameOutDummyMatrix = all(np.all(self.trainSamples[0].outMatrix.dummyMatrix==s.outMatrix.dummyMatrix) for s in self.trainSamples)
         # Frames
         self.hasFullFrame = all([len(s.inMatrix.fullFrames)>0 for s in self.trainSamples])
-
+        self.hasPartialFrame = all([len(s.inMatrix.partialFrames)>0 for s in self.trainSamples])
         # Is the task about filling a blank?
         self.fillTheBlank =  all([hasattr(s, 'blankToFill') for s in self.trainSamples])
                 
