@@ -16,9 +16,8 @@ Check if out matrix always has the same shapes in it
 - arrange: 438, 414
 - 129
 ------------Counting--------------
-solved: 99, 238, 338, 390, 392, 465, 527, 595, 704, 781
-should: 398
-countShapes: 37,324,466,492,726
+solved: 37, 99, 238, 300, 324, 338, 390, 392, 398, 465, 492, 527, 595, 704, 781
+countShapes: 466,726
 not: 554,675,726, 220,
 ------------Symmetrize-----
 solved: 26, 111, 116, 360
@@ -42,13 +41,12 @@ solves: 96, 652
 TODOs:
 - More examples
 ------------ColorByPixels------
-266,353,415,523,568,768
+266,353,415,523,536,568,768
 
 536, 182, 450
 
 ------------Replicate--------
 TODOs:
-- at pixels
 - adopt anchor color
 
 - 207, 742, 779, 786, 795
@@ -79,10 +77,9 @@ reference:  142, 181, 205, 244q, 423
 other ref: 153, 158, 208, 223, 229, 389
 
 
-
 ------------Crop-------------
 unsolved crop tasks:
-[87,204,318,473,586,774]
+[87,204,318,774]
 
 CropShape:
 - Identify if output is shape
@@ -90,14 +87,12 @@ CropShape:
 - Identify characteristic attributes
 - Crop holes: 586, 354
 
-solves: 13, 28, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217, 258, 262, 270, 289, 299, 345, 364,  383, 395,488, 576, 578, 635, 712, 727, 785, 690(sort)
+solves: 13, 28, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 217, 258, 262, 270, 289, 299, 345, 364, 383, 395, 473, 488, 576, 578, 586, 635, 712, 727, 785, 690(sort)
 
-cropframe: 13, 204, 443
+cropframe: 204, 443
 cropLargestNonbackgroudnFrame = 87, 194, 464
 reference: 318, 690
 cropsomething? 354, 365
-color count in multicolor shapes: 473, 586(count holes?)	
-
 
 color changes: 768, 774
 
