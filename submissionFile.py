@@ -5113,6 +5113,10 @@ def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
     m = matrix.copy()
     m = changeColorShapes(m, [shape], background)
     s = copy.deepcopy(shape)
+    if nSteps=="shapeX":
+        nSteps = shape.shape[0]
+    if nSteps=="shapeY":
+        nSteps = shape.shape[1]
     step = 0
     while True and step != nSteps:
         step += 1
@@ -5323,6 +5327,26 @@ def getBestMoveShapes(t):
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
+                    direction=d, color="diagonalMultiColor", nSteps="shapeX")
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
+                    direction=d, color="diagonalMultiColor", nSteps="shapeY")
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
+                    direction=d, color="diagonalSingleColor", nSteps="shapeX")
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
+                    direction=d, color="diagonalSingleColor", nSteps="shapeY")
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
         
     colorsToChange = list(t.colors - t.fixedColors - set({t.backgroundColor}))
     ctc = [[c] for c in colorsToChange] + [colorsToChange] # Also all colors
@@ -5347,19 +5371,7 @@ def getBestMoveShapes(t):
                     return bestFunction
                 
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
-                                 background=t.backgroundColor, until=uc, restore=False)
-                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-                if bestScore==0:
-                    return bestFunction
-                
-                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                             background=t.backgroundColor, until=uc, diagonals=True)
-                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-                if bestScore==0:
-                    return bestFunction
-                
-                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
-                            background=t.backgroundColor, until=uc, diagonals=True, restore=False)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
@@ -5371,6 +5383,29 @@ def getBestMoveShapes(t):
         if bestScore==0:
             return bestFunction
         
+    return bestFunction
+
+def getBestMoveShapesNoRestore(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    if t.backgroundColor != -1 and hasattr(t, 'fixedColors'):
+        colorsToMove = set(range(10)) - set([t.backgroundColor]) - t.fixedColors
+        for ctm in colorsToMove:
+            for uc in t.unchangedColors:
+                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
+                                 background=t.backgroundColor, until=uc, restore=False)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                
+                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
+                            background=t.backgroundColor, until=uc, diagonals=True, restore=False)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+    
+    if all([len(sample.fixedShapes)>0 for sample in t.trainSamples]):        
         f = partial(moveAllShapesToClosest, background=t.backgroundColor,\
                     fixedShapeFeatures = t.fixedShapeFeatures, restore=False)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)  
@@ -8190,9 +8225,9 @@ def getPossibleOperations(t, c):
         x.append(partial(downsizeMode,newShape=outShape))
         if t.backgroundColor!=-1:
             x.append(partial(downsize, newShape=outShape, falseColor=t.backgroundColor))
-        if candTask.sameOutDummyMatrix and candTask.backgroundColor != -1:
-            x.append(partial(arrangeShapes,outDummyMatrix=candTask.trainSamples[0].outMatrix.dummyMatrix,\
-                             outDummyColor=candTask.trainSamples[0].outMatrix.backgroundColor))
+        #if candTask.sameOutDummyMatrix and candTask.backgroundColor != -1:
+        #    x.append(partial(arrangeShapes,outDummyMatrix=candTask.trainSamples[0].outMatrix.dummyMatrix,\
+        #                     outDummyColor=candTask.trainSamples[0].outMatrix.backgroundColor))
     x.append(getBestCountColors(candTask))  
     x.append(getBestCountShapes(candTask))  
     ###########################################################################
@@ -8333,7 +8368,7 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
-        #x.append(getBestMoveShapes(candTask))
+        x.append(getBestMoveShapesNoRestore(candTask))
         
         pr = pixelRecolor(candTask)
         if len(pr)!=1:
@@ -9476,6 +9511,10 @@ def getPredictionsFromTask(originalT, task):
 # %% Main Loop and submission
             
 submission = pd.read_csv(data_path / 'sample_submission.csv', index_col='output_id')
+
+#if submission.index[0] == '00576224_0':
+#    submission.to_csv('submission.csv', index=False)
+#    exit()
 
 for output_id in submission.index:
     task_id = output_id.split('_')[0]

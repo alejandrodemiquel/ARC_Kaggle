@@ -3587,19 +3587,7 @@ def getBestMoveShapes(t):
                     return bestFunction
                 
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
-                                 background=t.backgroundColor, until=uc, restore=False)
-                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-                if bestScore==0:
-                    return bestFunction
-                
-                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
                             background=t.backgroundColor, until=uc, diagonals=True)
-                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
-                if bestScore==0:
-                    return bestFunction
-                
-                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
-                            background=t.backgroundColor, until=uc, diagonals=True, restore=False)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
@@ -3611,6 +3599,29 @@ def getBestMoveShapes(t):
         if bestScore==0:
             return bestFunction
         
+    return bestFunction
+
+def getBestMoveShapesNoRestore(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    if t.backgroundColor != -1 and hasattr(t, 'fixedColors'):
+        colorsToMove = set(range(10)) - set([t.backgroundColor]) - t.fixedColors
+        for ctm in colorsToMove:
+            for uc in t.unchangedColors:
+                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
+                                 background=t.backgroundColor, until=uc, restore=False)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                
+                f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
+                            background=t.backgroundColor, until=uc, diagonals=True, restore=False)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+    
+    if all([len(sample.fixedShapes)>0 for sample in t.trainSamples]):        
         f = partial(moveAllShapesToClosest, background=t.backgroundColor,\
                     fixedShapeFeatures = t.fixedShapeFeatures, restore=False)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)  
@@ -3618,6 +3629,7 @@ def getBestMoveShapes(t):
             return bestFunction    
         
     return bestFunction
+    
 
 # %% Complete rectangles
 def completeRectangles(matrix, sourceColor, newColor):
@@ -6669,7 +6681,7 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
-        x.append(getBestMoveShapes(candTask))
+        x.append(getBestMoveShapesNoRestore(candTask))
         
         pr = pixelRecolor(candTask)
         if len(pr)!=1:
