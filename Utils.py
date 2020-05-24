@@ -4876,6 +4876,20 @@ def paintGridCellWithMostColor(matrix, color, outColor, fixedColors):
             
     return m
 
+def orderGridCells(matrix, direction, color):
+    m = matrix.m.copy()
+    cells = [matrix.grid.cellList[i] for i in range(matrix.grid.nCells)]
+    cells.sort(key=lambda x: x[0].colorCount[color])
+    
+    return m
+
+def getBestOrderGridCells(t):
+    #bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    
+    return bestFunction
+
 # %% crop all shapes
 def cropAllShapes(matrix, background, diagonal=False):
     if diagonal:
@@ -6887,6 +6901,14 @@ def getPossibleOperations(t, c):
                     for c in permutations(candTask.totalOutColors, 2):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
+    
+    # 733
+    # if candTask.hasUnchangedGrid and candTask.sameColorCount:
+    #    x.append(getBestOrderGridCells)
+    
+    # 757
+    #if candTask.hasUnchangedAsymmetricGrid and candTask.outAsymmetricGridCellsHaveOneColor:
+    # paintGridCellWithMostColor    
     
     if candTask.inputIsGrid:
         if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
