@@ -5355,7 +5355,7 @@ def getBestArrangeShapes(t):
     return bestFunction
 
 def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shByColor=False,\
-                   fullFrames=False, outDummyMatrix=-1, outDummyColor=0):
+                   fullFrames=False, outDummyMatrix=None, outDummyColor=0):
     def completeFrames(shape,rotate=False,fill=False):
         'version of symmetrize shape intended for frame-like shapes' 
         m = shape.m.copy()
@@ -5429,17 +5429,16 @@ def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shBy
                 shList = [sh for sh in matrix.multicolorDShapes]
             else:
                 shList = [sh for sh in matrix.multicolorShapes]
-    
-    if type(outDummyMatrix) == int:
-        if len(shList) < 2 or len(shList)>7:
-            return matrix.m.copy()
+    if len(shList) < 2 or len(shList)>7:
+        return matrix.m.copy()
+    if outDummyMatrix is None:
         shList.sort(key=lambda x: x.shape[0]*x.shape[1], reverse=True)
         if outShape == 'LaSh':
             outShape = shList[0].shape    
         if outShape == None:
             outShape = matrix.shape
         if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList) and\
-                                sum(len(sh.pixels) for sh in shList) <outShape[0]*outShape[1]:
+                                sum(len(sh.pixels) for sh in shList) <= outShape[0]*outShape[1]:
             m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
                                              0,matrix.backgroundColor)
             if tessellate:
@@ -6957,7 +6956,7 @@ def getPossibleOperations(t, c):
     # Cropshape    
     if candTask.outSmallerThanIn:
         x.append(getBestAlignShapes(candTask))
-        #x.append(getBestArrangeShapes(candTask))    
+        x.append(getBestArrangeShapes(candTask))    
         x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(colorByPixels, deletePixels=True))
