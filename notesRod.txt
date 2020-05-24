@@ -1,10 +1,8 @@
 IDEAS:
-
+- 501, 601, 733 backgroundColor. 
 - ignore grid and recover (just keep cells): 74, 461, 776
 
 Check if out matrix always has the same shapes in it
-- 
-- partial frame: 690
 
 - replicateShape + changing color
 - 194: crop, minimize, 

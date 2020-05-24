@@ -695,6 +695,8 @@ class Matrix():
                     if possibleGrid.allCellsSameShape:
                         self.grid = copy.deepcopy(possibleGrid)
                         self.isGrid = True
+                        self.asymmetricGrid = copy.deepcopy(possibleGrid)
+                        self.isAsymmetricGrid = True
                         break
                     else:
                         self.asymmetricGrid = copy.deepcopy(possibleGrid)
@@ -1363,13 +1365,6 @@ class Task():
         if self.sameIOShapes:
             self.sameChanges = self.allEqual([s.diffPixels for s in self.trainSamples])
         """
-        
-        # Is there always a background color? Which one?
-        if self.allEqual([s.inMatrix.backgroundColor for s in self.trainSamples]) and\
-        self.trainSamples[0].inMatrix.backgroundColor == self.testSamples[0].inMatrix.backgroundColor:
-            self.backgroundColor = self.trainSamples[0].inMatrix.backgroundColor
-        else:
-            self.backgroundColor = -1
             
         #R: is output a shape in the input
         self.outIsInMulticolorShapeSize = False
@@ -1416,8 +1411,6 @@ class Task():
             for shape in self.fixedShapes:
                 self.fixedShapeFeatures = [shape.boolFeatures[i] and self.fixedShapeFeatures[i] \
                                              for i in range(nFeatures)]
-     
-        self.orderedColors = self.orderColors()
         
         # Grids:
         self.inputIsGrid = all([s.inMatrix.isGrid for s in self.trainSamples+self.testSamples])
@@ -1435,6 +1428,20 @@ class Task():
         self.hasUnchangedAsymmetricGrid = all([s.asymmetricGridIsUnchanged for s in self.trainSamples])
         if self.hasUnchangedAsymmetricGrid:
             self.assymmetricGridCellsHaveOneColor = all([s.asymmetricGridCellsHaveOneColor for s in self.trainSamples])
+            self.outAsymmetricGridCellsHaveOneColor = all([s.outMatrix.asymmetricGrid.allCellsHaveOneColor for s in self.trainSamples])
+        
+        # Background color
+        
+        # Is there always a background color? Which one?
+        if self.allEqual([s.inMatrix.backgroundColor for s in self.trainSamples]) and\
+        self.trainSamples[0].inMatrix.backgroundColor == self.testSamples[0].inMatrix.backgroundColor:
+            self.backgroundColor = self.trainSamples[0].inMatrix.backgroundColor
+        elif self.hasUnchangedAsymmetricGrid:
+            self.backgroundColor = self.trainSamples[0].inMatrix.asymmetricGrid.color
+        else:
+            self.backgroundColor = -1
+            
+        self.orderedColors = self.orderColors()
         
         # Shapes:
         # Does the task ONLY involve changing colors of shapes?

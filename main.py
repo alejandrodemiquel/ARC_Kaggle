@@ -153,6 +153,8 @@ valid_tasks['97239e3d']['test'][0]['input'][14][6] = 0
 valid_tasks['97239e3d']['test'][0]['input'][14][10] = 0
 # d687bc17
 train_tasks['d687bc17']['train'][2]['output'][7][1] = 4
+# a04b2602
+valid_tasks['a04b2602']['train'][1]['input'][12][1] = 0
 
 
 # allTasks stores the tasks as given originally. It is a dictionary, and its
@@ -928,14 +930,14 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
                 cTask["train"][s]["input"] = Utils.correctFixedColors(\
                      c.t.trainSamples[s].inMatrix.m,\
                      np.array(cTask["train"][s]["input"]),\
-                     c.t.fixedColors).tolist()
+                     c.t.fixedColors, c.t.commonOnlyChangedInColors).tolist()
         for s in range(t.nTest):
             cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
             if c.t.sameIOShapes and len(c.t.fixedColors) != 0:
                 cTask["test"][s]["input"] = Utils.correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
                      np.array(cTask["test"][s]["input"]),\
-                     c.t.fixedColors).tolist()
+                     c.t.fixedColors, c.t.commonOnlyChangedInColors).tolist()
         cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
@@ -1043,7 +1045,7 @@ def getPredictionsFromTask(originalT, task):
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
                 if t2.sameIOShapes and len(t2.fixedColors) != 0:
-                    x = Utils.correctFixedColors(x, newX, t2.fixedColors)
+                    x = Utils.correctFixedColors(x, newX, t2.fixedColors, t2.commonOnlyChangedInColors)
                 else:
                     x = newX.copy()
             if t2.sameIOShapes and hasRotated!=False:
@@ -1065,9 +1067,9 @@ def getPredictionsFromTask(originalT, task):
 
 
             #plot_sample(originalT.testSamples[s], x)
-            if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
+            #if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
-                print(idx, c.ops)
+                #print(idx, c.ops)
                 #plot_task(idx)
                 #break
                 #solved.append(Solution(idx, taskId, c.ops))
@@ -1102,15 +1104,16 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
                    760, 768, 779]
 
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
-             299,345,364,383,395,473,488,576,586,578,635,712,727,768,785]
-arrangeTasks = [29,152,158,244,252,307,403,414,440,455,495,523,558,622,652,676,699,707,746]
+             299,345,364,383,395,473,488,576,586,578,635,690,712,727,768,785]
+arrangeTasks = [29,152,158,244,252,307,403,414,440,455,495,523,558,622,652,\
+                676,699,707,746,760]
 replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,424,471,474,\
                   500,509,524,540,597,624,636,645,650,795]
-countingTasks = [37, 99, 238, 300, 324, 338, 390, 392, 398, 465, 492, 527, 595, 704, 781]
-
-arrangeToDoTasks = [45,95,200,232,237,252,263,295,300,315,365,475,512,535,\
+countingTasks = [37,99,238,300,324,338,390,392,398,465,492,527,595,704,781]
+arrangeToDoTasks = [45,95,200,232,237,263,295,300,315,365,475,512,535,\
                 588,759]
-twoShapeTasks = [70,158,169,244,274,453,674,760,484] 
+twoShapeTasks = [70,158,169,244,274,453,674,760,484]
+
 replicateToDoTasks = [4,88,132,190,196,207,362,539,659,683,779]
 replicateAtPixelsTasks = [21,53,74,88,498,509,589]
 symmetrizeAllShapesTasks = [61, 108, 284, 389, 542, 464, 472, 623, 461, 437]
@@ -1126,7 +1129,7 @@ evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm([733], position=0, leave=True):
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)

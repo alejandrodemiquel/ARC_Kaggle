@@ -4875,6 +4875,20 @@ def paintGridCellWithMostColor(matrix, color, outColor, fixedColors):
             
     return m
 
+def orderGridCells(matrix, direction, color):
+    m = matrix.m.copy()
+    cells = [matrix.grid.cellList[i] for i in range(matrix.grid.nCells)]
+    cells.sort(key=lambda x: x[0].colorCount[color])
+    
+    return m
+
+def getBestOrderGridCells(t):
+    #bestScore = 1000
+    bestFunction = partial(identityM)
+    
+    
+    return bestFunction
+
 # %% crop all shapes
 def cropAllShapes(matrix, background, diagonal=False):
     if diagonal:
@@ -5340,7 +5354,8 @@ def getBestArrangeShapes(t):
         bestFunction, bestScore = updateBestFunction(t, partial(arrangeShapes,shByColor=True, fullFrames=True,outShape='LaSh'), bestScore, bestFunction)
     return bestFunction
 
-def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shByColor=False, fullFrames=False, outDummyMatrix=-1, outDummyColor=0):
+def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shByColor=False,\
+                   fullFrames=False, outDummyMatrix=-1, outDummyColor=0):
     def completeFrames(shape,rotate=False,fill=False):
         'version of symmetrize shape intended for frame-like shapes' 
         m = shape.m.copy()
@@ -5415,23 +5430,16 @@ def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shBy
             else:
                 shList = [sh for sh in matrix.multicolorShapes]
     
-    if len(shList) < 2 or len(shList)>10:
-        return matrix.m.copy()
-    
     if type(outDummyMatrix) == int:
+        if len(shList) < 2 or len(shList)>7:
+            return matrix.m.copy()
         shList.sort(key=lambda x: x.shape[0]*x.shape[1], reverse=True)
         if outShape == 'LaSh':
             outShape = shList[0].shape    
-        if all(sh.shape == outShape for sh in shList):
-            m = np.full(outShape, fill_value=matrix.backgroundColor)
-            for sh in shList:
-                for i, j in np.ndindex(m.shape):
-                    if sh.m[i,j]!= 255:
-                        m[i,j] = max(m[i,j],sh.m[i,j])
-            return m
         if outShape == None:
             outShape = matrix.shape
-        if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList):
+        if all((sh.shape[0]<=outShape[0] and sh.shape[1]<=outShape[1]) for sh in shList) and\
+                                sum(len(sh.pixels) for sh in shList) <outShape[0]*outShape[1]:
             m, tessellate = tessellateShapes(np.full(outShape, fill_value=matrix.backgroundColor),shList,\
                                              0,matrix.backgroundColor)
             if tessellate:
@@ -5457,27 +5465,32 @@ def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shBy
 def getBestLayShapes(t):
     bestScore = 1000
     bestFunction = partial(identityM)
-    if t.outSmallerThanIn:
-        bestFunction, bestScore = updateBestFunction(t, partial(layShapes,completeRect=True,diagonal=True,\
-                                        direction=(0,0),sortBy='largeToSmall', outShape='LaSh',multicolor=False), bestScore, bestFunction)
-    if hasattr(t, 'outShape'):
-        outShape = t.outShape
-        for sortBy in ['grid','lr','ud','largeToSmall','smallToLarge']:
-            for direction in [(1,0), (0,1), (1,1)]:
-                for overlap in [(0,0), (1,1), (-1,-1)]:
-                    bestFunction, bestScore = updateBestFunction(t, partial(layShapes, diagonal=True, multicolor=False,\
-                                                outShape=outShape, overlap=overlap, direction=direction, sortBy=sortBy), bestScore, bestFunction)
-    elif t.sameIOShapes:
+    outShape = None
+    if t.sameIOShapes:
         outShape = 'inShape'
-        for sortBy in ['grid','lr','ud','largeToSmall','smallToLarge']:
-            for direction in [(1,0), (0,1), (1,1)]:
+    elif hasattr(t, 'outShape'):
+        outShape = t.outShape
+    if outShape != None:
+        for sortBy in ['grid','lr','ud','smallToLarge',set.intersection(*t.inColors)]:
+            for reverse in [False, True]:
                 for overlap in [(0,0), (1,1), (-1,-1)]:
-                    bestFunction, bestScore = updateBestFunction(t, partial(layShapes, diagonal=True, multicolor=False,\
-                                                outShape=outShape, overlap=overlap, direction=direction, sortBy=sortBy), bestScore, bestFunction)
+                    for multicolor in [True, False]:
+                        for direction in [(1,0), (0,1), (1,1)]:
+                            bestFunction, bestScore = updateBestFunction(t, partial(layShapes, firstPos=(0,0), diagonal=True, multicolor=multicolor,\
+                                                            outShape=outShape, overlap=overlap, direction=direction, sortBy=sortBy, reverse=reverse), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(layShapes, firstPos=(1,0), direction=(-1,0), diagonal=True, multicolor=multicolor,\
+                                                            outShape=outShape, overlap=overlap, sortBy=sortBy, reverse=reverse), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(layShapes, firstPos=(0,1), direction=(0,-1), diagonal=True, multicolor=multicolor,\
+                                                            outShape=outShape, overlap=overlap, sortBy=sortBy, reverse=reverse), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(layShapes, firstPos=(1,1), direction=(-1,-1), diagonal=True, multicolor=multicolor,\
+                                                            outShape=outShape, overlap=overlap, sortBy=sortBy, reverse=reverse), bestScore, bestFunction)
+    elif t.outSmallerThanIn:
+         bestFunction, bestScore = updateBestFunction(t, partial(layShapes,completeRect=True,diagonal=True,\
+                                         direction=(0,0),sortBy='smallToLarge', reverse=True, outShape='LaSh',multicolor=False), bestScore, bestFunction)
     return bestFunction
 
-def layShapes(matrix, firstPos=(0,0), overlap=(0,0), outShape = None, multicolor=True,\
-              diagonal=True, direction=(0,1), sortBy='lrud', completeRect=False):
+def layShapes(matrix, firstPos=(0,0), direction=(0,1), overlap=(0,0), outShape='inShape', multicolor=True,\
+              diagonal=True, sortBy='lrud', completeRect=False, reverse=True):
     def completeRectangles(shape):
         'version of complete rectangles shape intended for frame-like shapes' 
         newSh = copy.deepcopy(shape)
@@ -5498,14 +5511,12 @@ def layShapes(matrix, firstPos=(0,0), overlap=(0,0), outShape = None, multicolor
             shList = [sh for sh in matrix.multicolorShapes]
     if completeRect and (not multicolor):
         shList = [completeRectangles(sh) for sh in shList]
-    if sortBy == 'largeToSmall':
-        shList.sort(key=lambda x: len(x.pixels), reverse=True)
     if sortBy == 'smallToLarge':
-        shList.sort(key=lambda x: len(x.pixels))
+        shList.sort(key=lambda x: len(x.pixels), reverse=reverse)
     elif sortBy == 'lr':
-        shList.sort(key=lambda x: x.position[1])
+        shList.sort(key=lambda x: x.position[1], reverse=reverse)
     elif sortBy == 'ud':
-        shList.sort(key=lambda x: x.position[0])
+        shList.sort(key=lambda x: x.position[0], reverse=reverse)
     elif sortBy == 'grid':
         shList.sort(key=lambda x: x.position[0])
         newList = []
@@ -5519,24 +5530,32 @@ def layShapes(matrix, firstPos=(0,0), overlap=(0,0), outShape = None, multicolor
     if len(shList) == 0:
         return m
     #if outShape can't be determined, then
-    if outShape != None:
-        if outShape == 'inShape':
-            m = np.full(matrix.shape, fill_value=matrix.backgroundColor)
-        elif outShape == 'LaSh' and sortBy == 'largeToSmall':
-            m = np.full(shList[0].m.shape, fill_value=matrix.backgroundColor)
-        else:
-            m = np.full(outShape, fill_value=matrix.backgroundColor)
-        shList = [sh for sh in shList if (sh.shape[0] <= m.shape[0] and sh.shape[1] <= m.shape[1])]
-        (currentX, currentY) = (0, 0)
-        for sh in shList:
-            if currentX + sh.shape[0] > m.shape[0]:
-                (currentX, currentY) = (0, currentY + sh.shape[1] - overlap[1])
-            if currentY + sh.shape[1] > m.shape[1]:
-                (currentX, currentY) = (currentX + sh.shape[0] - overlap[0], 0)
-            newInsert = copy.deepcopy(sh)
-            newInsert.position = (currentX, currentY)
-            m = insertShape(m, newInsert)
-            currentX, currentY = (currentX + (sh.shape[0]- overlap[0])*direction[0] , currentY + (sh.shape[1]- overlap[1])*direction[1])
+    if outShape == 'inShape':
+        m = np.full(matrix.shape, fill_value=matrix.backgroundColor)
+    elif outShape == 'LaSh' and sortBy == 'smallToLarge' and reverse:
+        m = np.full(shList[0].m.shape, fill_value=matrix.backgroundColor)
+    else:
+        m = np.full(outShape, fill_value=matrix.backgroundColor)
+    shList = [sh for sh in shList if (sh.shape[0] <= m.shape[0] and sh.shape[1] <= m.shape[1])]
+    startPos = (firstPos[0]*(m.shape[0]), firstPos[1]*(m.shape[1]))
+    (currentX, currentY) = startPos
+    for sh in shList:
+        if currentX + sh.shape[0]*direction[0] > m.shape[0] or currentX + sh.shape[0]*direction[0] < 0:
+            (currentX, currentY) = (startPos[0], currentY + sh.shape[1] - overlap[1])
+            if currentY > m.shape[1] or currentY < 0:
+                return matrix.m.copy()
+        if currentY + sh.shape[1]*direction[1] > m.shape[1] or currentY + sh.shape[1]*direction[1] < 0:
+            (currentX, currentY) = (currentX + sh.shape[0] - overlap[0], startPos[1])
+            if currentX > m.shape[0] or currentX < 0:
+                return matrix.m.copy()
+        newInsert = copy.deepcopy(sh)
+        newInsert.position = (currentX, currentY)
+        if direction[0] < 0:
+            newInsert.position = (newInsert.position[0] - sh.shape[0], newInsert.position[1])
+        if direction[1] < 0:
+            newInsert.position = (newInsert.position[0], newInsert.position[1] - sh.shape[1])
+        m = insertShape(m, newInsert)
+        currentX, currentY = (currentX + (sh.shape[0]- overlap[0])*direction[0] , currentY + (sh.shape[1]- overlap[1])*direction[1])
     return m
 
 def getBestAlignShapes(t):
@@ -5694,6 +5713,15 @@ def getBestReplicateShapes(t):
                         allCombs=False, scale=False, deleteOriginal=deleteOriginal, perfectFit=True), bestScore, bestFunction)
         bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
                         allCombs=False, scale=True, deleteOriginal=deleteOriginal, perfectFit=False), bestScore, bestFunction)
+   
+    if t.hasPartialFrame:
+        for attributes in [set(['IsRef'])]:    
+            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
+                            allCombs=True, scale=False, deleteOriginal=deleteOriginal), bestScore, bestFunction)
+            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
+                            allCombs=False, scale=False, deleteOriginal=deleteOriginal, perfectFit=True), bestScore, bestFunction)
+            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
+                            allCombs=False, scale=True, deleteOriginal=deleteOriginal, perfectFit=False), bestScore, bestFunction)
    
     return bestFunction
 
@@ -6344,6 +6372,21 @@ def cropFullFrame(matrix, includeBorder=True, bigOrSmall = None):
     else:
         return m[frame.position[0]+1:frame.position[0]+frame.shape[0]-1, \
                  frame.position[1]+1:frame.position[1]+frame.shape[1]-1]
+        
+def cropPartialFrame(matrix, includeBorder=True, bigOrSmall = None):
+    m = matrix.m.copy()
+    if len(matrix.partialFrames) == 0:
+        return m
+    if bigOrSmall == "small":
+        frame = matrix.partialFrames[-1]
+    else:
+        frame = matrix.partialFrames[0]
+    if includeBorder:
+        return m[frame.position[0]:frame.position[0]+frame.shape[0], \
+                 frame.position[1]:frame.position[1]+frame.shape[1]]
+    else:
+        return m[frame.position[0]+1:frame.position[0]+frame.shape[0]-1, \
+                 frame.position[1]+1:frame.position[1]+frame.shape[1]-1]
 
 def getBestTwoShapeFunction(t):
     """
@@ -6894,6 +6937,14 @@ def getPossibleOperations(t, c):
                         x.append(partial(pixelwiseXorInGridSubmatrices, falseColor=c[0],\
                                          targetColor=target, trueColor=c[1]))
     
+    # 733
+    # if candTask.hasUnchangedGrid and candTask.sameColorCount:
+    #    x.append(getBestOrderGridCells)
+    
+    # 757
+    #if candTask.hasUnchangedAsymmetricGrid and candTask.outAsymmetricGridCellsHaveOneColor:
+    # paintGridCellWithMostColor    
+    
     if candTask.inputIsGrid:
         if all([s.inMatrix.grid.shape==s.outMatrix.shape for s in candTask.trainSamples]):
             for times in range(1, 6):
@@ -6906,7 +6957,7 @@ def getPossibleOperations(t, c):
     # Cropshape    
     if candTask.outSmallerThanIn:
         x.append(getBestAlignShapes(candTask))
-        x.append(getBestArrangeShapes(candTask))    
+        #x.append(getBestArrangeShapes(candTask))    
         x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(colorByPixels, deletePixels=True))
@@ -6948,6 +6999,9 @@ def getPossibleOperations(t, c):
     #more frames
     if candTask.hasPartialFrame:
         x.append(getBestFitToFrame(candTask))
+        if candTask.outSmallerThanIn:
+            x.append(partial(cropPartialFrame, includeBorder=False))
+            x.append(partial(cropPartialFrame, includeBorder=True))
     # startOps
     x.append(partial(paintGridLikeBackground))
     x.append(partial(cropAllBackground)) 
