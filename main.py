@@ -153,6 +153,8 @@ valid_tasks['97239e3d']['test'][0]['input'][14][6] = 0
 valid_tasks['97239e3d']['test'][0]['input'][14][10] = 0
 # d687bc17
 train_tasks['d687bc17']['train'][2]['output'][7][1] = 4
+# a04b2602
+valid_tasks['a04b2602']['train'][1]['input'][12][1] = 0
 
 
 # allTasks stores the tasks as given originally. It is a dictionary, and its
@@ -928,14 +930,14 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
                 cTask["train"][s]["input"] = Utils.correctFixedColors(\
                      c.t.trainSamples[s].inMatrix.m,\
                      np.array(cTask["train"][s]["input"]),\
-                     c.t.fixedColors).tolist()
+                     c.t.fixedColors, c.t.commonOnlyChangedInColors).tolist()
         for s in range(t.nTest):
             cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
             if c.t.sameIOShapes and len(c.t.fixedColors) != 0:
                 cTask["test"][s]["input"] = Utils.correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
                      np.array(cTask["test"][s]["input"]),\
-                     c.t.fixedColors).tolist()
+                     c.t.fixedColors, c.t.commonOnlyChangedInColors).tolist()
         cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                             t.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
         changedPixels = sum([Utils.incorrectPixels(c.t.trainSamples[s].inMatrix.m, \
@@ -1043,7 +1045,7 @@ def getPredictionsFromTask(originalT, task):
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
                 if t2.sameIOShapes and len(t2.fixedColors) != 0:
-                    x = Utils.correctFixedColors(x, newX, t2.fixedColors)
+                    x = Utils.correctFixedColors(x, newX, t2.fixedColors, t2.commonOnlyChangedInColors)
                 else:
                     x = newX.copy()
             if t2.sameIOShapes and hasRotated!=False:
@@ -1065,9 +1067,9 @@ def getPredictionsFromTask(originalT, task):
 
 
             #plot_sample(originalT.testSamples[s], x)
-            if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
+            #if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
-                print(idx, c.ops)
+                #print(idx, c.ops)
                 #plot_task(idx)
                 #break
                 #solved.append(Solution(idx, taskId, c.ops))
@@ -1126,7 +1128,7 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[idx]
+    taskId = index[733]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
