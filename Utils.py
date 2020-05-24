@@ -5476,7 +5476,7 @@ def getBestLayShapes(t):
                                                 outShape=outShape, overlap=overlap, direction=direction, sortBy=sortBy), bestScore, bestFunction)
     return bestFunction
 
-def layShapes(matrix, overlap=(0,0), outShape = None, multicolor=True,\
+def layShapes(matrix, firstPos=(0,0), overlap=(0,0), outShape = None, multicolor=True,\
               diagonal=True, direction=(0,1), sortBy='lrud', completeRect=False):
     def completeRectangles(shape):
         'version of complete rectangles shape intended for frame-like shapes' 
@@ -5514,6 +5514,8 @@ def layShapes(matrix, overlap=(0,0), outShape = None, multicolor=True,\
         for i in range(gridD):
             newList += sorted(shList[i*gridD: (i + 1)*gridD], key=lambda x: x.position[1])
         shList = [sh for sh in newList]
+    elif type(sortBy) == int:
+        shList.sort(key=lambda x: x.colorCount[sortBy])
     if len(shList) == 0:
         return m
     #if outShape can't be determined, then
