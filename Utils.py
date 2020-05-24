@@ -3329,6 +3329,10 @@ def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
     m = matrix.copy()
     m = changeColorShapes(m, [shape], background)
     s = copy.deepcopy(shape)
+    if nSteps=="shapeX":
+        nSteps = shape.shape[0]
+    if nSteps=="shapeY":
+        nSteps = shape.shape[1]
     step = 0
     while True and step != nSteps:
         step += 1
@@ -3536,6 +3540,26 @@ def getBestMoveShapes(t):
             return bestFunction
         f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
                     direction=d, color="diagonalMultiColor")
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
+                    direction=d, color="diagonalMultiColor", nSteps="shapeX")
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
+                    direction=d, color="diagonalMultiColor", nSteps="shapeY")
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
+                    direction=d, color="diagonalSingleColor", nSteps="shapeX")
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        f = partial(moveAllShapes, background=t.backgroundColor, until=-2,\
+                    direction=d, color="diagonalSingleColor", nSteps="shapeY")
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction

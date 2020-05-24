@@ -501,6 +501,8 @@ def needsSeparationByColors(t):
             separatedTask.extraColors['train'].append([])
             colorsToConsider = (t.trainSamples[s].inMatrix.colors | t.trainSamples[s].outMatrix.colors)\
                                 - commonColors
+            if len(colorsToConsider)==0:
+                return False
             for color in colorsToConsider:
                 separatedTask.extraColors['train'][s].append(color)
                 inM = generateMatrix(t.trainSamples[s].inMatrix.m, commonColors|set([color]), backgroundColor)
@@ -511,6 +513,8 @@ def needsSeparationByColors(t):
             separatedTask.extraColors['test'].append([])
             if t.submission:
                 colorsToConsider = t.testSamples[s].inMatrix.colors - commonColors
+                if len(colorsToConsider)==0:
+                    return False
                 for color in colorsToConsider:
                     separatedTask.extraColors['test'][s].append(color)
                     inM = generateMatrix(t.testSamples[s].inMatrix.m, commonColors|set([color]), backgroundColor)
@@ -518,6 +522,8 @@ def needsSeparationByColors(t):
             else:
                 colorsToConsider = (t.testSamples[s].inMatrix.colors | t.testSamples[s].outMatrix.colors)\
                                     - commonColors
+                if len(colorsToConsider)==0:
+                    return False
                 for color in colorsToConsider:
                     separatedTask.extraColors['test'][s].append(color)
                     inM = generateMatrix(t.testSamples[s].inMatrix.m, commonColors|set([color]), backgroundColor)
@@ -1212,7 +1218,7 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[idx]
+    taskId = index[555]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
