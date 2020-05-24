@@ -573,16 +573,19 @@ def needsCropping(t):
 
 def cropTask(t, task):
     positions = {"train": [], "test": []}
+    backgrounds = {"train": [], "test": []}
     for s in range(t.nTrain):
         task["train"][s]["input"] = Utils.cropAllBackground(t.trainSamples[s].inMatrix).tolist()
         task["train"][s]["output"] = Utils.cropAllBackground(t.trainSamples[s].outMatrix).tolist()
+        backgrounds["train"].append(t.trainSamples[s].inMatrix.backgroundColor)
         positions["train"].append(getCroppingPosition(t.trainSamples[s].inMatrix))
     for s in range(t.nTest):
         task["test"][s]["input"] = Utils.cropAllBackground(t.testSamples[s].inMatrix).tolist()
+        backgrounds["test"].append(t.testSamples[s].inMatrix.backgroundColor)
         positions["test"].append(getCroppingPosition(t.testSamples[s].inMatrix))
         if not t.submission:
             task["test"][s]["output"] = Utils.cropAllBackground(t.testSamples[s].outMatrix).tolist()
-    return positions
+    return positions, backgrounds
 
 def recoverCroppedMatrix(matrix, outShape, position, backgroundColor):
     m = np.full(outShape, backgroundColor, dtype=np.uint8)
@@ -1056,8 +1059,8 @@ def getPredictionsFromTask(originalT, task):
     else:
         taskNeedsCropping = False
     if taskNeedsCropping:
-        cropPositions = cropTask(t, cTask)
-        t2 = Task.Task(cTask, taskId, submission=False)
+        cropPositions, backgrounds = cropTask(t, cTask)
+        t2 = Task.Task(cTask, taskId, submission=False, backgrounds=backgrounds)
     elif t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
             ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
