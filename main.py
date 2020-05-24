@@ -490,9 +490,9 @@ def needsSeparationByColors(t):
         for i,j in np.ndindex(matrix.shape):
             if m[i,j] not in colorsToKeep:
                 m[i,j] = backgroundColor
-        
+
         return m
-        
+
     def generateNewTask(commonColors, backgroundColor):
         # Assign every input shape to the output shape with maximum overlap
         separatedTask = TaskSeparatedByColors(t.task.copy())
@@ -506,7 +506,7 @@ def needsSeparationByColors(t):
                 inM = generateMatrix(t.trainSamples[s].inMatrix.m, commonColors|set([color]), backgroundColor)
                 outM = generateMatrix(t.trainSamples[s].outMatrix.m, commonColors|set([color]), backgroundColor)
                 task['train'].append({'input': inM.tolist(), 'output': outM.tolist()})
-            
+
         for s in range(t.nTest):
             separatedTask.extraColors['test'].append([])
             if t.submission:
@@ -535,14 +535,14 @@ def needsSeparationByColors(t):
     # Only consider tasks without small matrices
     if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<50 for s in t.trainSamples+t.testSamples]):
         return False
-    
+
     commonColors = t.commonInColors | t.commonOutColors
-    
+
     if all([sample.nColors == len(commonColors) for sample in t.trainSamples]):
         return False
     if any([sample.nColors < len(commonColors) for sample in t.trainSamples]):
         return False
-    
+
     newTask = generateNewTask(commonColors, t.backgroundColor)
 
     return newTask
@@ -812,7 +812,7 @@ def ignoreGeneralAsymmetricGrid(t, task):
                 currY += cellList[i][j][0].shape[1]
             currX += cellList[i][j][0].shape[0]
         task["train"][s]["input"] = m.tolist()
-        
+
         cellList = [cell for cell in t.trainSamples[s].outMatrix.asymmetricGrid.cells]
         gridShape = t.trainSamples[0].outMatrix.asymmetricGrid.shape
         newShape = (sum(cellList[i][0][0].shape[0] for i in range(gridShape[0])),sum(cellList[0][i][0].shape[1] for i in range(gridShape[1])))
@@ -825,7 +825,7 @@ def ignoreGeneralAsymmetricGrid(t, task):
                 currY += cellList[i][j][0].shape[1]
             currX += cellList[i][j][0].shape[0]
         task["train"][s]["output"] = m.tolist()
-        
+
     for s in range(t.nTest):
         cellList = [cell for cell in t.testSamples[s].inMatrix.asymmetricGrid.cells]
         gridShape = t.testSamples[0].inMatrix.asymmetricGrid.shape
@@ -839,7 +839,7 @@ def ignoreGeneralAsymmetricGrid(t, task):
                 currY += cellList[i][j][0].shape[1]
             currX += cellList[i][j][0].shape[0]
         task["test"][s]["input"] = m.tolist()
-        
+
         cellList = [cell for cell in t.testSamples[s].outMatrix.asymmetricGrid.cells]
         gridShape = t.testSamples[0].outMatrix.asymmetricGrid.shape
         newShape = (sum(cellList[i][0][0].shape[0] for i in range(gridShape[0])),sum(cellList[0][i][0].shape[1] for i in range(gridShape[1])))
@@ -1186,13 +1186,16 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
                    760, 768, 779]
 
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
-             299,345,364,383,395,473,488,576,586,578,635,712,727,768,785]
-arrangeTasks = [29,152,252,307,403,414,440,455,495,523,558,622,652,676,699,707,746]
-arrangeToDoTasks = [45,95,158,200,232,237,252,263,295,300,315,365,475,512,535,\
-                588,759]
-twoShapeTasks = [70,158,169,244,274,453,674,760,484] 
+             299,345,364,383,395,473,488,576,586,578,635,690,712,727,768,785]
+arrangeTasks = [29,152,158,244,252,307,403,414,440,455,495,523,558,622,652,\
+                676,699,707,746,760]
 replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,424,471,474,\
                   500,509,524,540,597,624,636,645,650,795]
+countingTasks = [37,99,238,300,324,338,390,392,398,465,492,527,595,704,781]
+arrangeToDoTasks = [45,95,200,232,237,263,295,300,315,365,475,512,535,\
+                588,759]
+twoShapeTasks = [70,158,169,244,274,453,674,760,484]
+
 replicateToDoTasks = [4,88,132,190,196,207,362,539,659,683,779]
 replicateAtPixelsTasks = [21,53,74,88,498,509,589]
 symmetrizeAllShapesTasks = [61, 108, 284, 389, 542, 464, 472, 623, 461, 437]
@@ -1201,7 +1204,6 @@ separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,42
                     610,611,613,640,650,654,657,673,681,697,729,750,777]
 separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,754,\
                     769,780,781]
-countingTasks = [37, 99, 238, 300, 324, 338, 390, 392, 398, 465, 492, 527, 595, 704, 781]
 # Only unsolved tasks
 evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
                 298,322,357,429,449,457,577,585,605,693,703,731,748,793,797]
@@ -1209,8 +1211,8 @@ evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(separateByColors, position=0, leave=True):
-    taskId = index[645]
+for idx in tqdm(range(800), position=0, leave=True):
+    taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
@@ -1218,7 +1220,7 @@ for idx in tqdm(separateByColors, position=0, leave=True):
 
     separationByShapes = needsSeparationByShapes(originalT)
     separationByColors = needsSeparationByColors(originalT)
-    
+
     if separationByShapes != False:
         separatedT = Task.Task(separationByShapes.separatedTask, taskId, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
@@ -1247,7 +1249,7 @@ for idx in tqdm(separateByColors, position=0, leave=True):
                 for s in range(originalT.nTest):
                     predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
-        
+
     elif separationByColors != False:
         separatedT = Task.Task(separationByColors.separatedTask, taskId, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByColors.separatedTask.copy())
