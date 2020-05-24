@@ -627,9 +627,10 @@ def detectIsolatedPixels(matrix, dShapeList):
             if len(cc) == 2:
                 pixList.append(sh)
     return pixList
+
 # %% Class Matrix
 class Matrix():
-    def __init__(self, m, detectGrid=True):
+    def __init__(self, m, detectGrid=True, backgroundColor=None):
         if type(m) == Matrix:
             return m
         
@@ -647,7 +648,10 @@ class Matrix():
         self.nColors = len(self.colorCount)
         
         # Background color
-        self.backgroundColor = max(self.colorCount, key=self.colorCount.get)
+        if backgroundColor==None:
+            self.backgroundColor = max(self.colorCount, key=self.colorCount.get)
+        else:
+            self.backgroundColor = backgroundColor
         
         # Shapes
         self.shapes = detectShapes(self.m, self.backgroundColor, singleColor=True)
@@ -1438,6 +1442,11 @@ class Task():
             self.backgroundColor = self.trainSamples[0].inMatrix.backgroundColor
         elif self.hasUnchangedAsymmetricGrid:
             self.backgroundColor = self.trainSamples[0].inMatrix.asymmetricGrid.color
+            for sample in self.trainSamples:
+                sample.inMatrix.backgroundColor = self.backgroundColor
+                sample.outMatrix.backgroundColor = self.backgroundColor
+            for sample in self.testSamples:
+                sample.inMatrix.backgroundColor = self.backgroundColor
         else:
             self.backgroundColor = -1
             

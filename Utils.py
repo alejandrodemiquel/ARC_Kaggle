@@ -4933,7 +4933,7 @@ def getBestFitToFrame(t):
 
 def fitToFrame(matrix, crop=False, scale=False, includeFrame=True):
     m = matrix.m.copy()
-    if len(matrix.partialFrames) > 1:
+    if len(matrix.partialFrames) != 1:
         return m
     frame = matrix.partialFrames[0]
     found = False
