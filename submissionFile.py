@@ -9657,7 +9657,7 @@ for output_id in submission.index:
     separationByColors = needsSeparationByColors(originalT)
 
     if separationByShapes != False:
-        separatedT = Task.Task(separationByShapes.separatedTask, task_id, submission=False)
+        separatedT = Task(separationByShapes.separatedTask, task_id, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
 
         mergedPredictions = []
@@ -9700,7 +9700,7 @@ for output_id in submission.index:
             i += 1
 
     elif separationByColors != False:
-        separatedT = Task.Task(separationByColors.separatedTask, task_id, submission=False)
+        separatedT = Task(separationByColors.separatedTask, task_id, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByColors.separatedTask.copy())
 
         mergedPredictions = []
