@@ -22,8 +22,8 @@ from sklearn.ensemble import BaggingClassifier
 import random
 from math import floor
 
-#data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
-data_path = Path('data')
+data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
+#data_path = Path('data')
 train_path = data_path / 'training'
 eval_path = data_path / 'evaluation'
 test_path = data_path / 'test'
