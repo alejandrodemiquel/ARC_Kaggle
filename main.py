@@ -268,6 +268,8 @@ class Candidate():
         """
         A candidate is better than another one if its score is lower.
         """
+        if self.score == other.score:
+            return len(self.ops) < len(other.ops)
         return self.score < other.score
 
     def generateTask(self):
@@ -1217,8 +1219,8 @@ evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[idx]
+for idx in tqdm([427, 438], position=0, leave=True):
+    taskId = index[427]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
@@ -1242,19 +1244,33 @@ for idx in tqdm(range(800), position=0, leave=True):
                 mergedPredictions[s].append(pred)
                 #plot_sample(originalT.testSamples[s], pred)
 
+        finalPredictions = []
+        for s in range(originalT.nTest):
+            finalPredictions.append([[], [], []])
+        
         b3cIndices = b3c.getOrderedIndices()
         sepB3cIndices = sepB3c.getOrderedIndices()
 
         b3cIndex, sepB3cIndex = 0, 0
-        for i in range(3):
+        i = 0
+        if b3c.candidates[b3cIndices[0]].score==0:
+            for s in range(originalT.nTest):
+                finalPredictions[s][0] = predictions[s][b3cIndices[0]]
+            i += 1
+        if sepB3c.candidates[sepB3cIndices[0]].score==0:
+            for s in range(originalT.nTest):
+                finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[0]]
+            i += 1
+        while i < 3:
             if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                    finalPredictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
                 b3cIndex += 1
             else:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
+                    finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
+            i += 1
 
     elif separationByColors != False:
         separatedT = Task.Task(separationByColors.separatedTask, taskId, submission=False)
@@ -1271,20 +1287,36 @@ for idx in tqdm(range(800), position=0, leave=True):
                 mergedPredictions[s].append(pred)
                 #plot_sample(originalT.testSamples[s], pred)
 
+        finalPredictions = []
+        for s in range(originalT.nTest):
+            finalPredictions.append([[], [], []])
+        
         b3cIndices = b3c.getOrderedIndices()
         sepB3cIndices = sepB3c.getOrderedIndices()
 
         b3cIndex, sepB3cIndex = 0, 0
-        for i in range(3):
+        i = 0
+        if b3c.candidates[b3cIndices[0]].score==0:
+            for s in range(originalT.nTest):
+                finalPredictions[s][0] = predictions[s][b3cIndices[0]]
+            i += 1
+        if sepB3c.candidates[sepB3cIndices[0]].score==0:
+            for s in range(originalT.nTest):
+                finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[0]]
+            i += 1
+        while i < 3:
             if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                    finalPredictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
                 b3cIndex += 1
             else:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
+                    finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
+            i += 1
+    else:
+        finalPredictions = predictions
 
     for s in range(originalT.nTest):
         for i in range(3):
-            plot_sample(originalT.testSamples[s], predictions[s][i])
+            plot_sample(originalT.testSamples[s], finalPredictions[s][i])

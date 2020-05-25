@@ -6657,12 +6657,9 @@ def getPossibleOperations(t, c):
                              rowStep=rowStep, colStep=colStep))
 
         #######################################################################
+
         # CNNs
         
-        x.append(getBestCNN(candTask))
-        if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
-            x.append(getBestSameNSampleColorsCNN(candTask))
-
         """
         if t.backgroundColor != -1:
             model = trainCNNDummyColor(candTask, 5, -1)
@@ -7058,6 +7055,14 @@ def getPossibleOperations(t, c):
         if candTask.outSmallerThanIn:
             x.append(partial(cropPartialFrame, includeBorder=False))
             x.append(partial(cropPartialFrame, includeBorder=True))
+    
+    # CNNs
+        
+    #x.append(getBestCNN(candTask))
+    if candTask.sameIOShapes:
+        if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
+            x.append(getBestSameNSampleColorsCNN(candTask))
+    
     # startOps
     x.append(partial(paintGridLikeBackground))
     x.append(partial(cropAllBackground)) 

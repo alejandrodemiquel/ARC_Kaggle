@@ -4626,20 +4626,23 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
             colorCells=False
             start = matrix.shape[0]-1
             for i in reversed(range(matrix.shape[0])):
-                if color==None:
+                if color==None and sourceColor==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     m = matrix.m.copy()
                     colorCells=True
                     start = i
-                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
-                    break
-                if colorCells and matrix.m[i,j] in cic:
-                    if color==None:
-                        m[i,j] = sourceColor
-                    else:
-                        m[i,j] = color
+                if colorCells:
+                    if matrix.m[i,j] in cic:
+                        if color==None:
+                            m[i,j] = sourceColor
+                        else:
+                            m[i,j] = color
+                    elif m[i,j]!=sourceColor and breakAtFixedColor=="any":
+                        sourceColor = m[i,j]
+                    elif matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                        break
                 if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
                                    i==0 and deleteIfBorder):
                     currentI = i
@@ -4655,7 +4658,7 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
             colorCells=False
             start = 0
             for i in range(matrix.shape[0]):
-                if color==None:
+                if color==None and sourceColor==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
@@ -4664,11 +4667,17 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                     start = i
                 if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
                     break
-                if colorCells and matrix.m[i,j] in cic:
-                    if color==None:
-                        m[i,j] = sourceColor
-                    else:
-                        m[i,j] = color
+                if colorCells:
+                    if matrix.m[i,j] in cic:
+                        if color==None:
+                            m[i,j] = sourceColor
+                        else:
+                            m[i,j] = color
+                    elif m[i,j]!=sourceColor and breakAtFixedColor=="any":
+                        sourceColor = m[i,j]
+                    elif matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                        break
+                        
                 if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
                                    i==m.shape[0]-1 and deleteIfBorder):
                     currentI = i+1
@@ -4686,20 +4695,23 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
             colorCells=False
             start = matrix.shape[1]-1
             for j in reversed(range(matrix.shape[1])):
-                if color==None:
+                if color==None and sourceColor==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     m = matrix.m.copy()
                     colorCells=True
                     start = j
-                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
-                    break
-                if colorCells and matrix.m[i,j] in cic:
-                    if color==None:
-                        m[i,j] = sourceColor
-                    else:
-                        m[i,j] = color
+                if colorCells:
+                    if matrix.m[i,j] in cic:
+                        if color==None:
+                            m[i,j] = sourceColor
+                        else:
+                            m[i,j] = color
+                    elif m[i,j]!=sourceColor and breakAtFixedColor=="any":
+                        sourceColor = m[i,j]
+                    elif matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                        break
                 if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
                                    j==0 and deleteIfBorder):
                     currentJ = j
@@ -4715,20 +4727,23 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
             colorCells=False
             start = 0
             for j in range(matrix.shape[1]):
-                if color==None:
+                if color==None and sourceColor==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
                 if matrix.m[i,j]==sourceColor:
                     m = matrix.m.copy()
                     colorCells=True
                     start = j
-                if colorCells and matrix.m[i,j] in fixedColors and breakAtFixedColor:
-                    break
-                if colorCells and matrix.m[i,j] in cic:
-                    if color==None:
-                        m[i,j] = sourceColor
-                    else:
-                        m[i,j] = color
+                if colorCells: 
+                    if matrix.m[i,j] in cic:
+                        if color==None:
+                            m[i,j] = sourceColor
+                        else:
+                            m[i,j] = color
+                    elif m[i,j]!=sourceColor and breakAtFixedColor=="any":
+                        sourceColor = m[i,j]
+                    elif matrix.m[i,j] in fixedColors and breakAtFixedColor:
+                        break
                 if colorCells and ((matrix.m[i,j] in deleteExtensionColors) or \
                                    j==m.shape[1]-1 and deleteIfBorder):
                     currentJ = j+1
@@ -4766,7 +4781,7 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                     diag = np.diagonal(matrix.m, i)
                     colorCells=False
                     for j in range(len(diag)):
-                        if color==None:
+                        if color==None and sourceColor==None:
                             if i<=0:
                                 if matrix.m[-i+j,j] not in (fixedColors|cic):
                                     sourceColor = matrix.m[-i+j,j]
@@ -4776,13 +4791,16 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                         if i<=0:
                             if matrix.m[-i+j,j]==sourceColor:
                                 colorCells=True
-                            if colorCells and matrix.m[-i+j,j] in fixedColors and breakAtFixedColor:
-                                break
-                            if colorCells and matrix.m[-i+j,j] in cic:
-                                if color==None:
-                                    m[-i+j,j] = sourceColor
-                                else:
-                                    m[-i+j,j] = color
+                            if colorCells:
+                                if matrix.m[-i+j,j] in cic:
+                                    if color==None:
+                                        m[-i+j,j] = sourceColor
+                                    else:
+                                        m[-i+j,j] = color
+                                elif matrix.m[-i+j,j]!=sourceColor and breakAtFixedColor=="any":
+                                    sourceColor = m[-i+j,j]
+                                elif matrix.m[-i+j,j] in fixedColors and breakAtFixedColor:
+                                    break
                             if colorCells and ((matrix.m[-i+j,j] in deleteExtensionColors) or \
                                                j==len(diag)-1 and deleteIfBorder):
                                 for j in range(len(diag)):
@@ -4791,13 +4809,16 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                         else:
                             if matrix.m[j,i+j]==sourceColor:
                                 colorCells=True
-                            if colorCells and matrix.m[j,i+j] in fixedColors and breakAtFixedColor:
-                                break
-                            if colorCells and matrix.m[j,i+j] in cic:
-                                if color==None:
-                                    m[j,i+j] = sourceColor
-                                else:
-                                    m[j,i+j] = color
+                            if colorCells:
+                                if matrix.m[j,i+j] in cic:
+                                    if color==None:
+                                        m[j,i+j] = sourceColor
+                                    else:
+                                        m[j,i+j] = color
+                                elif matrix.m[j,i+j]!=sourceColor and breakAtFixedColor=="any":
+                                    sourceColor = m[i,i+j]
+                                elif matrix.m[j,i+j] in fixedColors and breakAtFixedColor:
+                                    break
                             if colorCells and ((matrix.m[j,i+j] in deleteExtensionColors) or \
                                                j==len(diag)-1 and deleteIfBorder):
                                 for j in range(len(diag)):
@@ -4832,7 +4853,7 @@ def getBestExtendColor(t):
         return bestFunction
     fixedColors = t.fixedColors
     for d in ['r', 'l', 'h', 'u', 'd', 'v', 'hv', 'd1', 'd2', 'diag', 'all']:
-        for dib,bafc in product([True, False], [True, False]):
+        for dib,bafc in product([True, False], [True, False, "any"]):
             f = partial(extendColor, direction=d, cic=cic, fixedColors=fixedColors,\
                         deleteIfBorder=dib, breakAtFixedColor=bafc, mergeColor=mergeColor)
             bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
@@ -8297,8 +8318,8 @@ def getPossibleOperations(t, c):
         # CNNs
         
         #x.append(getBestCNN(candTask))
-        if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
-            x.append(getBestSameNSampleColorsCNN(candTask))
+        #if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
+        #    x.append(getBestSameNSampleColorsCNN(candTask))
 
         """
         if t.backgroundColor != -1:
@@ -8687,6 +8708,10 @@ def getPossibleOperations(t, c):
             x.append(partial(cropPartialFrame, includeBorder=False))
             x.append(partial(cropPartialFrame, includeBorder=True))
     
+    if candTask.sameIOShapes:
+        if candTask.sameNSampleColors and all(["predictCNN" not in str(op.func) for op in c.ops]):
+            x.append(getBestSameNSampleColorsCNN(candTask))
+    
     # startOps
 
     x.append(partial(paintGridLikeBackground))
@@ -8740,6 +8765,8 @@ class Candidate():
         """
         A candidate is better than another one if its score is lower.
         """
+        if self.score == other.score:
+            return len(self.ops) < len(other.ops)
         return self.score < other.score
 
     def generateTask(self):
@@ -9503,7 +9530,7 @@ for output_id in submission.index:
     separationByColors = needsSeparationByColors(originalT)
 
     if separationByShapes != False:
-        separatedT = Task(separationByShapes.separatedTask, task_id, submission=True)
+        separatedT = Task.Task(separationByShapes.separatedTask, task_id, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
 
         mergedPredictions = []
@@ -9517,22 +9544,36 @@ for output_id in submission.index:
                 mergedPredictions[s].append(pred)
                 #plot_sample(originalT.testSamples[s], pred)
 
+        finalPredictions = []
+        for s in range(originalT.nTest):
+            finalPredictions.append([[], [], []])
+        
         b3cIndices = b3c.getOrderedIndices()
         sepB3cIndices = sepB3c.getOrderedIndices()
 
         b3cIndex, sepB3cIndex = 0, 0
-        for i in range(3):
+        i = 0
+        if b3c.candidates[b3cIndices[0]].score==0:
+            for s in range(originalT.nTest):
+                finalPredictions[s][0] = predictions[s][b3cIndices[0]]
+            i += 1
+        if sepB3c.candidates[sepB3cIndices[0]].score==0:
+            for s in range(originalT.nTest):
+                finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[0]]
+            i += 1
+        while i < 3:
             if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                    finalPredictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
                 b3cIndex += 1
             else:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
+                    finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
+            i += 1
 
     elif separationByColors != False:
-        separatedT = Task(separationByColors.separatedTask, task_id, submission=True)
+        separatedT = Task.Task(separationByColors.separatedTask, task_id, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByColors.separatedTask.copy())
 
         mergedPredictions = []
@@ -9546,23 +9587,39 @@ for output_id in submission.index:
                 mergedPredictions[s].append(pred)
                 #plot_sample(originalT.testSamples[s], pred)
 
+        finalPredictions = []
+        for s in range(originalT.nTest):
+            finalPredictions.append([[], [], []])
+        
         b3cIndices = b3c.getOrderedIndices()
         sepB3cIndices = sepB3c.getOrderedIndices()
 
         b3cIndex, sepB3cIndex = 0, 0
-        for i in range(3):
+        i = 0
+        if b3c.candidates[b3cIndices[0]].score==0:
+            for s in range(originalT.nTest):
+                finalPredictions[s][0] = predictions[s][b3cIndices[0]]
+            i += 1
+        if sepB3c.candidates[sepB3cIndices[0]].score==0:
+            for s in range(originalT.nTest):
+                finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[0]]
+            i += 1
+        while i < 3:
             if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                    finalPredictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
                 b3cIndex += 1
             else:
                 for s in range(originalT.nTest):
-                    predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
+                    finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
+            i += 1
+    else:
+        finalPredictions = predictions
     
     pred = []
-    for i in range(len(predictions[pair_id])):
-        pred.append(flattener(predictions[pair_id][i].astype(int).tolist()))
+    for i in range(len(finalPredictions[pair_id])):
+        pred.append(flattener(finalPredictions[pair_id][i].astype(int).tolist()))
     predictions = pred
 
     if len(predictions) == 0:
