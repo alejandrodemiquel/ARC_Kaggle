@@ -468,6 +468,91 @@ def needsSeparationByShapes(t):
 
     return False
 
+# Separate task by colors
+class TaskSeparatedByColors():
+    def __init__(self, task):
+        self.originalTask = task
+        self.separatedTask = None
+        self.commonColors = None
+        self.extraColors = {'train': [], 'test': []}
+
+    def getRange(self, trainOrTest, index):
+        i, position = 0, 0
+        while i < index:
+            position += len(self.extraColors[trainOrTest][i])
+            i += 1
+        return (position, position+len(self.extraColors[trainOrTest][index]))
+
+
+def needsSeparationByColors(t):
+    def generateMatrix(matrix, colorsToKeep, backgroundColor):
+        m = matrix.copy()
+        for i,j in np.ndindex(matrix.shape):
+            if m[i,j] not in colorsToKeep:
+                m[i,j] = backgroundColor
+
+        return m
+
+    def generateNewTask(commonColors, backgroundColor):
+        # Assign every input shape to the output shape with maximum overlap
+        separatedTask = TaskSeparatedByColors(t.task.copy())
+        task = {'train': [], 'test': []}
+        for s in range(t.nTrain):
+            separatedTask.extraColors['train'].append([])
+            colorsToConsider = (t.trainSamples[s].inMatrix.colors | t.trainSamples[s].outMatrix.colors)\
+                                - commonColors
+            if len(colorsToConsider)==0:
+                return False
+            for color in colorsToConsider:
+                separatedTask.extraColors['train'][s].append(color)
+                inM = generateMatrix(t.trainSamples[s].inMatrix.m, commonColors|set([color]), backgroundColor)
+                outM = generateMatrix(t.trainSamples[s].outMatrix.m, commonColors|set([color]), backgroundColor)
+                task['train'].append({'input': inM.tolist(), 'output': outM.tolist()})
+
+        for s in range(t.nTest):
+            separatedTask.extraColors['test'].append([])
+            if t.submission:
+                colorsToConsider = t.testSamples[s].inMatrix.colors - commonColors
+                if len(colorsToConsider)==0:
+                    return False
+                for color in colorsToConsider:
+                    separatedTask.extraColors['test'][s].append(color)
+                    inM = generateMatrix(t.testSamples[s].inMatrix.m, commonColors|set([color]), backgroundColor)
+                    task['test'].append({'input': inM.tolist()})
+            else:
+                colorsToConsider = (t.testSamples[s].inMatrix.colors | t.testSamples[s].outMatrix.colors)\
+                                    - commonColors
+                if len(colorsToConsider)==0:
+                    return False
+                for color in colorsToConsider:
+                    separatedTask.extraColors['test'][s].append(color)
+                    inM = generateMatrix(t.testSamples[s].inMatrix.m, commonColors|set([color]), backgroundColor)
+                    outM = generateMatrix(t.testSamples[s].outMatrix.m, commonColors|set([color]), backgroundColor)
+                    task['test'].append({'input': inM.tolist(), 'output': t.testSamples[s].outMatrix.m.tolist()})
+
+        # Complete and return the TaskSeparatedByShapes object
+        separatedTask.separatedTask = task.copy()
+        return separatedTask
+
+
+    # I need to have a background color to generate the new task object
+    if t.backgroundColor==-1 or not t.sameIOShapes:
+        return False
+    # Only consider tasks without small matrices
+    if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<50 for s in t.trainSamples+t.testSamples]):
+        return False
+
+    commonColors = t.commonInColors | t.commonOutColors
+
+    if all([sample.nColors == len(commonColors) for sample in t.trainSamples]):
+        return False
+    if any([sample.nColors < len(commonColors) for sample in t.trainSamples]):
+        return False
+
+    newTask = generateNewTask(commonColors, t.backgroundColor)
+
+    return newTask
+
 # Crop task if necessary
 
 def getCroppingPosition(matrix):
@@ -494,16 +579,19 @@ def needsCropping(t):
 
 def cropTask(t, task):
     positions = {"train": [], "test": []}
+    backgrounds = {"train": [], "test": []}
     for s in range(t.nTrain):
         task["train"][s]["input"] = Utils.cropAllBackground(t.trainSamples[s].inMatrix).tolist()
         task["train"][s]["output"] = Utils.cropAllBackground(t.trainSamples[s].outMatrix).tolist()
+        backgrounds["train"].append(t.trainSamples[s].inMatrix.backgroundColor)
         positions["train"].append(getCroppingPosition(t.trainSamples[s].inMatrix))
     for s in range(t.nTest):
         task["test"][s]["input"] = Utils.cropAllBackground(t.testSamples[s].inMatrix).tolist()
+        backgrounds["test"].append(t.testSamples[s].inMatrix.backgroundColor)
         positions["test"].append(getCroppingPosition(t.testSamples[s].inMatrix))
         if not t.submission:
             task["test"][s]["output"] = Utils.cropAllBackground(t.testSamples[s].outMatrix).tolist()
-    return positions
+    return positions, backgrounds
 
 def recoverCroppedMatrix(matrix, outShape, position, backgroundColor):
     m = np.full(outShape, backgroundColor, dtype=np.uint8)
@@ -730,7 +818,7 @@ def ignoreGeneralAsymmetricGrid(t, task):
                 currY += cellList[i][j][0].shape[1]
             currX += cellList[i][j][0].shape[0]
         task["train"][s]["input"] = m.tolist()
-        
+
         cellList = [cell for cell in t.trainSamples[s].outMatrix.asymmetricGrid.cells]
         gridShape = t.trainSamples[0].outMatrix.asymmetricGrid.shape
         newShape = (sum(cellList[i][0][0].shape[0] for i in range(gridShape[0])),sum(cellList[0][i][0].shape[1] for i in range(gridShape[1])))
@@ -743,7 +831,7 @@ def ignoreGeneralAsymmetricGrid(t, task):
                 currY += cellList[i][j][0].shape[1]
             currX += cellList[i][j][0].shape[0]
         task["train"][s]["output"] = m.tolist()
-        
+
     for s in range(t.nTest):
         cellList = [cell for cell in t.testSamples[s].inMatrix.asymmetricGrid.cells]
         gridShape = t.testSamples[0].inMatrix.asymmetricGrid.shape
@@ -757,7 +845,7 @@ def ignoreGeneralAsymmetricGrid(t, task):
                 currY += cellList[i][j][0].shape[1]
             currX += cellList[i][j][0].shape[0]
         task["test"][s]["input"] = m.tolist()
-        
+
         cellList = [cell for cell in t.testSamples[s].outMatrix.asymmetricGrid.cells]
         gridShape = t.testSamples[0].outMatrix.asymmetricGrid.shape
         newShape = (sum(cellList[i][0][0].shape[0] for i in range(gridShape[0])),sum(cellList[0][i][0].shape[1] for i in range(gridShape[1])))
@@ -977,8 +1065,8 @@ def getPredictionsFromTask(originalT, task):
     else:
         taskNeedsCropping = False
     if taskNeedsCropping:
-        cropPositions = cropTask(t, cTask)
-        t2 = Task.Task(cTask, taskId, submission=False)
+        cropPositions, backgrounds = cropTask(t, cTask)
+        t2 = Task.Task(cTask, taskId, submission=False, backgrounds=backgrounds)
     elif t.hasUnchangedGrid:
         if t.gridCellsHaveOneColor:
             ignoreGrid(t, cTask) # This modifies cTask, ignoring the grid
@@ -1040,7 +1128,7 @@ def getPredictionsFromTask(originalT, task):
     for s in range(t.nTest):
         taskPredictions.append([])
         for c in b3c.candidates:
-            print(c.ops)
+            #print(c.ops)
             x = t2.testSamples[s].inMatrix.m.copy()
             for opI in range(len(c.ops)):
                 newX = c.ops[opI](Task.Matrix(x))
@@ -1130,13 +1218,15 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[idx]
+    taskId = index[555]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
 
     separationByShapes = needsSeparationByShapes(originalT)
+    separationByColors = needsSeparationByColors(originalT)
+
     if separationByShapes != False:
         separatedT = Task.Task(separationByShapes.separatedTask, taskId, submission=False)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
@@ -1145,6 +1235,35 @@ for idx in tqdm(range(800), position=0, leave=True):
         for s in range(originalT.nTest):
             mergedPredictions.append([])
             matrixRange = separationByShapes.getRange("test", s)
+            matrices = [[sepPredictions[i][cand] for i in range(matrixRange[0], matrixRange[1])] \
+                         for cand in range(3)]
+            for cand in range(3):
+                pred = Utils.mergeMatrices(matrices[cand], originalT.backgroundColor)
+                mergedPredictions[s].append(pred)
+                #plot_sample(originalT.testSamples[s], pred)
+
+        b3cIndices = b3c.getOrderedIndices()
+        sepB3cIndices = sepB3c.getOrderedIndices()
+
+        b3cIndex, sepB3cIndex = 0, 0
+        for i in range(3):
+            if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
+                b3cIndex += 1
+            else:
+                for s in range(originalT.nTest):
+                    predictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
+                sepB3cIndex += 1
+
+    elif separationByColors != False:
+        separatedT = Task.Task(separationByColors.separatedTask, taskId, submission=False)
+        sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByColors.separatedTask.copy())
+
+        mergedPredictions = []
+        for s in range(originalT.nTest):
+            mergedPredictions.append([])
+            matrixRange = separationByColors.getRange("test", s)
             matrices = [[sepPredictions[i][cand] for i in range(matrixRange[0], matrixRange[1])] \
                          for cand in range(3)]
             for cand in range(3):

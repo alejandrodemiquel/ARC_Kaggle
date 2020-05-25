@@ -627,9 +627,10 @@ def detectIsolatedPixels(matrix, dShapeList):
             if len(cc) == 2:
                 pixList.append(sh)
     return pixList
+
 # %% Class Matrix
 class Matrix():
-    def __init__(self, m, detectGrid=True):
+    def __init__(self, m, detectGrid=True, backgroundColor=None):
         if type(m) == Matrix:
             return m
         
@@ -647,7 +648,10 @@ class Matrix():
         self.nColors = len(self.colorCount)
         
         # Background color
-        self.backgroundColor = max(self.colorCount, key=self.colorCount.get)
+        if backgroundColor==None:
+            self.backgroundColor = max(self.colorCount, key=self.colorCount.get)
+        else:
+            self.backgroundColor = backgroundColor
         
         # Shapes
         self.shapes = detectShapes(self.m, self.backgroundColor, singleColor=True)
@@ -972,12 +976,12 @@ class Matrix():
 
 # %% Class Sample
 class Sample():
-    def __init__(self, s, trainOrTest, submission=False):
+    def __init__(self, s, trainOrTest, submission=False, backgroundColor=None):
         
-        self.inMatrix = Matrix(s['input'])
+        self.inMatrix = Matrix(s['input'], backgroundColor=backgroundColor)
         
         if trainOrTest == "train" or submission==False:
-            self.outMatrix = Matrix(s['output'])
+            self.outMatrix = Matrix(s['output'], backgroundColor=backgroundColor)
                     
             # We want to compare the input and the output
             # Do they have the same dimensions?
@@ -1214,13 +1218,17 @@ class Sample():
 
 # %% Class Task
 class Task():
-    def __init__(self, t, i, submission=False):
+    def __init__(self, t, i, submission=False, backgrounds=None):
         self.task = t
         self.index = i
         self.submission = submission
         
-        self.trainSamples = [Sample(s, "train", submission) for s in t['train']]
-        self.testSamples = [Sample(s, "test", submission) for s in t['test']]
+        if backgrounds==None:
+            self.trainSamples = [Sample(s, "train", submission) for s in t['train']]
+            self.testSamples = [Sample(s, "test", submission) for s in t['test']]
+        else:
+            self.trainSamples = [Sample(t["train"][s], "train", submission, backgrounds["train"][s]) for s in range(len(t['train']))]
+            self.testSamples = [Sample(t["test"][s], "test", submission, backgrounds["test"][s]) for s in range(len(t['test']))]
         
         self.nTrain = len(self.trainSamples)
         self.nTest = len(self.testSamples)
@@ -1436,8 +1444,13 @@ class Task():
         if self.allEqual([s.inMatrix.backgroundColor for s in self.trainSamples]) and\
         self.trainSamples[0].inMatrix.backgroundColor == self.testSamples[0].inMatrix.backgroundColor:
             self.backgroundColor = self.trainSamples[0].inMatrix.backgroundColor
-        elif self.hasUnchangedAsymmetricGrid:
+        elif self.hasUnchangedAsymmetricGrid and all([s.inMatrix.asymmetricGrid.nCells>6 for s in self.trainSamples]):
             self.backgroundColor = self.trainSamples[0].inMatrix.asymmetricGrid.color
+            for sample in self.trainSamples:
+                sample.inMatrix.backgroundColor = self.backgroundColor
+                sample.outMatrix.backgroundColor = self.backgroundColor
+            for sample in self.testSamples:
+                sample.inMatrix.backgroundColor = self.backgroundColor
         else:
             self.backgroundColor = -1
             
