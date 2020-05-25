@@ -25,15 +25,11 @@ solved: 26, 111, 116, 360
 --------Extend color:
 506
 ------------ArrangeShapes---------
-solves: 29,152,307,403,440,523,552,558,622,652,676,707,746
+solves: 29,152,158,252,263,307,403,440,523,552,558,622,652,676,707,746,760
 weirdFit 156, 560, 434
-easy: 414, 588
 
 fit + smth:
-	- scale: 158, 760, 535
 	- color change: 237
-tesselate + rotations:
-	- 252, 263
 
 ------------DeleteShapes-----------
 solves: 96, 652
@@ -64,13 +60,13 @@ same:
 - at subshapes: 132, 190, 196, 365, 431, 475,494,659, 683, 779, 795
 - everywhere: 207, 362, 539, 650
 - symmetrize: 108, 284
-- subMats: 583, 583, 659
+- subMats: 583, 659
 reference:
 - 626, 636, 742
 
 ---------TwoShapeTasks----------
-solved: 453
-70,158,169,244,274,674,760,484
+solved: 169,274,453,674
+484,535
 
 ------------References---------
 reference:  142, 181, 205, 244q, 423
@@ -91,11 +87,11 @@ solves: 13, 28, 30, 35, 38, 48, 56, 78, 110, 120, 133, 173, 176, 206, 215, 216, 
 cropframe: 204, 443
 cropLargestNonbackgroudnFrame = 87, 194, 464
 reference: 318
-cropsomething? 354, 365
-
-color changes: 768, 774
+cropsomething? 365
 
 --------overlapSubmatrices--------
+179, 256, 320, 468, 493, 566, 684, 766, 772
+
 
 DELTED PARTS:
 

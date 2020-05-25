@@ -1494,21 +1494,27 @@ class Task():
         #Does the task use the information of isolated pixels?
         #if all(s.inMatrix.nIsolatedPixels)
         #Does the input always consist in two shapes?
-        self.twoShapeTask = (False, False, False, False)
+        self.twoShapeTask = (False, False, False, False, 1)
         if all(len(s.inMatrix.multicolorDShapes)==2 for s in self.trainSamples):
-            self.twoShapeTask = (True, True, True, False)
+            self.twoShapeTask = (True, True, True, False, 1)
             if all(s.inMatrix.multicolorDShapes[0].shape == s.inMatrix.multicolorDShapes[1].shape for s in self.trainSamples):
-                self.twoShapeTask = (True, True, True, True)
+                self.twoShapeTask = (True, True, True, True, 1)
                 
         elif all(len(s.inMatrix.multicolorShapes)==2 for s in self.trainSamples):
-            self.twoShapeTask = (True, True, False, False)
+            self.twoShapeTask = (True, True, False, False, 1)
             if all(s.inMatrix.multicolorShapes[0].shape == s.inMatrix.multicolorShapes[1].shape for s in self.trainSamples):
-                self.twoShapeTask = (True, True, False, True)
-                
+                self.twoShapeTask = (True, True, False, True, 1)
         elif all(len(s.inMatrix.dShapes)==2 for s in self.trainSamples):
-            self.twoShapeTask = (True, False, True, False)
+            self.twoShapeTask = (True, False, True, False, 1)
             if all(s.inMatrix.dShapes[0].shape == s.inMatrix.dShapes[1].shape for s in self.trainSamples):
-                self.twoShapeTask = (True, False, True, True)
+                self.twoShapeTask = (True, False, True, True, 1)
+        if self.inputIsGrid:
+            if all(s.inMatrix.grid.nCells == 2 for s in self.trainSamples):
+                self.twoShapeTask = (True, False, False, True, 2)
+        elif  all((s.inMatrix.shape[0]*2 == s.inMatrix.shape[1] or\
+                  s.inMatrix.shape[0] == s.inMatrix.shape[1]*2) for s in self.trainSamples):
+                self.twoShapeTask = (True, False, False, True, 3)
+                
         #Are all output matrices equal mod nonBackgroundColor?
         if self.sameOutShape:
             self.sameOutDummyMatrix = all(np.all(self.trainSamples[0].outMatrix.dummyMatrix==s.outMatrix.dummyMatrix) for s in self.trainSamples)

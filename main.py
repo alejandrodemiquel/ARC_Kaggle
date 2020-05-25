@@ -1112,8 +1112,8 @@ replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,424,
 countingTasks = [37,99,238,300,324,338,390,392,398,465,492,527,595,704,781]
 arrangeToDoTasks = [45,95,200,232,237,295,315,365,475,512,535,\
                 588,759]
-twoShapeTasks = [70,158,169,244,274,453,674,760,484]
-
+twoShapeTasks = [169,274,453,674]
+replicateGrid = [4,32,33,140,326,369,539,620]
 replicateToDoTasks = [4,88,132,140,190,196,207,326,362,369,539,620,659,683,779]
 replicateAtPixelsTasks = [21,53,74,88,498,509,589]
 symmetrizeAllShapesTasks = [61, 108, 284, 389, 542, 464, 472, 623, 461, 437]
@@ -1129,7 +1129,7 @@ evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(countingTasks, position=0, leave=True):
+for idx in tqdm(range(800), position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
