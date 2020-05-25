@@ -1937,6 +1937,16 @@ def colorMap(matrix, cMap):
             m[i,j] = cMap[matrix.m[i,j]]
     return m
 
+def revertColorOrder(matrix):
+    m = matrix.m.copy()
+    colors = [color for color,count in sorted(matrix.colorCount.items(), key=lambda item:item[1])]
+    colorDict = {}
+    for i in range(len(colors)):
+        colorDict[colors[i]] = colors[len(colors)-i-1]
+    for i,j in np.ndindex(m.shape):
+        m[i,j] = colorDict[m[i,j]]
+    return m
+
 def changeColorShapes(matrix, shapes, color):
     """
     Given a matrix (numpy.ndarray), a list of Task.Shapes (they are expected to
@@ -6695,6 +6705,8 @@ def getPossibleOperations(t, c):
         ncc = len(candTask.colorChanges)
         if len(set([cc[0] for cc in candTask.colorChanges])) == ncc and ncc != 0:
             x.append(partial(colorMap, cMap=dict(candTask.colorChanges)))
+            
+        x.append(partial(revertColorOrder))
             
         # Symmetrize
         if all([len(x)==1 for x in candTask.changedInColors]):
