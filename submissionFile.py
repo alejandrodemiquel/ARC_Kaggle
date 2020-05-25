@@ -22,8 +22,8 @@ from sklearn.ensemble import BaggingClassifier
 import random
 from math import floor
 
-data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
-#data_path = Path('data')
+#data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
+data_path = Path('data')
 train_path = data_path / 'training'
 eval_path = data_path / 'evaluation'
 test_path = data_path / 'test'
@@ -9669,7 +9669,7 @@ for output_id in submission.index:
     separationByColors = needsSeparationByColors(originalT)
 
     if separationByShapes != False:
-        separatedT = Task(separationByShapes.separatedTask, task_id, submission=False)
+        separatedT = Task(separationByShapes.separatedTask, task_id, submission=True)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
 
         mergedPredictions = []
@@ -9712,7 +9712,7 @@ for output_id in submission.index:
             i += 1
 
     elif separationByColors != False:
-        separatedT = Task(separationByColors.separatedTask, task_id, submission=False)
+        separatedT = Task(separationByColors.separatedTask, task_id, submission=True)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByColors.separatedTask.copy())
 
         mergedPredictions = []
