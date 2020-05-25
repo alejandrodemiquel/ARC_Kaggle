@@ -4822,7 +4822,7 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                                     else:
                                         m[j,i+j] = color
                                 elif matrix.m[j,i+j]!=sourceColor and breakAtFixedColor=="any":
-                                    sourceColor = m[i,i+j]
+                                    sourceColor = m[j,i+j]
                                 elif matrix.m[j,i+j] in fixedColors and breakAtFixedColor:
                                     break
                             if colorCells and ((matrix.m[j,i+j] in deleteExtensionColors) or \
@@ -9052,7 +9052,7 @@ def needsSeparationByShapes(t):
     if t.backgroundColor==-1 or not t.sameIOShapes:
         return False
     # Only consider tasks without small matrices
-    if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<50 for s in t.trainSamples+t.testSamples]):
+    if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<43 for s in t.trainSamples+t.testSamples]):
         return False
 
     # First, consider normal shapes (not background, not diagonal, not multicolor) (Task 84 as example)

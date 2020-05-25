@@ -429,7 +429,7 @@ def needsSeparationByShapes(t):
     if t.backgroundColor==-1 or not t.sameIOShapes:
         return False
     # Only consider tasks without small matrices
-    if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<50 for s in t.trainSamples+t.testSamples]):
+    if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<49 for s in t.trainSamples+t.testSamples]):
         return False
 
     # First, consider normal shapes (not background, not diagonal, not multicolor) (Task 84 as example)
@@ -1219,8 +1219,8 @@ evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm([427, 438], position=0, leave=True):
-    taskId = index[427]
+for idx in tqdm([202, 504], position=0, leave=True):
+    taskId = index[504]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 

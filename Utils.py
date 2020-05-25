@@ -3029,7 +3029,7 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
                                     else:
                                         m[j,i+j] = color
                                 elif matrix.m[j,i+j]!=sourceColor and breakAtFixedColor=="any":
-                                    sourceColor = m[i,i+j]
+                                    sourceColor = m[j,i+j]
                                 elif matrix.m[j,i+j] in fixedColors and breakAtFixedColor:
                                     break
                             if colorCells and ((matrix.m[j,i+j] in deleteExtensionColors) or \
