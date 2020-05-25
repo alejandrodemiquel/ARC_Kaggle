@@ -3452,7 +3452,8 @@ def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None):
             m = moveShape(m, s, background, direction, until, nSteps)
     return m
     
-def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False, restore=True):
+def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False,\
+                       restore=True, merge=False):
     """
     Given a matrix (numpy.ndarray) and a Task.Shape, this function moves the
     given shape until the closest shape with the color given by "until".
@@ -3474,21 +3475,29 @@ def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False, r
             if nSteps <= pixelPos[0] and m[pixelPos[0]-nSteps, pixelPos[1]] == until:
                 while nSteps>=0 and m[pixelPos[0]-nSteps, pixelPos[1]]!=background:
                     nSteps-=1
+                if merge:
+                    nSteps+=1
                 s.position = (s.position[0]-nSteps, s.position[1])
                 return insertShape(m, s)
             if pixelPos[0]+nSteps < m.shape[0] and m[pixelPos[0]+nSteps, pixelPos[1]] == until:
                 while nSteps>=0 and m[pixelPos[0]+nSteps, pixelPos[1]]!=background:
                     nSteps-=1
+                if merge:
+                    nSteps+=1
                 s.position = (s.position[0]+nSteps, s.position[1])
                 return insertShape(m, s)
             if nSteps <= pixelPos[1] and m[pixelPos[0], pixelPos[1]-nSteps] == until:
                 while nSteps>=0 and m[pixelPos[0], pixelPos[1]-nSteps]!=background:
                     nSteps-=1
+                if merge:
+                    nSteps+=1
                 s.position = (s.position[0], s.position[1]-nSteps)
                 return insertShape(m, s)
             if pixelPos[1]+nSteps < m.shape[1] and m[pixelPos[0], pixelPos[1]+nSteps] == until:
                 while nSteps>=0 and m[pixelPos[0], pixelPos[1]+nSteps]!=background:
                     nSteps-=1
+                if merge:
+                    nSteps+=1
                 s.position = (s.position[0], s.position[1]+nSteps)
                 return insertShape(m, s)
             if diagonals:
@@ -3516,7 +3525,8 @@ def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False, r
                 return m
         
 def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, \
-                           diagonals=False, restore=True, fixedShapeFeatures=None):
+                           diagonals=False, restore=True, fixedShapeFeatures=None,\
+                           merge=False):
     """
     This function moves all the shapes with color "colorsToMove" until the
     closest shape with color "until".
@@ -3539,7 +3549,8 @@ def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, \
         for shape in matrix.shapes:
             if shape not in fixedShapes:
                 if shape.color == ctm:
-                    m = moveShapeToClosest(m, shape, background, until, diagonals, restore)
+                    m = moveShapeToClosest(m, shape, background, until, diagonals,\
+                                           restore, merge)
     return m
 
 def getBestMoveShapes(t):
@@ -3625,6 +3636,13 @@ def getBestMoveShapes(t):
     if all([len(sample.fixedShapes)>0 for sample in t.trainSamples]):
         f = partial(moveAllShapesToClosest, background=t.backgroundColor,\
                     fixedShapeFeatures = t.fixedShapeFeatures)
+        bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+        if bestScore==0:
+            return bestFunction
+        
+    if t.commonChangedInColors==1 and all([len(sample.changedInColors)==1 for sample in t.trainSamples]):
+        f = partial(moveAllShapesToClosest, background=t.backgroundColor,\
+                    until = next(iter(t.commonChangedInColors)), merge=True)
         bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
         if bestScore==0:
             return bestFunction

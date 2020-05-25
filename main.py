@@ -429,7 +429,7 @@ def needsSeparationByShapes(t):
     if t.backgroundColor==-1 or not t.sameIOShapes:
         return False
     # Only consider tasks without small matrices
-    if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<49 for s in t.trainSamples+t.testSamples]):
+    if any([s.inMatrix.shape[0]*s.inMatrix.shape[1]<43 for s in t.trainSamples+t.testSamples]):
         return False
 
     # First, consider normal shapes (not background, not diagonal, not multicolor) (Task 84 as example)
@@ -1220,7 +1220,7 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(separateByShapes, position=0, leave=True):
-    taskId = index[611]
+    taskId = index[680]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 

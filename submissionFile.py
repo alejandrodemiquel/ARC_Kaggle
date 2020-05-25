@@ -15,12 +15,11 @@ from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
-from collections import defaultdict
-from sklearn.tree import *
-from sklearn import tree
-from sklearn.ensemble import BaggingClassifier
-import random
-from math import floor
+import cv2
+from itertools import zip_longest
+import os
+from torch.optim import Adam
+from torch.utils.data import Dataset, DataLoader
 
 data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
 #data_path = Path('data')
@@ -8868,6 +8867,262 @@ def getPossibleOperations(t, c):
 
 ###############################################################################
 ###############################################################################
+# Code from https://www.kaggle.com/branislav1991/efficient-cnn?fbclid=IwAR1r2jU0MnxPMPjJ-N5-4AvSNWg0Xl1TTQtVV2tAVpSxg3HV58wy0PzvEfU
+
+def efficientCNN(task):
+    
+    # %% Basic setup
+    
+    NUM_ITERS = 10
+    N_EPOCHS = 300
+    EMBEDDING_DIM = 128
+    LR = 0.003
+    ROT_AUG = False
+    FLIP_AUG = False
+    IO_CONSISTENCY_CHECK = True
+    TESTTIME_FLIP_AUG = False
+    
+    SUBMISSION_PATH = data_path
+
+    SAMPLE_SUBMISSION_PATH = SUBMISSION_PATH / 'sample_submission.csv'
+    SUBMISSION_PATH = 'submission.csv'
+            
+    # %% Helpers
+    
+    def make_one_hot(labels, C=2):
+        one_hot = torch.Tensor(labels.size(0), C, labels.size(2), labels.size(3)).zero_().float().to(labels.device)
+        target = one_hot.scatter_(1, labels.data, 1)
+        return target
+    
+    def img2tensor(img):
+        correct_img = img.copy() # do this because of the occasional neagtive strides in the numpy array
+        return torch.tensor(correct_img, dtype=torch.long)[None,None,:,:]
+    
+    def resize(images, size):
+        if images.shape[2:] == size:
+            return images
+        
+        new_images = []
+        for i in range(images.shape[0]):
+            image = images[i,0,:,:].cpu().numpy()
+            image = cv2.resize(image, size[::-1], interpolation=cv2.INTER_NEAREST)
+            image = img2tensor(image)
+            new_images.append(image)
+        return torch.cat(new_images)
+    
+    def collate(batch):
+        tensors = list(zip(*batch))
+        batch = (torch.cat(t) for t in tensors)
+        return batch
+    
+    def rot_aug(task):
+        rotated_datasets = []
+        for tt in task['train']:
+            for k in range(1,4):
+                it = np.rot90(np.array(tt['input']), k).tolist()
+                ot = np.rot90(np.array(tt['output']), k).tolist()
+                rotated_datasets.append({'input': it, 'output': ot})
+        
+        task['train'].extend(rotated_datasets)
+        return task
+    
+    def check_consistency(task):
+        cons_colors = [True] * 10
+        for tt in task['train']:
+            inp = np.array(tt['input'])
+            out = np.array(tt['output'])
+            if inp.shape[0] != out.shape[0] or inp.shape[1] != out.shape[1]:
+                return False, False
+            for i in range(10):
+                if np.any(out[inp==i] != i):
+                    cons_colors[i] = False
+        return cons_colors
+    
+    def copy_bg_fg(pred, input, colors):
+        for i in range(len(colors)):
+            if colors[i]:
+                pred[input==i] = i
+        
+        return pred
+            
+    # Dataset and model
+            
+    output_size = None # this is used to store the most likely output size of the test dataset
+    class ARCDataset(Dataset):
+        def __init__(self, task, mode='train'):
+            '''We use GA predictions also to predict the shape of the output'''
+            self.task = task
+            self.mode = mode
+    
+        def __len__(self):
+            if self.mode == 'train':
+                return len(self.task['train'])
+            else:
+                return len(self.task['test'])
+        
+        def __getitem__(self, idx):
+            global output_size
+            in_out = [(self.task['train'][idx]['input'], self.task['train'][idx]['output'])]
+            
+            image = torch.cat([img2tensor(img[0]) for img in in_out])
+    
+            if self.mode == 'train' or self.mode == 'eval':
+                label = torch.cat([img2tensor(img[1]) for img in in_out])
+    
+                # save size to use it for test set
+                if self.mode == 'train':
+                    output_size = label.shape[2:]
+                
+                if FLIP_AUG: # flip augmentation
+                    label_fh = label.clone().flip(2)
+                    label_fv = label.clone().flip(3)
+                    label = torch.cat([label, label_fh, label_fv], dim=0)
+            
+            else:
+                n_labels = 3*image.shape[0] if FLIP_AUG else image.shape[0]
+                label = torch.tensor([]).view(1,1,1,-1) # no label for testing
+                label = label.expand((n_labels,-1,-1,-1))
+    
+            image = resize(image, size=output_size)
+    
+            if FLIP_AUG: # flip augmentation
+                image_fh = image.clone().flip(2)
+                image_fv = image.clone().flip(3)
+                image = torch.cat([image, image_fh, image_fv], dim=0)
+    
+            image = make_one_hot(image, C=10).float()
+    
+            label = label.squeeze(1)
+            return image, label#.cuda(), label.cuda()
+        
+    class CAModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+    
+            # embedding calculated from input
+            self.embed_in = nn.Conv2d(10, EMBEDDING_DIM, 3, padding=1)
+    
+            self.embed_out = nn.Conv2d(EMBEDDING_DIM, 10, 1)
+            nn.init.constant_(self.embed_out.weight, 0.0)
+            nn.init.constant_(self.embed_out.bias, 0.0)
+    
+            self.dropout = nn.Dropout2d(p=0.1)
+            self.norm1 = nn.InstanceNorm2d(EMBEDDING_DIM)
+    
+            self.squeeze = nn.AdaptiveAvgPool2d(1)
+            self.excite = nn.Conv2d(EMBEDDING_DIM, EMBEDDING_DIM, 1)
+            
+        def forward(self, state_grid, n_iters):
+            color_grid = state_grid[:,:10,:,:]
+            for it in range(n_iters): # iterate for random number of iterations
+                update_grid = self.embed_in(color_grid)
+                update_grid = F.relu(update_grid)
+                if update_grid.shape[2] > 1 or update_grid.shape[3] > 1:
+                    update_grid = self.norm1(update_grid)
+                update_grid = self.dropout(update_grid)
+    
+                # SENet
+                squeezed = self.squeeze(update_grid)
+                squeezed = self.excite(squeezed)
+                squeezed = torch.sigmoid(squeezed)
+                
+                update_grid = update_grid * squeezed
+    
+                update_grid = self.embed_out(update_grid)
+                update_grid = self.dropout(update_grid)
+    
+                color_grid = color_grid + update_grid
+    
+            return color_grid
+        
+    # Training loop function
+    
+    def train_task_st(task, test_if_solved=False):
+        if IO_CONSISTENCY_CHECK: # we check if the background or foreground stays the same in input and target
+            cons_colors = check_consistency(task)
+    
+        if ROT_AUG: # perform rotation augmentation; for each training dataset, rotate it by 90 degrees
+            task = rot_aug(task)
+    
+        train_set = ARCDataset(task, mode='train')
+        train_loader = DataLoader(train_set, batch_size=1, num_workers=0, collate_fn=collate)
+    
+        test_mode = 'eval' if test_if_solved else 'test'
+        test_set = ARCDataset(task, mode=test_mode)
+        test_loader = DataLoader(test_set, batch_size=1, num_workers=0, collate_fn=collate)
+    
+        model = CAModel()#.cuda()
+        
+        model.train()
+        optimizer = Adam(model.parameters(), lr=LR)
+        loss_fn = nn.CrossEntropyLoss()
+        
+        for epoch in range(N_EPOCHS):
+            for i, train_batch in enumerate(train_loader):
+                in_states, labels = train_batch
+    
+                optimizer.zero_grad()
+    
+                states = in_states.clone().detach()
+                states = model(states, NUM_ITERS)
+                total_loss = loss_fn(states, labels)
+    
+                # predict output from output to improve stability
+                labels_oh = make_one_hot(labels.unsqueeze(1), C=10)
+                labels_oh = model(labels_oh, NUM_ITERS)
+                stability_loss = loss_fn(labels_oh, labels)
+                total_loss += 2 * stability_loss
+    
+                total_loss.backward()
+                optimizer.step()
+                        
+        is_solved = True
+        output_samples = []
+    
+        model.eval()
+        for test_batch in test_loader:
+            in_states, labels = test_batch
+            label = labels[0]
+            
+            states = in_states.clone()
+            states = model(states, NUM_ITERS)
+            
+            if TESTTIME_FLIP_AUG: # revert augmentations
+                states[1] = states[1].flip(1)
+                states[2] = states[2].flip(2)
+                out_state = torch.mean(states[:,:10,:,:], dim=0)
+            else:
+                out_state = states[0,:10,:,:]
+            
+            in_state = in_states[0,:10,:,:]
+            out_state_am = torch.argmax(out_state, dim=0)
+            
+            if IO_CONSISTENCY_CHECK:
+                out_state_am = copy_bg_fg(out_state_am, torch.argmax(in_state, dim=0), cons_colors)
+    
+            if test_if_solved and not torch.equal(label, out_state_am):
+                is_solved = False
+            
+            output_samples.append(out_state_am.cpu().tolist())
+    
+        return output_samples, is_solved    
+        
+    # Run training-testing loop on test files
+        
+    # make predictions on test set
+    test_predictions = []
+    test_predictions.extend(train_task_st(task)[0])
+        
+    # Make submission
+    str_test_predictions = []
+    for idx, pred in enumerate(test_predictions):
+        pred = flattener(pred)
+        str_test_predictions.append(pred)
+        
+    return str_test_predictions
+
+###############################################################################
+###############################################################################
 # Submission Setup
     
 class Candidate():
@@ -9651,12 +9906,17 @@ submission = pd.read_csv(data_path / 'sample_submission.csv', index_col='output_
 #    submission.to_csv('submission.csv', index=False)
 #    exit()
 
+cnnCount = 0
+
 for output_id in submission.index:
     task_id = output_id.split('_')[0]
     pair_id = int(output_id.split('_')[1])
     #print(task_id)
     #if pair_id != 0:
     #    continue
+    
+    perfectScore = False
+    
     f = str(test_path / str(task_id + '.json'))
     with open(f, 'r') as read_file:
         task = json.load(read_file)
@@ -9665,6 +9925,9 @@ for output_id in submission.index:
     
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
     
+    if any([c.score==0 for c in b3c.candidates]):
+        perfectScore = True
+    
     separationByShapes = needsSeparationByShapes(originalT)
     separationByColors = needsSeparationByColors(originalT)
 
@@ -9672,6 +9935,9 @@ for output_id in submission.index:
         separatedT = Task(separationByShapes.separatedTask, task_id, submission=True)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByShapes.separatedTask.copy())
 
+        if any([c.score==0 for c in sepB3c.candidates]):
+            perfectScore = True
+        
         mergedPredictions = []
         for s in range(originalT.nTest):
             mergedPredictions.append([])
@@ -9682,7 +9948,7 @@ for output_id in submission.index:
                 pred = mergeMatrices(matrices[cand], originalT.backgroundColor)
                 mergedPredictions[s].append(pred)
                 #plot_sample(originalT.testSamples[s], pred)
-
+        
         finalPredictions = []
         for s in range(originalT.nTest):
             finalPredictions.append([[], [], []])
@@ -9715,6 +9981,9 @@ for output_id in submission.index:
         separatedT = Task(separationByColors.separatedTask, task_id, submission=True)
         sepPredictions, sepB3c = getPredictionsFromTask(separatedT, separationByColors.separatedTask.copy())
 
+        if any([c.score==0 for c in sepB3c.candidates]):
+            perfectScore = True
+        
         mergedPredictions = []
         for s in range(originalT.nTest):
             mergedPredictions.append([])
@@ -9770,6 +10039,10 @@ for output_id in submission.index:
     elif len(predictions) == 3:
         pred = predictions[0] + ' ' + predictions[1] + ' ' + predictions[2]
         
+    if cnnCount<10 and not perfectScore:
+        pred = efficientCNN(task)
+        cnnCount += 1
+    
     submission.loc[output_id, 'output'] = pred
     
 submission.to_csv('submission.csv')
