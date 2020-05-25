@@ -9916,6 +9916,7 @@ for output_id in submission.index:
     #    continue
     
     perfectScore = False
+    bestScores = []
     
     f = str(test_path / str(task_id + '.json'))
     with open(f, 'r') as read_file:
@@ -9959,19 +9960,23 @@ for output_id in submission.index:
         b3cIndex, sepB3cIndex = 0, 0
         i = 0
         if b3c.candidates[b3cIndices[0]].score==0:
+            bestScores[0] = 0
             for s in range(originalT.nTest):
                 finalPredictions[s][0] = predictions[s][b3cIndices[0]]
             i += 1
         if sepB3c.candidates[sepB3cIndices[0]].score==0:
+            bestScores[i] = 0
             for s in range(originalT.nTest):
                 finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[0]]
             i += 1
         while i < 3:
             if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
+                bestScores[i] = b3c.candidates[b3cIndices[b3cIndex]].score
                 for s in range(originalT.nTest):
                     finalPredictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
                 b3cIndex += 1
             else:
+                bestScores[i] = sepB3c.candidates[sepB3cIndices[sepB3cIndex]].score
                 for s in range(originalT.nTest):
                     finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
@@ -10005,25 +10010,37 @@ for output_id in submission.index:
         b3cIndex, sepB3cIndex = 0, 0
         i = 0
         if b3c.candidates[b3cIndices[0]].score==0:
+            bestScores[0] = 0
             for s in range(originalT.nTest):
                 finalPredictions[s][0] = predictions[s][b3cIndices[0]]
             i += 1
         if sepB3c.candidates[sepB3cIndices[0]].score==0:
+            bestScores[i] = 0
             for s in range(originalT.nTest):
                 finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[0]]
             i += 1
         while i < 3:
             if b3c.candidates[b3cIndices[b3cIndex]] < sepB3c.candidates[sepB3cIndices[sepB3cIndex]]:
+                bestScores[i] = b3c.candidates[b3cIndices[b3cIndex]].score
                 for s in range(originalT.nTest):
                     finalPredictions[s][i] = predictions[s][b3cIndices[b3cIndex]]
                 b3cIndex += 1
             else:
+                bestScores[i] = sepB3c.candidates[sepB3cIndices[sepB3cIndex]].score
                 for s in range(originalT.nTest):
                     finalPredictions[s][i] = mergedPredictions[s][sepB3cIndices[sepB3cIndex]]
                 sepB3cIndex += 1
             i += 1
     else:
+        for c in b3c.candidates:
+            bestScores.append(c.score)
         finalPredictions = predictions
+        
+        
+    #yujiPredictions = yujiCode(task)
+    
+    #finalPredictions = mergePredictions(yujiPredictions, alejandroPredictions, \
+    #                                    alejandroScores)
     
     pred = []
     for i in range(len(finalPredictions[pair_id])):
