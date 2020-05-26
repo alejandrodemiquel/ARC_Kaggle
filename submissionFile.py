@@ -16,13 +16,13 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 
 import cv2
-from itertools import zip_longest
-import os
 from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 
-data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
-#data_path = Path('data')
+from xgboost import XGBClassifier
+
+#data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
+data_path = Path('data')
 train_path = data_path / 'training'
 eval_path = data_path / 'evaluation'
 test_path = data_path / 'test'
@@ -9188,6 +9188,108 @@ def efficientCNN(task):
 
 ###############################################################################
 ###############################################################################
+# %% Decision Trees
+
+def decisionTrees(task, pair_id):
+
+    def get_moore_neighbours(color, cur_row, cur_col, nrows, ncols):
+    
+        if cur_row<=0: top = -1
+        else: top = color[cur_row-1][cur_col]
+            
+        if cur_row>=nrows-1: bottom = -1
+        else: bottom = color[cur_row+1][cur_col]
+            
+        if cur_col<=0: left = -1
+        else: left = color[cur_row][cur_col-1]
+            
+        if cur_col>=ncols-1: right = -1
+        else: right = color[cur_row][cur_col+1]
+            
+        return top, bottom, left, right
+    
+    def get_tl_tr(color, cur_row, cur_col, nrows, ncols):
+            
+        if cur_row==0:
+            top_left = -1
+            top_right = -1
+        else:
+            if cur_col==0: top_left=-1
+            else: top_left = color[cur_row-1][cur_col-1]
+            if cur_col==ncols-1: top_right=-1
+            else: top_right = color[cur_row-1][cur_col+1]   
+            
+        return top_left, top_right
+    
+    def make_features(input_color, nfeat):
+        nrows, ncols = input_color.shape
+        feat = np.zeros((nrows*ncols,nfeat))
+        cur_idx = 0
+        for i in range(nrows):
+            for j in range(ncols):
+                feat[cur_idx,0] = i
+                feat[cur_idx,1] = j
+                feat[cur_idx,2] = input_color[i][j]
+                feat[cur_idx,3:7] = get_moore_neighbours(input_color, i, j, nrows, ncols)
+                feat[cur_idx,7:9] = get_tl_tr(input_color, i, j, nrows, ncols)
+                feat[cur_idx,9] = len(np.unique(input_color[i,:]))
+                feat[cur_idx,10] = len(np.unique(input_color[:,j]))
+                feat[cur_idx,11] = (i+j)
+                feat[cur_idx,12] = len(np.unique(input_color[i-local_neighb:i+local_neighb,
+                                                             j-local_neighb:j+local_neighb]))
+                cur_idx += 1
+            
+        return feat
+    
+    def features(task, mode='train'):
+        num_train_pairs = len(task[mode])
+        feat, target = [], []
+        
+        global local_neighb
+        for task_num in range(num_train_pairs):
+            input_color = np.array(task[mode][task_num]['input'])
+            target_color = task[mode][task_num]['output']
+    
+            feat.extend(make_features(input_color, nfeat))
+            target.extend(np.array(target_color).reshape(-1,))
+                
+        return np.array(feat), np.array(target), 0
+    
+    
+    nfeat = 13
+    local_neighb = 5
+    
+    feat, target, not_valid = features(task)
+    
+    xgb =  XGBClassifier(n_estimators=25, n_jobs=-1)
+    xgb.fit(feat, target, verbose=-1)
+    
+    """
+    num_test_pairs = len(task['test'])
+    for task_num in range(num_test_pairs):
+        input_color = np.array(task['test'][task_num]['input'])
+        nrows, ncols = len(task['test'][task_num]['input']), len(
+            task['test'][task_num]['input'][0])
+        feat = make_features(input_color, nfeat)
+
+        preds = xgb.predict(feat).reshape(nrows,ncols)
+    """
+        
+    input_color = np.array(task['test'][pair_id]['input'])
+    nrows = len(task['test'][pair_id]['input'])
+    ncols = len(task['test'][pair_id]['input'][0])
+    feat = make_features(input_color, nfeat)
+
+    preds = xgb.predict(feat).reshape(nrows,ncols)
+
+    return preds
+    #preds = preds.astype(int).tolist()
+    #return preds
+    #plot_test(preds, task_id)
+    #       sample_sub.loc[f'{task_id[:-5]}_{task_num}',
+    #                     'output'] = flattener(preds)
+###############################################################################
+###############################################################################
 # Submission Setup
     
 class Candidate():
@@ -9976,7 +10078,7 @@ cnnCount = 0
 for output_id in submission.index:
     task_id = output_id.split('_')[0]
     pair_id = int(output_id.split('_')[1])
-    #print(task_id)
+    print(task_id)
     #if pair_id != 0:
     #    continue
     
@@ -10100,6 +10202,27 @@ for output_id in submission.index:
         for c in b3c.candidates:
             bestScores.append(c.score)
         finalPredictions = predictions
+        
+    plot_task(task)
+    print(bestScores)
+    if originalT.sameIOShapes:
+        # Version 1
+        worstScore = bestScores[0]
+        worstIndex = 0
+        for i in range(1, 3):
+            if bestScores[i] > worstScore:
+                worstScore = bestScores[i]
+                worstIndex = i
+        finalPredictions[pair_id][worstIndex] = decisionTrees(task, pair_id)
+        plot_pictures([originalT.testSamples[pair_id].inMatrix.m, finalPredictions[pair_id][worstIndex]], ["Input", "Pred"])
+        # Version 2
+        """
+        for i in range(3):
+            if bestScores[i] != 0:
+                finalPredictions[pair_id][i] = decisionTrees(task, pair_id)
+                plot_sample(originalT.testSamples[pair_id], finalPredictions[pair_id][i])
+                break
+        """
     
     pred = []
     for i in range(len(finalPredictions[pair_id])):
