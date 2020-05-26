@@ -1155,7 +1155,7 @@ def getPredictionsFromTask(originalT, task):
                 x = recoverOriginalColors(x, testRels[s])
             taskPredictions[s].append(x)
 
-            print(c.ops)
+            #print(c.ops)
             #plot_sample(originalT.testSamples[s], x)
             #if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
@@ -1195,16 +1195,16 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
 
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
              299,345,364,383,395,473,488,576,586,578,635,690,712,727,768,785]
-arrangeTasks = [29,152,158,244,252,307,403,414,440,455,495,523,558,622,652,\
+arrangeTasks = [29,152,158,200,244,252,263,307,403,414,440,455,495,523,558,622,652,\
                 676,699,707,746,760]
 replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,424,471,474,\
                   500,509,524,540,597,624,636,645,650,795]
 countingTasks = [37,99,238,300,324,338,390,392,398,465,492,527,595,704,763,781]
-arrangeToDoTasks = [45,95,200,232,237,295,315,365,475,512,535,759]
 twoShapeTasks = [169,274,359,453,674]
 replicateGrid = [4,32,33,140,326,369,539,620]
-replicateToDoTasks = [4,88,132,140,190,196,207,326,362,369,539,620,659,683,779]
-replicateAtPixelsTasks = [21,53,74,88,498,509,589]
+arrangeToDoTasks = [45,95,232,237,295,315,365,475,512,535,759]
+replicateToDoTasks = [4,74,88,132,140,190,196,207,326,362,369,539,620,659,683,779]
+replicateAtPixelsTasks = [21,53,88,589]
 symmetrizeAllShapesTasks = [61, 108, 284, 389, 542, 464, 472, 623, 461, 437]
 separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,429,\
                     432,455,469,496,497,502,504,513,517,525,528,531,552,599,602,\
@@ -1218,7 +1218,7 @@ onetasks = [126,234,261,436]
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(300,500), position=0, leave=True):
+for idx in tqdm([360], position=0, leave=True):
     taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)

@@ -5006,9 +5006,10 @@ def getBestFitToFrame(t):
     for s in [True, False]:
         bestFunction, bestScore = updateBestFunction(t, partial(fitToFrame, crop=crop, includeFrame=True, scale=s), bestScore, bestFunction)
         bestFunction, bestScore = updateBestFunction(t, partial(fitToFrame, crop=crop, includeFrame=False, scale=s), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(fitToFrame, crop=crop, includeFrame=True, colorMatch=True), bestScore, bestFunction)
     return bestFunction
 
-def fitToFrame(matrix, crop=False, scale=False, includeFrame=True):
+def fitToFrame(matrix, crop=False, scale=False, includeFrame=True, colorMatch=False):
     m = matrix.m.copy()
     if len(matrix.partialFrames) != 1:
         return m
@@ -5016,7 +5017,7 @@ def fitToFrame(matrix, crop=False, scale=False, includeFrame=True):
     found = False
     maux = Task.Matrix(deleteShape(m, frame, matrix.backgroundColor))
     for sh in maux.multicolorDShapes:
-        if sh != frame:
+        if sh != frame and sh.shape[0]>1 and sh.shape[1]>1:
             m = deleteShape(m, sh, matrix.backgroundColor)
             found = True
             break
@@ -5031,6 +5032,10 @@ def fitToFrame(matrix, crop=False, scale=False, includeFrame=True):
     else:
         newSh = copy.deepcopy(sh)
     newSh.position = (frame.position[0] + (frame.shape[0]-newSh.shape[0])//2, frame.position[1] + (frame.shape[1]-newSh.shape[1])//2)
+    if colorMatch:
+        if len(set(sh.m[:,0]).intersection(matrix.m[frame.position[0]:frame.position[0]+\
+               frame.shape[0],frame.position[1]])-set([255])) == 0:
+            newSh.m = np.fliplr(newSh.m)
     m = insertShape(m, newSh)
     if crop:
         bC = matrix.backgroundColor
@@ -6138,17 +6143,17 @@ def moveToPanel(matrix, diagonal=True, multicolor=True, deleteOriginal=True,\
                             if sh.m[i,j] == pix.m[0,0]:
                                 newInsert.position = (pix.position[0]-i, pix.position[1]-j)
                                 break
-                    if matchPixels or not len(np.unique(m[newInsert.position[0]:newInsert.position[0]+newInsert.shape[0],\
-                                        newInsert.position[1]:newInsert.position[1]+newInsert.shape[1]])) == 2:
-                        if deleteAnchor and not multicolor:
-                            m = deleteShape(m, pix, matrix.backgroundColor)            
-                        m = insertShape(m, newInsert)                
-                        if deleteOriginal:
-                            m = deleteShape(m, sh, matrix.backgroundColor)
-                        if deleteAnchor and multicolor:
-                            m = deleteShape(m, pix, matrix.backgroundColor)
-                    if not matchPixels:
-                        break
+                    #if matchPixels or not len(np.unique(m[newInsert.position[0]:newInsert.position[0]+newInsert.shape[0],\
+                    #                    newInsert.position[1]:newInsert.position[1]+newInsert.shape[1]])) == 2:
+                    if deleteAnchor and not multicolor:
+                        m = deleteShape(m, pix, matrix.backgroundColor)            
+                    m = insertShape(m, newInsert)                
+                    if deleteOriginal:
+                        m = deleteShape(m, sh, matrix.backgroundColor)
+                    if deleteAnchor and multicolor:
+                        m = deleteShape(m, pix, matrix.backgroundColor)
+                    #if not matchPixels:
+                    #    break
     else:
         for sh in shList:
             for i, j in np.ndindex(panel.shape[0]-sh.shape[0]+1,panel.shape[1]-sh.shape[1]+1):
