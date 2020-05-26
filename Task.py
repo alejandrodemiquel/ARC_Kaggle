@@ -948,12 +948,13 @@ class Matrix():
                 if any((shapeList[i].position[0] >= fr.position[0] and shapeList[i].position[1] >= fr.position[1]\
                         and shapeList[i].position[0] + shapeList[i].shape[0] <= fr.position[0] + fr.shape[0] and\
                         shapeList[i].position[1] + shapeList[i].shape[1] <= fr.position[1] + fr.shape[1] and\
-                        shapeList[i].color != fr.color) for fr in self.partialFrames) or \
-                        any((shapeList[i].position[0] >= fr.position[0] and shapeList[i].position[1] >= fr.position[1]\
+                        shapeList[i].color != fr.color) for fr in self.partialFrames):
+                    attrList[i].append('IsRef')
+                if any((shapeList[i].position[0] >= fr.position[0] and shapeList[i].position[1] >= fr.position[1]\
                         and shapeList[i].position[0] + shapeList[i].shape[0] <= fr.position[0] + fr.shape[0] and\
                         shapeList[i].position[1] + shapeList[i].shape[1] <= fr.position[1] + fr.shape[1] and\
                         shapeList[i].color != fr.color) for fr in self.fullFrames):
-                    attrList[i].append('IsRef')
+                    attrList[i].append('IsFRef')
     
         if len(ism) == 1:
             attrList[ism[0]].append('SmSh')
@@ -1248,7 +1249,7 @@ class Task():
             
         # Do all output matrices have the same shape as the input matrix?
         self.sameIOShapes = all([s.sameShape for s in self.trainSamples])
-        
+
         # Are the input/output matrices always squared?
         self.inMatricesSquared = all([s.inMatrix.shape[0] == s.inMatrix.shape[1] \
                                       for s in self.trainSamples+self.testSamples])

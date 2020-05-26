@@ -1,4 +1,9 @@
 IDEAS:
+two shape tasks: do more things, flip, rotate, 792, 728, counting, 733, 723
+333
+
+261
+
 - 501, 601, 733 backgroundColor. 
 - ignore grid and recover (just keep cells): 74, 461, 776
 
@@ -17,10 +22,10 @@ Check if out matrix always has the same shapes in it
 - 129
 ------------Counting--------------
 solved: 37, 99, 238, 300, 324, 338, 390, 392, 398, 465, 492, 527, 595, 704, 781
-countShapes: 466,726,609,185, 246
+countShapes: 185,246,466,609,726
 not: 554,675,726, 220,
 ------------Symmetrize-----
-solved: 26, 111, 116, 360
+solved: 26, 111, 116, 360, 334
 61,108,284,542, 464, 472, 423, 623, 461, 437
 --------Extend color:
 506
