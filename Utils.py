@@ -4956,6 +4956,45 @@ def cropAllShapes(matrix, background, diagonal=False):
     return m
 
 # %% Stuff added by Roderic"
+def getLayerDict(t):
+    shList = []
+    for s in t.trainSamples:
+        shList += [sh.shape for sh in s.outMatrix.shapes]
+    sc = Counter(shList)
+    shape = sc.most_common(1)[0][0]
+    layerDict = dict()
+    for s in t.trainSamples:
+        inM = s.inMatrix.m
+        outM = s.outMatrix.m
+        xR = inM.shape[0]//shape[0]
+        yR = inM.shape[1]//shape[1]
+        for x in range(xR):
+            for y in range(yR):
+                if inM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes() in layerDict:
+                    if np.all(layerDict[inM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes()] !=\
+                                                outM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]]):
+                        return None, dict()
+                layerDict[inM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes()]\
+                                    = outM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]] 
+    return shape, layerDict
+
+def subMatToLayer(matrix, shapeAndDict):
+    shape = shapeAndDict[0]
+    layerDict = shapeAndDict[1]
+    m = matrix.m.copy()
+    if shape is None:
+        return m
+    xR = m.shape[0]//shape[0]
+    yR = m.shape[1]//shape[1]
+    for x in range(xR):
+        for y in range(yR):
+            if m[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes() in layerDict:
+                m[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]] =\
+                        layerDict[m[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes()].copy()
+            else:
+                return m
+    return m
+        
 def getBestFitToFrame(t):
     bestScore = 1000
     bestFunction = partial(identityM)
@@ -5015,12 +5054,12 @@ def getBestCountColors(t):
     bestFunction = partial(identityM)
     outShape = [None]
     sliced = [False]
-    if t.sameIOShapes:
-        outShape.append('inShape')
-    elif t.sameOutShape:
+    if t.sameOutShape:
         outShape.append(t.trainSamples[0].outMatrix.shape)
     if t.outSmallerThanIn or not t.sameIOShapes:
         sliced += [True]
+    if t.sameIOShapes:
+        outShape=['inShape']
     for byShape in [True,False]:
         for outCol in [t.backgroundColor, t.trainSamples[0].outMatrix.backgroundColor, 0]:
             for rotate in range(-1,2):
@@ -5033,16 +5072,20 @@ def getBestCountColors(t):
                                             ignore=ignore, outShape=oSh, byShape=byShape), bestScore, bestFunction)
                                 bestFunction, bestScore = updateBestFunction(t, partial(countColors,\
                                             rotate=rotate,outBackgroundColor=outCol, flip=flip, sliced=sl,\
-                                            ignore=ignore, outShape=oSh, byShape=byShape, sortByColor=1), bestScore, bestFunction)
+                                            ignore=ignore, outShape=oSh, byShape=byShape, ignoreBackground=False), bestScore, bestFunction)
+                                bestFunction, bestScore = updateBestFunction(t, partial(countColors,\
+                                            rotate=rotate,outBackgroundColor=outCol, flip=flip, sliced=sl,\
+                                            ignore=ignore, outShape=oSh, byShape=byShape, sortByColor=True), bestScore, bestFunction)
     return bestFunction
 
-def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=-1,\
+def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=True,\
                 ignore=False, sliced=False, rotate=0, flip=False, byShape=False, sortByColor=False):#diagonal, skip, lay
     if byShape:
-        cc = Counter([sh.color for sh in matrix.shapes if sh.color != matrix.backgroundColor])
+        cc = Counter([sh.color for sh in matrix.shapes if (sh.color != matrix.backgroundColor or not ignoreBackground)])
         cc = sorted(cc.items(), key=lambda x: x[1], reverse=True)
     else:
         cc = matrix.colorCount
+        #add line to sort geographically
         cc = sorted(cc.items(), key=lambda x: x[1], reverse=True)
     if sortByColor:
         cc = sorted(cc, key=lambda x: x[0])
@@ -5050,7 +5093,8 @@ def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=-1
         bC = matrix.backgroundColor
     else:
         bC = outBackgroundColor
-    cc = [c for c in cc if c[0] != bC]
+    if ignoreBackground:
+        cc = [c for c in cc if c[0] != bC]
     if ignore == 'max':
         cc = [cc[i] for i in range(1,len(cc))]
     elif ignore == 'min':
@@ -6495,52 +6539,56 @@ def getBestTwoShapeFunction(t):
     multicolor = t.twoShapeTask[1]
     diagonal = t.twoShapeTask[2]
     typ = t.twoShapeTask[-1]
-    cropAfter = [False] 
+    cropAfter = [0] 
     if t.outSmallerThanIn:
-        cropAfter += [True]
+        cropAfter += [1,2]
     #try possible operations
     for crop in cropAfter:
-        #this confirms that the shapes have the same size. 
-        if t.twoShapeTask[3]:
-            #pixelwise and/or
-            for c in permutations(t.totalOutColors,2):
-                bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
-                            targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop), bestScore, bestFunction)
-                bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
-                            targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop), bestScore, bestFunction)
-            for base in [0,1]:
-                for bC in t.commonInColors:
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
-                            backgroundColor=bC),diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop), bestScore, bestFunction)
-
-        else:
-            for c in permutations(t.totalOutColors,2):
-                for target in [None]:
+        for flip in [True,False]:
+            if t.twoShapeTask[3]:
+                #this confirms that the shapes have the same size. 
+                #pixelwise and/or
+                for c in permutations(t.totalOutColors,2):
                     bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
-                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, downsizeToSmallest=True), bestScore, bestFunction)
+                                targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
                     bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
-                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, downsizeToSmallest=True), bestScore, bestFunction)
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
-                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, scaleToLargest=True), bestScore, bestFunction)
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
-                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, scaleToLargest=True), bestScore, bestFunction)  
-            for base in [0,1]:
-                for bC in t.commonInColors:
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
-                            backgroundColor=bC),diagonal=diagonal, multicolor=multicolor, crop=crop,typ=typ, downsizeToSmallest=True), bestScore, bestFunction)
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
-                            backgroundColor=bC),diagonal=diagonal, multicolor=multicolor, crop=crop,typ=typ, scaleToLargest=True), bestScore, bestFunction)
-        #multiply matrices
-        for c in [0,1]:
-            for b in [0,1]:
-                bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(multiplyMatrices, base=b,\
-                            background=0, color=c), typ=typ, crop=crop), bestScore, bestFunction)
-                bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(multiplyMatrices, base=b,\
-                            background=0, color=c), typ=typ, crop=crop, downsizeToSmallest=True), bestScore, bestFunction)
-            
+                                targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
+                for base in [0,1]:
+                    for bC in t.commonInColors:
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
+                                backgroundColor=bC),diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
+                if typ > 1:
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(overlapMatrices,\
+                                colorHierarchy=[0,1,2,3,4,5,6,7,8,9]),diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
+            else:
+                for c in permutations(t.totalOutColors,2):
+                    for target in [None]:
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
+                                    targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, flip=flip, downsizeToSmallest=True), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
+                                    targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, flip=flip, downsizeToSmallest=True), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
+                                    targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, flip=flip, scaleToLargest=True), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
+                                    targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, flip=flip, scaleToLargest=True), bestScore, bestFunction)  
+                for base in [0,1]:
+                    for bC in t.commonInColors:
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
+                                backgroundColor=bC),diagonal=diagonal, multicolor=multicolor, crop=crop,typ=typ, flip=flip, downsizeToSmallest=True), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
+                                backgroundColor=bC),diagonal=diagonal, multicolor=multicolor, crop=crop,typ=typ, flip=flip, scaleToLargest=True), bestScore, bestFunction)
+            #multiply matrices
+            for c in [0,1]:
+                for b in [0,1]:
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(multiplyMatrices, base=b,\
+                                background=0, color=c), typ=typ, crop=crop, flip=flip), bestScore, bestFunction)
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(multiplyMatrices, base=b,\
+                                background=0, color=c), typ=typ, crop=crop, flip=flip, downsizeToSmallest=True), bestScore, bestFunction)
+               
     return bestFunction
 
-def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=True, downsizeToSmallest=False, scaleToLargest=False, crop=False):
+def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=True,\
+                flip=False, rotate=False, downsizeToSmallest=False, scaleToLargest=False, crop=False):
     """
     Apply function f to the shapes of matrix. By default, this function should only be called when matrix has two shapes. 
     """
@@ -6610,7 +6658,8 @@ def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=T
         mList.sort(key=lambda x: len(np.unique(x))) 
     if len(mList)  != 2:
         return m    
-    
+    if flip:
+        mList[1] = np.fliplr(mList[1])
     #sort list largest first
     if mList[0].shape[0]*mList[0].shape[1]<mList[1].shape[0]*mList[1].shape[1]:
         mList = mList[::-1]
@@ -6623,7 +6672,9 @@ def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=T
         return m
     if  f.func.__name__ == 'multiplyMatrices':
         return f(mList)
-    elif crop:
+    elif crop == 1:
+        return(f(mList))
+    elif crop == 2:
         return cropAllBackgroundM(f(mList),matrix.backgroundColor)
     else:
         if scaleToLargest:
@@ -6869,7 +6920,10 @@ def getPossibleOperations(t, c):
                     x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                      bigOrSmall=bs, isBorder=border))
         
-        
+        #Test for tasks 436,261
+        #if len(set.union(*[set(sh.shape for sh in s.outMatrix.shapes) for s in candTask.trainSamples])) == 1:
+        if all(len(set([sh.shape for sh in s.outMatrix.shapes]))==1 for s in candTask.trainSamples):
+            x.append(partial(subMatToLayer,shapeAndDict=getLayerDict(candTask)))
         #replicate/symmterize/other shape related tasks
         x.append(getBestAlignShapes(candTask))
         x.append(getBestSymmetrizeSubmatrix(candTask))
