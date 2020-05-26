@@ -10050,18 +10050,6 @@ for output_id in submission.index:
         for c in b3c.candidates:
             bestScores.append(c.score)
         finalPredictions = predictions
-        
-    
-    # finalPredictions == [pred1, pred2, pred3]
-    
-    
-    # bestScores == [score1, score2, score3]
-        
-        
-    #yujiPredictions = yujiCode(task)
-    
-    #finalPredictions = mergePredictions(yujiPredictions, alejandroPredictions, \
-    #                                    alejandroScores)
     
     pred = []
     for i in range(len(finalPredictions[pair_id])):
@@ -10077,9 +10065,11 @@ for output_id in submission.index:
     elif len(predictions) == 3:
         pred = predictions[0] + ' ' + predictions[1] + ' ' + predictions[2]
         
+    """
     if cnnCount<10 and not perfectScore:
         pred = efficientCNN(task)
         cnnCount += 1
+    """
     
     submission.loc[output_id, 'output'] = pred
     
