@@ -1567,10 +1567,6 @@ class Task():
         return x.count(x[0]) == len(x)
     
     def orderColors(self):
-        """
-        The aim of this function is to give the colors a specific order, in
-        order to do the OHE in the right way for every sample.
-        """
         orderedColors = []
         # 1: Colors that appear in every sample, input and output, and never
         # change. Only valid if t.sameIOShapes
