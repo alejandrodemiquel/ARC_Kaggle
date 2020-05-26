@@ -16,10 +16,10 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 
 import cv2
-from itertools import zip_longest
-import os
 from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
+
+from xgboost import XGBClassifier
 
 data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
 #data_path = Path('data')
@@ -1038,12 +1038,13 @@ class Matrix():
                 if any((shapeList[i].position[0] >= fr.position[0] and shapeList[i].position[1] >= fr.position[1]\
                         and shapeList[i].position[0] + shapeList[i].shape[0] <= fr.position[0] + fr.shape[0] and\
                         shapeList[i].position[1] + shapeList[i].shape[1] <= fr.position[1] + fr.shape[1] and\
-                        shapeList[i].color != fr.color) for fr in self.partialFrames) or \
-                        any((shapeList[i].position[0] >= fr.position[0] and shapeList[i].position[1] >= fr.position[1]\
+                        shapeList[i].color != fr.color) for fr in self.partialFrames):
+                    attrList[i].append('IsRef')
+                if any((shapeList[i].position[0] >= fr.position[0] and shapeList[i].position[1] >= fr.position[1]\
                         and shapeList[i].position[0] + shapeList[i].shape[0] <= fr.position[0] + fr.shape[0] and\
                         shapeList[i].position[1] + shapeList[i].shape[1] <= fr.position[1] + fr.shape[1] and\
                         shapeList[i].color != fr.color) for fr in self.fullFrames):
-                    attrList[i].append('IsRef')
+                    attrList[i].append('IsFRef')
     
         if len(ism) == 1:
             attrList[ism[0]].append('SmSh')
@@ -6704,6 +6705,45 @@ def cropAllShapes(matrix, background, diagonal=False):
 
 # %% Stuff added by Roderic
     
+def getLayerDict(t):
+    shList = []
+    for s in t.trainSamples:
+        shList += [sh.shape for sh in s.outMatrix.shapes]
+    sc = Counter(shList)
+    shape = sc.most_common(1)[0][0]
+    layerDict = dict()
+    for s in t.trainSamples:
+        inM = s.inMatrix.m
+        outM = s.outMatrix.m
+        xR = inM.shape[0]//shape[0]
+        yR = inM.shape[1]//shape[1]
+        for x in range(xR):
+            for y in range(yR):
+                if inM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes() in layerDict:
+                    if np.all(layerDict[inM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes()] !=\
+                                                outM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]]):
+                        return None, dict()
+                layerDict[inM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes()]\
+                                    = outM[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]] 
+    return shape, layerDict
+
+def subMatToLayer(matrix, shapeAndDict):
+    shape = shapeAndDict[0]
+    layerDict = shapeAndDict[1]
+    m = matrix.m.copy()
+    if shape is None:
+        return m
+    xR = m.shape[0]//shape[0]
+    yR = m.shape[1]//shape[1]
+    for x in range(xR):
+        for y in range(yR):
+            if m[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes() in layerDict:
+                m[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]] =\
+                        layerDict[m[x*shape[0]:(x+1)*shape[0],y*shape[1]:(y+1)*shape[1]].tobytes()].copy()
+            else:
+                return m
+    return m
+    
 def getBestFitToFrame(t):
     bestScore = 1000
     bestFunction = partial(identityM)
@@ -6763,12 +6803,12 @@ def getBestCountColors(t):
     bestFunction = partial(identityM)
     outShape = [None]
     sliced = [False]
-    if t.sameIOShapes:
-        outShape.append('inShape')
-    elif t.sameOutShape:
+    if t.sameOutShape:
         outShape.append(t.trainSamples[0].outMatrix.shape)
     if t.outSmallerThanIn or not t.sameIOShapes:
         sliced += [True]
+    if t.sameIOShapes:
+        outShape=['inShape']
     for byShape in [True,False]:
         for outCol in [t.backgroundColor, t.trainSamples[0].outMatrix.backgroundColor, 0]:
             for rotate in range(-1,2):
@@ -6784,13 +6824,14 @@ def getBestCountColors(t):
                                             ignore=ignore, outShape=oSh, byShape=byShape, sortByColor=1), bestScore, bestFunction)
     return bestFunction
 
-def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=-1,\
+def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=True,\
                 ignore=False, sliced=False, rotate=0, flip=False, byShape=False, sortByColor=False):#diagonal, skip, lay
     if byShape:
-        cc = Counter([sh.color for sh in matrix.shapes if sh.color != matrix.backgroundColor])
+        cc = Counter([sh.color for sh in matrix.shapes if (sh.color != matrix.backgroundColor or not ignoreBackground)])
         cc = sorted(cc.items(), key=lambda x: x[1], reverse=True)
     else:
         cc = matrix.colorCount
+        #add line to sort geographically
         cc = sorted(cc.items(), key=lambda x: x[1], reverse=True)
     if sortByColor:
         cc = sorted(cc, key=lambda x: x[0])
@@ -6798,7 +6839,8 @@ def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=-1
         bC = matrix.backgroundColor
     else:
         bC = outBackgroundColor
-    cc = [c for c in cc if c[0] != bC]
+    if ignoreBackground:
+        cc = [c for c in cc if c[0] != bC]
     if ignore == 'max':
         cc = [cc[i] for i in range(1,len(cc))]
     elif ignore == 'min':
@@ -8181,52 +8223,56 @@ def getBestTwoShapeFunction(t):
     multicolor = t.twoShapeTask[1]
     diagonal = t.twoShapeTask[2]
     typ = t.twoShapeTask[-1]
-    cropAfter = [False] 
+    cropAfter = [0] 
     if t.outSmallerThanIn:
-        cropAfter += [True]
+        cropAfter += [1,2]
     #try possible operations
     for crop in cropAfter:
-        #this confirms that the shapes have the same size. 
-        if t.twoShapeTask[3]:
-            #pixelwise and/or
-            for c in permutations(t.totalOutColors,2):
-                bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
-                            targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop), bestScore, bestFunction)
-                bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
-                            targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop), bestScore, bestFunction)
-            for base in [0,1]:
-                for bC in t.commonInColors:
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
-                            backgroundColor=bC),diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop), bestScore, bestFunction)
-
-        else:
-            for c in permutations(t.totalOutColors,2):
-                for target in [None]:
+        for flip in [True,False]:
+            if t.twoShapeTask[3]:
+                #this confirms that the shapes have the same size. 
+                #pixelwise and/or
+                for c in permutations(t.totalOutColors,2):
                     bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
-                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, downsizeToSmallest=True), bestScore, bestFunction)
+                                targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
                     bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
-                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, downsizeToSmallest=True), bestScore, bestFunction)
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
-                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, scaleToLargest=True), bestScore, bestFunction)
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
-                                targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, scaleToLargest=True), bestScore, bestFunction)  
-            for base in [0,1]:
-                for bC in t.commonInColors:
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
-                            backgroundColor=bC),diagonal=diagonal, multicolor=multicolor, crop=crop,typ=typ, downsizeToSmallest=True), bestScore, bestFunction)
-                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
-                            backgroundColor=bC),diagonal=diagonal, multicolor=multicolor, crop=crop,typ=typ, scaleToLargest=True), bestScore, bestFunction)
-        #multiply matrices
-        for c in [0,1]:
-            for b in [0,1]:
-                bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(multiplyMatrices, base=b,\
-                            background=0, color=c), typ=typ, crop=crop), bestScore, bestFunction)
-                bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(multiplyMatrices, base=b,\
-                            background=0, color=c), typ=typ, crop=crop, downsizeToSmallest=True), bestScore, bestFunction)
-            
+                                targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
+                for base in [0,1]:
+                    for bC in t.commonInColors:
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
+                                backgroundColor=bC),diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
+                if typ > 1:
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(overlapMatrices,\
+                                colorHierarchy=[0,1,2,3,4,5,6,7,8,9]),diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
+            else:
+                for c in permutations(t.totalOutColors,2):
+                    for target in [None]:
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
+                                    targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, flip=flip, downsizeToSmallest=True), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
+                                    targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, flip=flip, downsizeToSmallest=True), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
+                                    targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, flip=flip, scaleToLargest=True), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
+                                    targetColor=target,trueColor=c[1]), diagonal=diagonal, multicolor=multicolor,typ=typ, crop=crop, flip=flip, scaleToLargest=True), bestScore, bestFunction)  
+                for base in [0,1]:
+                    for bC in t.commonInColors:
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
+                                backgroundColor=bC),diagonal=diagonal, multicolor=multicolor, crop=crop,typ=typ, flip=flip, downsizeToSmallest=True), bestScore, bestFunction)
+                        bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
+                                backgroundColor=bC),diagonal=diagonal, multicolor=multicolor, crop=crop,typ=typ, flip=flip, scaleToLargest=True), bestScore, bestFunction)
+            #multiply matrices
+            for c in [0,1]:
+                for b in [0,1]:
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(multiplyMatrices, base=b,\
+                                background=0, color=c), typ=typ, crop=crop, flip=flip), bestScore, bestFunction)
+                    bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(multiplyMatrices, base=b,\
+                                background=0, color=c), typ=typ, crop=crop, flip=flip, downsizeToSmallest=True), bestScore, bestFunction)
+               
     return bestFunction
 
-def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=True, downsizeToSmallest=False, scaleToLargest=False, crop=False):
+def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=True,\
+                flip=False, rotate=False, downsizeToSmallest=False, scaleToLargest=False, crop=False):
     """
     Apply function f to the shapes of matrix. By default, this function should only be called when matrix has two shapes. 
     """
@@ -8296,7 +8342,8 @@ def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=T
         mList.sort(key=lambda x: len(np.unique(x))) 
     if len(mList)  != 2:
         return m    
-    
+    if flip:
+        mList[1] = np.fliplr(mList[1])
     #sort list largest first
     if mList[0].shape[0]*mList[0].shape[1]<mList[1].shape[0]*mList[1].shape[1]:
         mList = mList[::-1]
@@ -8309,7 +8356,9 @@ def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=T
         return m
     if  f.func.__name__ == 'multiplyMatrices':
         return f(mList)
-    elif crop:
+    elif crop == 1:
+        return(f(mList))
+    elif crop == 2:
         return cropAllBackgroundM(f(mList),matrix.backgroundColor)
     else:
         if scaleToLargest:
@@ -8573,6 +8622,8 @@ def getPossibleOperations(t, c):
                     x.append(partial(changeShapes, inColor=cc[0], outColor=cc[1],\
                                      bigOrSmall=bs, isBorder=border))
         
+        if all(len(set([sh.shape for sh in s.outMatrix.shapes]))==1 for s in candTask.trainSamples):
+            x.append(partial(subMatToLayer,shapeAndDict=getLayerDict(candTask)))
         #replicate/symmterize/other shape related tasks
         x.append(getBestAlignShapes(candTask))
         x.append(getBestSymmetrizeSubmatrix(candTask))
@@ -9135,6 +9186,108 @@ def efficientCNN(task):
         
     return str_test_predictions
 
+###############################################################################
+###############################################################################
+# %% Decision Trees
+
+def decisionTrees(task, pair_id):
+
+    def get_moore_neighbours(color, cur_row, cur_col, nrows, ncols):
+    
+        if cur_row<=0: top = -1
+        else: top = color[cur_row-1][cur_col]
+            
+        if cur_row>=nrows-1: bottom = -1
+        else: bottom = color[cur_row+1][cur_col]
+            
+        if cur_col<=0: left = -1
+        else: left = color[cur_row][cur_col-1]
+            
+        if cur_col>=ncols-1: right = -1
+        else: right = color[cur_row][cur_col+1]
+            
+        return top, bottom, left, right
+    
+    def get_tl_tr(color, cur_row, cur_col, nrows, ncols):
+            
+        if cur_row==0:
+            top_left = -1
+            top_right = -1
+        else:
+            if cur_col==0: top_left=-1
+            else: top_left = color[cur_row-1][cur_col-1]
+            if cur_col==ncols-1: top_right=-1
+            else: top_right = color[cur_row-1][cur_col+1]   
+            
+        return top_left, top_right
+    
+    def make_features(input_color, nfeat):
+        nrows, ncols = input_color.shape
+        feat = np.zeros((nrows*ncols,nfeat))
+        cur_idx = 0
+        for i in range(nrows):
+            for j in range(ncols):
+                feat[cur_idx,0] = i
+                feat[cur_idx,1] = j
+                feat[cur_idx,2] = input_color[i][j]
+                feat[cur_idx,3:7] = get_moore_neighbours(input_color, i, j, nrows, ncols)
+                feat[cur_idx,7:9] = get_tl_tr(input_color, i, j, nrows, ncols)
+                feat[cur_idx,9] = len(np.unique(input_color[i,:]))
+                feat[cur_idx,10] = len(np.unique(input_color[:,j]))
+                feat[cur_idx,11] = (i+j)
+                feat[cur_idx,12] = len(np.unique(input_color[i-local_neighb:i+local_neighb,
+                                                             j-local_neighb:j+local_neighb]))
+                cur_idx += 1
+            
+        return feat
+    
+    def features(task, mode='train'):
+        num_train_pairs = len(task[mode])
+        feat, target = [], []
+        
+        global local_neighb
+        for task_num in range(num_train_pairs):
+            input_color = np.array(task[mode][task_num]['input'])
+            target_color = task[mode][task_num]['output']
+    
+            feat.extend(make_features(input_color, nfeat))
+            target.extend(np.array(target_color).reshape(-1,))
+                
+        return np.array(feat), np.array(target), 0
+    
+    
+    nfeat = 13
+    local_neighb = 5
+    
+    feat, target, not_valid = features(task)
+    
+    xgb =  XGBClassifier(n_estimators=25, n_jobs=-1)
+    xgb.fit(feat, target, verbose=-1)
+    
+    """
+    num_test_pairs = len(task['test'])
+    for task_num in range(num_test_pairs):
+        input_color = np.array(task['test'][task_num]['input'])
+        nrows, ncols = len(task['test'][task_num]['input']), len(
+            task['test'][task_num]['input'][0])
+        feat = make_features(input_color, nfeat)
+
+        preds = xgb.predict(feat).reshape(nrows,ncols)
+    """
+        
+    input_color = np.array(task['test'][pair_id]['input'])
+    nrows = len(task['test'][pair_id]['input'])
+    ncols = len(task['test'][pair_id]['input'][0])
+    feat = make_features(input_color, nfeat)
+
+    preds = xgb.predict(feat).reshape(nrows,ncols)
+
+    return preds
+    #preds = preds.astype(int).tolist()
+    #return preds
+    #plot_test(preds, task_id)
+    #       sample_sub.loc[f'{task_id[:-5]}_{task_num}',
+    #                     'output'] = flattener(preds)
 ###############################################################################
 ###############################################################################
 # Submission Setup
@@ -9925,7 +10078,7 @@ cnnCount = 0
 for output_id in submission.index:
     task_id = output_id.split('_')[0]
     pair_id = int(output_id.split('_')[1])
-    #print(task_id)
+    print(task_id)
     #if pair_id != 0:
     #    continue
     
@@ -10050,17 +10203,24 @@ for output_id in submission.index:
             bestScores.append(c.score)
         finalPredictions = predictions
         
-    
-    # finalPredictions == [pred1, pred2, pred3]
-    
-    
-    # bestScores == [score1, score2, score3]
-        
-        
-    #yujiPredictions = yujiCode(task)
-    
-    #finalPredictions = mergePredictions(yujiPredictions, alejandroPredictions, \
-    #                                    alejandroScores)
+    plot_task(task)
+    print(bestScores)
+    if originalT.sameIOShapes:
+        # Version 1
+        worstScore = bestScores[0]
+        worstIndex = 0
+        for i in range(1, 3):
+            if bestScores[i] > worstScore:
+                worstScore = bestScores[i]
+                worstIndex = i
+        finalPredictions[pair_id][worstIndex] = decisionTrees(task, pair_id)
+        # Version 2
+        """
+        for i in range(3):
+            if bestScores[i] != 0:
+                finalPredictions[pair_id][i] = decisionTrees(task, pair_id)
+                break
+        """
     
     pred = []
     for i in range(len(finalPredictions[pair_id])):
@@ -10075,10 +10235,12 @@ for output_id in submission.index:
         pred =  predictions[0] + ' ' + predictions[1] + ' ' + predictions[0]
     elif len(predictions) == 3:
         pred = predictions[0] + ' ' + predictions[1] + ' ' + predictions[2]
-        
+    
+    """    
     if cnnCount<10 and not perfectScore:
         pred = efficientCNN(task)
         cnnCount += 1
+    """
     
     submission.loc[output_id, 'output'] = pred
     
