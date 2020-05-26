@@ -21,8 +21,8 @@ from torch.utils.data import Dataset, DataLoader
 
 from xgboost import XGBClassifier
 
-#data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
-data_path = Path('data')
+data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
+#data_path = Path('data')
 train_path = data_path / 'training'
 eval_path = data_path / 'evaluation'
 test_path = data_path / 'test'
@@ -10207,7 +10207,6 @@ for output_id in submission.index:
     print(bestScores)
     if originalT.sameIOShapes:
         # Version 1
-        """
         worstScore = bestScores[0]
         worstIndex = 0
         for i in range(1, 3):
@@ -10215,12 +10214,13 @@ for output_id in submission.index:
                 worstScore = bestScores[i]
                 worstIndex = i
         finalPredictions[pair_id][worstIndex] = decisionTrees(task, pair_id)
-        """
         # Version 2
+        """
         for i in range(3):
             if bestScores[i] != 0:
                 finalPredictions[pair_id][i] = decisionTrees(task, pair_id)
                 break
+        """
     
     pred = []
     for i in range(len(finalPredictions[pair_id])):
