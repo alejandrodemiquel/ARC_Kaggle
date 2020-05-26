@@ -10207,6 +10207,7 @@ for output_id in submission.index:
     print(bestScores)
     if originalT.sameIOShapes:
         # Version 1
+        """
         worstScore = bestScores[0]
         worstIndex = 0
         for i in range(1, 3):
@@ -10214,15 +10215,12 @@ for output_id in submission.index:
                 worstScore = bestScores[i]
                 worstIndex = i
         finalPredictions[pair_id][worstIndex] = decisionTrees(task, pair_id)
-        plot_pictures([originalT.testSamples[pair_id].inMatrix.m, finalPredictions[pair_id][worstIndex]], ["Input", "Pred"])
-        # Version 2
         """
+        # Version 2
         for i in range(3):
             if bestScores[i] != 0:
                 finalPredictions[pair_id][i] = decisionTrees(task, pair_id)
-                plot_sample(originalT.testSamples[pair_id], finalPredictions[pair_id][i])
                 break
-        """
     
     pred = []
     for i in range(len(finalPredictions[pair_id])):
