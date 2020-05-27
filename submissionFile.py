@@ -7853,7 +7853,7 @@ def getBestMoveToPanel(t):
 def moveToPanel(matrix, diagonal=True,fit=False, ignorePanel=False, cropPanel=True, uniq=True):
     m = matrix.m.copy()
     shList = [sh for sh in matrix.multicolorDShapes if len(sh.pixels)>1]
-    if len(shList) < 2 or shList > 8:
+    if len(shList) < 2 or len(shList) > 8:
         return m
     shList.sort(key=lambda x: x.shape[0]*x.shape[1],reverse=True)
     panel = shList[0]
@@ -9414,7 +9414,7 @@ class Candidate():
         Assign to the attribute t the Task.Task object corresponding to the
         current task status.
         """
-        self.t = Task.Task(self.tasks[-1], 'dummyIndex', submission=True)
+        self.t = Task(self.tasks[-1], 'dummyIndex', submission=True)
 
 class Best3Candidates():
     """
