@@ -6903,6 +6903,8 @@ def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=Tr
 def getBestCountShapes(t):
     bestScore = 1000
     bestFunction = partial(identityM)
+    if all([len(s.inMatrix.shapes)>15 for s in t.trainSamples]):
+            return bestFunction
     if t.sameIOShapes:
         oSh = 'inShape'
     elif t.sameOutShape:
@@ -7321,6 +7323,8 @@ def getBestLayShapes(t):
     bestScore = 1000
     bestFunction = partial(identityM)
     outShape = None
+    if all([len(s.inMatrix.shapes) > 15 for s in t.trainSamples]):
+        return bestFunction
     if t.sameIOShapes:
         outShape = 'inShape'
     elif hasattr(t, 'outShape'):
@@ -7576,9 +7580,7 @@ def getBestReplicateShapes(t):
                             allCombs=True, scale=False, deleteOriginal=deleteOriginal), bestScore, bestFunction)
             bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
                             allCombs=False, scale=False, deleteOriginal=deleteOriginal, perfectFit=True), bestScore, bestFunction)
-            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
-                            allCombs=False, scale=True, deleteOriginal=deleteOriginal, perfectFit=False), bestScore, bestFunction)
-   
+            
     return bestFunction
 
 def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, anchorType=None, anchorColor=0,\
@@ -7611,7 +7613,7 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
         else:
             repList = [sh for sh in shList if (sh.color != matrix.backgroundColor and not sh.isSquare)]
     delList = [sh for sh in repList]
-    if len(repList) == 0 or (len(repList) > 15 and allCombs):
+    if len(repList) > 10:
         return m
     #apply transformations to replicating shapes
     if allCombs:
