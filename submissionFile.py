@@ -8408,9 +8408,9 @@ def getPossibleOperations(t, c):
         x.append(partial(downsizeMode,newShape=outShape))
         if t.backgroundColor!=-1:
             x.append(partial(downsize, newShape=outShape, falseColor=t.backgroundColor))
-        if candTask.sameOutDummyMatrix and candTask.backgroundColor != -1:
-            x.append(partial(arrangeShapes,outDummyMatrix=candTask.trainSamples[0].outMatrix.dummyMatrix,\
-                             outDummyColor=candTask.trainSamples[0].outMatrix.backgroundColor))
+        #if candTask.sameOutDummyMatrix and candTask.backgroundColor != -1:
+        #    x.append(partial(arrangeShapes,outDummyMatrix=candTask.trainSamples[0].outMatrix.dummyMatrix,\
+        #                     outDummyColor=candTask.trainSamples[0].outMatrix.backgroundColor))
     x.append(getBestCountColors(candTask))  
     x.append(getBestCountShapes(candTask))  
     ###########################################################################
@@ -8873,7 +8873,7 @@ def getPossibleOperations(t, c):
         x.append(partial(deleteShapes, attributes = getDeleteAttributes(candTask, diagonal = False), diagonal = False, multicolor=False))
         x.append(partial(replicateShapes, allCombs=True, scale=False,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
         x.append(partial(replicateShapes, allCombs=False, scale=True,attributes=set(['MoCl']),anchorType='subframe',deleteOriginal=True))
-        x.append(getBestArrangeShapes(candTask))
+        #x.append(getBestArrangeShapes(candTask))
         if candTask.backgroundColor!=-1:
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=True))
             x.append(partial(cropAllShapes, background=candTask.backgroundColor, diagonal=False))
@@ -9316,11 +9316,12 @@ class Candidate():
         This is, the status after applying all the operations of ops to the
         input matrices of the task.
     """
-    def __init__(self, ops, tasks, score=1000):
+    def __init__(self, ops, tasks, score=1000, predictions=np.zeros((2,2))):
         self.ops = ops
         self.score = score
         self.tasks = tasks
         self.t = None
+        self.predictions = predictions
 
     def __lt__(self, other):
         """
@@ -9335,7 +9336,7 @@ class Candidate():
         Assign to the attribute t the Task.Task object corresponding to the
         current task status.
         """
-        self.t = Task(self.tasks[-1], 'dummyIndex', submission=True)
+        self.t = Task.Task(self.tasks[-1], 'dummyIndex', submission=True)
 
 class Best3Candidates():
     """
@@ -9368,6 +9369,13 @@ class Best3Candidates():
         candidate in self.candidates only if it's a better candidate (its score
         is lower).
         """
+        if all([self.candidates[i].score < c.score for i in range(3)]):
+            return
+        
+        for i in range(3):
+            if all([np.array_equal(self.candidates[i].predictions[x], c.predictions[x]) \
+                    for x in range(len(c.predictions))]):
+                return
         iMaxCand = self.maxCandidate()
         for i in range(3):
             if c < self.candidates[iMaxCand]:
@@ -9377,7 +9385,7 @@ class Best3Candidates():
 
     def allPerfect(self):
         return all([c.score==0 for c in self.candidates])
-    
+
     def getOrderedIndices(self):
         """
         Returns a list of 3 indices (from 0 to 2) with the candidates ordered
@@ -9943,8 +9951,11 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
                      c.t.trainSamples[s].inMatrix.m,\
                      np.array(cTask["train"][s]["input"]),\
                      c.t.fixedColors, c.t.commonOnlyChangedInColors).tolist()
+        newPredictions = []
         for s in range(t.nTest):
-            cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
+            newOutput = op(c.t.testSamples[s].inMatrix)
+            newPredictions.append(newOutput)
+            cTask["test"][s]["input"] = newOutput.tolist()
             if c.t.sameIOShapes and len(c.t.fixedColors) != 0:
                 cTask["test"][s]["input"] = correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
@@ -9956,7 +9967,8 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
                                                   np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
         #print(op, cScore)
         #plot_task(cTask)
-        newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
+        newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore,\
+                                 predictions=newPredictions)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
             if all([np.array_equal(np.array(cTask["train"][s]["input"]), \
@@ -10012,7 +10024,8 @@ def getPredictionsFromTask(originalT, task):
 
     cScore = sum([incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                          t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
-    c = Candidate([], [task], score=cScore)
+    dummyPredictions = [sample.inMatrix.m for sample in t2.testSamples]
+    c = Candidate([], [task], score=cScore, predictions=dummyPredictions)
     c.t = t2
     b3c = Best3Candidates(c, c, c)
 
@@ -10081,7 +10094,6 @@ for output_id in submission.index:
     print(task_id)
     #if pair_id != 0:
     #    continue
-    
     perfectScore = False
     bestScores = []
     
@@ -10090,6 +10102,8 @@ for output_id in submission.index:
         task = json.load(read_file)
                     
     originalT = Task(task, task_id, submission=True)
+    
+    """
     
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
     
@@ -10205,8 +10219,11 @@ for output_id in submission.index:
         
     plot_task(task)
     print(bestScores)
+    """
     if originalT.sameIOShapes:
+        decisionTrees(task, pair_id)
         # Version 1
+        """
         worstScore = bestScores[0]
         worstIndex = 0
         for i in range(1, 3):
@@ -10214,6 +10231,7 @@ for output_id in submission.index:
                 worstScore = bestScores[i]
                 worstIndex = i
         finalPredictions[pair_id][worstIndex] = decisionTrees(task, pair_id)
+        """
         # Version 2
         """
         for i in range(3):
@@ -10221,7 +10239,7 @@ for output_id in submission.index:
                 finalPredictions[pair_id][i] = decisionTrees(task, pair_id)
                 break
         """
-    
+    """
     pred = []
     for i in range(len(finalPredictions[pair_id])):
         pred.append(flattener(finalPredictions[pair_id][i].astype(int).tolist()))
@@ -10236,6 +10254,7 @@ for output_id in submission.index:
     elif len(predictions) == 3:
         pred = predictions[0] + ' ' + predictions[1] + ' ' + predictions[2]
     
+    """
     """    
     if cnnCount<10 and not perfectScore:
         pred = efficientCNN(task)
