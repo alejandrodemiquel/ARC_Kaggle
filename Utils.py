@@ -95,7 +95,7 @@ def dummifyColor(x, color):
     img[1] = x==color
     return img
 
-def updateBestFunction(t, f, bestScore, bestFunction):
+def updateBestFunction(t, f, bestScore, bestFunction, checkPerfect=False, prevScore=None):
     """
     Given a task t, a partial function f, a best score and a best function, 
     this function executes f to all the matrices in t.trainSamples. If the
@@ -104,12 +104,22 @@ def updateBestFunction(t, f, bestScore, bestFunction):
     """
     fun = copy.deepcopy(f)
     score = 0
+    if checkPerfect:
+        changedPixels = 0
     for sample in t.trainSamples:
         pred = fun(sample.inMatrix)
         score += incorrectPixels(sample.outMatrix.m, pred)
+        if checkPerfect:
+            changedPixels += incorrectPixels(pred, sample.inMatrix.m)
     if score < bestScore:
         bestScore = score
         bestFunction = fun
+    if checkPerfect:
+        if changedPixels != 0 and prevScore - changedPixels == score: 
+            isPerfect = True
+        else:
+            isPerfect = False
+        return fun, score, isPerfect
     return bestFunction, bestScore
 
 # %% Symmetrize
@@ -3515,7 +3525,7 @@ def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, \
                     m = moveShapeToClosest(m, shape, background, until, diagonals, restore)
     return m
 
-def getBestMoveShapes(t):
+def getBestMoveShapes(t, candidate):
     """
     This functions tries to find, for a given task t, the best way to move
     shapes.
@@ -3568,7 +3578,7 @@ def getBestMoveShapes(t):
             return bestFunction
         
     colorsToChange = list(t.colors - t.fixedColors - set({t.backgroundColor}))
-    ctc = [[c] for c in colorsToChange] + [colorsToChange] # Also all colors
+    ctc = [[c] for c in colorsToChange]# + [colorsToChange] # Also all colors
     for c in ctc:
         for d in directions:
             moveUntil = colorsToChange + [-1] + [-2] #Border, any
@@ -3581,7 +3591,10 @@ def getBestMoveShapes(t):
             for nSteps in range(1, 5):
                 f = partial(moveAllShapes, color=c, background=t.backgroundColor,\
                             direction=d, until=-2, nSteps=nSteps)
-                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                bestFunction, bestScore, isPerfect = updateBestFunction(t, f, bestScore, bestFunction,\
+                                                                        checkPerfect=True, prevScore = candidate.score)
+                if isPerfect:
+                    return bestFunction
                 #print(c, d, nSteps, bestScore)
                 if bestScore==0:
                     return bestFunction
@@ -6871,12 +6884,12 @@ def getPossibleOperations(t, c):
             x.append(getBestFlipAllShapes(candTask))
             
             
-            x.append(getBestMoveShapes(candTask))
+            x.append(getBestMoveShapes(candTask, c))
                     
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
-        x.append(getBestMoveShapes(candTask))
+        x.append(getBestMoveShapes(candTask, c))
         #x.append(getBestMoveShapesNoRestore(candTask))
         
         pr = pixelRecolor(candTask)
