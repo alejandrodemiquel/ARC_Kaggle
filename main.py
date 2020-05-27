@@ -1020,7 +1020,7 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
                 "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels", \
                 "paintGridLikeBackground") # applyEvolve?
-    repeatIfPerfect = ("extendColor", "moveShapes")
+    repeatIfPerfect = ("extendColor", "moveAllShapes")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
         for s in range(t.nTrain):

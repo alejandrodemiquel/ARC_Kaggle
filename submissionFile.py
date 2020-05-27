@@ -1891,7 +1891,7 @@ def dummifyColor(x, color):
     img[1] = x==color
     return img
 
-def updateBestFunction(t, f, bestScore, bestFunction):
+def updateBestFunction(t, f, bestScore, bestFunction, checkPerfect=False, prevScore=None):
     """
     Given a task t, a partial function f, a best score and a best function, 
     this function executes f to all the matrices in t.trainSamples. If the
@@ -1900,12 +1900,22 @@ def updateBestFunction(t, f, bestScore, bestFunction):
     """
     fun = copy.deepcopy(f)
     score = 0
+    if checkPerfect:
+        changedPixels = 0
     for sample in t.trainSamples:
         pred = fun(sample.inMatrix)
         score += incorrectPixels(sample.outMatrix.m, pred)
+        if checkPerfect:
+            changedPixels += incorrectPixels(pred, sample.inMatrix.m)
     if score < bestScore:
         bestScore = score
         bestFunction = fun
+    if checkPerfect:
+        if changedPixels != 0 and prevScore - changedPixels == score: 
+            isPerfect = True
+        else:
+            isPerfect = False
+        return fun, score, isPerfect
     return bestFunction, bestScore
 
 # %% Symmetrize
@@ -5335,7 +5345,7 @@ def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, \
 
 def getBestMoveShapes(t):
     """
-    This functions tries to find, for a given task t, the best way to move
+    This function tries to find, for a given task t, the best way to move
     shapes.
     """
     directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
@@ -5372,7 +5382,7 @@ def getBestMoveShapes(t):
             moveUntil = colorsToChange + [-1] + [-2] #Border, any
             for u in moveUntil:
                 f = partial(moveAllShapes, color=c, background=t.backgroundColor,\
-                                direction=d, until=u)
+                            direction=d, until=u)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
@@ -5382,7 +5392,7 @@ def getBestMoveShapes(t):
         for ctm in colorsToMove:
             for uc in t.unchangedColors:
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
-                                 background=t.backgroundColor, until=uc)
+                            background=t.backgroundColor, until=uc)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
@@ -6753,9 +6763,10 @@ def getBestFitToFrame(t):
     for s in [True, False]:
         bestFunction, bestScore = updateBestFunction(t, partial(fitToFrame, crop=crop, includeFrame=True, scale=s), bestScore, bestFunction)
         bestFunction, bestScore = updateBestFunction(t, partial(fitToFrame, crop=crop, includeFrame=False, scale=s), bestScore, bestFunction)
+    bestFunction, bestScore = updateBestFunction(t, partial(fitToFrame, crop=crop, includeFrame=True, colorMatch=True), bestScore, bestFunction)
     return bestFunction
 
-def fitToFrame(matrix, crop=False, scale=False, includeFrame=True):
+def fitToFrame(matrix, crop=False, scale=False, includeFrame=True, colorMatch=False):
     m = matrix.m.copy()
     if len(matrix.partialFrames) != 1:
         return m
@@ -6763,7 +6774,7 @@ def fitToFrame(matrix, crop=False, scale=False, includeFrame=True):
     found = False
     maux = Matrix(deleteShape(m, frame, matrix.backgroundColor))
     for sh in maux.multicolorDShapes:
-        if sh != frame:
+        if sh != frame and sh.shape[0]>1 and sh.shape[1]>1:
             m = deleteShape(m, sh, matrix.backgroundColor)
             found = True
             break
@@ -6778,6 +6789,10 @@ def fitToFrame(matrix, crop=False, scale=False, includeFrame=True):
     else:
         newSh = copy.deepcopy(sh)
     newSh.position = (frame.position[0] + (frame.shape[0]-newSh.shape[0])//2, frame.position[1] + (frame.shape[1]-newSh.shape[1])//2)
+    if colorMatch:
+        if len(set(sh.m[:,0]).intersection(matrix.m[frame.position[0]:frame.position[0]+\
+               frame.shape[0],frame.position[1]])-set([255])) == 0:
+            newSh.m = np.fliplr(newSh.m)
     m = insertShape(m, newSh)
     if crop:
         bC = matrix.backgroundColor
@@ -7834,6 +7849,72 @@ def replicateOneShape(matrix, diagonal=True, multicolor=True, deleteOriginal=Fal
     if deleteOriginal:
         m = deleteShape(m, repSh, matrix.backgroundColor)
     return m
+
+def getBestMoveToPanel(t):
+    bestScore = 1000
+    bestFunction = partial(identityM)
+    for fit in [True, False]:
+        for igPan in [True, False]:
+            for uniq in [True, False]:
+                bestFunction, bestScore = updateBestFunction(t, partial(moveToPanel,fit=fit,\
+                                                ignorePanel=igPan), bestScore, bestFunction)
+    return bestFunction
+
+def moveToPanel(matrix, diagonal=True,fit=False, ignorePanel=False, cropPanel=True, uniq=True):
+    m = matrix.m.copy()
+    shList = [sh for sh in matrix.multicolorDShapes if len(sh.pixels)>1]
+    if len(shList) < 2 or len(shList) > 8:
+        return m
+    shList.sort(key=lambda x: x.shape[0]*x.shape[1],reverse=True)
+    panel = shList[0]
+    shList = shList[1:]
+    if fit and hasattr(panel, 'color'):
+        pC = panel.color
+        for sh in shList:
+            found = False
+            for x in range(4):
+                rotSh = np.rot90(sh.m, x).copy()
+                if panel.shape[0]-rotSh.shape[0]+1<0 or panel.shape[1]-rotSh.shape[1]+1<0:
+                    continue
+                for i, j in np.ndindex(panel.shape[0]-rotSh.shape[0]+1,panel.shape[1]-rotSh.shape[1]+1):
+                    if np.all((rotSh==pC)==(panel.m[i:i+rotSh.shape[0],j:j+rotSh.shape[1]]==255)):
+                        newInsert = copy.deepcopy(sh)
+                        newInsert.m = rotSh
+                        newInsert.shape = rotSh.shape
+                        newInsert.position = (panel.position[0]+i, panel.position[1]+j)
+                        m = insertShape(m, newInsert)
+                        found = True
+                        break
+                if found:
+                    break
+    else:
+        pixList = [pix for pix in matrix.dShapes if len(pix.pixels)==1]
+        pixList = [pix for pix in pixList if all(pix.position[i]>=panel.position[i]\
+                                        and pix.position[i]<panel.position[i]+panel.shape[i] for i in [0,1])]
+        if len(pixList)==0:
+            return m
+        newInsList = []
+        for pix in pixList:
+            for sh in shList:
+                if pix.m[0,0] in sh.m:
+                    newInsert = copy.deepcopy(sh)
+                    if sh.nColors == 1:
+                        newInsert.position = (pix.position[0] - (sh.shape[0]-1)//2, pix.position[1] - (sh.shape[1]-1)//2)
+                    else:
+                        for i, j in np.ndindex(sh.shape):
+                            if sh.m[i,j] == pix.m[0,0]:
+                                newInsert.position = (pix.position[0]-i, pix.position[1]-j) 
+                    newInsList.append(newInsert)
+                    if uniq:
+                        break
+            if ignorePanel:
+                m = deleteShape(m, panel, matrix.backgroundColor)
+            for sh in newInsList:
+                m = insertShape(m, sh)
+    if cropPanel:
+        return m[panel.position[0]:panel.position[0]+panel.shape[0],\
+                 panel.position[1]:panel.position[1]+panel.shape[1]]
+    return m
         
 #overlapSubmatrices 
 def printShapes(matrices, base=0, backgroundColor=0):
@@ -8889,6 +8970,13 @@ def getPossibleOperations(t, c):
                 
         x.append(getBestCropReference(candTask))  
     
+        for attrs in [set(['LaSh']),set(['UnCo'])]:
+            x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
+                                 singleColor=True, diagonals=True)) 
+            x.append(partial(cropShape, attributes=attrs, backgroundColor=max(0,candTask.backgroundColor),\
+                                 singleColor=True, diagonals=True, context=True)) 
+        if candTask.outIsInMulticolorShapeSize:
+            x.append(getBestMoveToPanel(candTask))
     if all([len(s.inMatrix.multicolorShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
         x.append(partial(cropOnlyMulticolorShape, diagonals=False))
     if all([len(s.inMatrix.multicolorDShapes)==1 for s in candTask.trainSamples+candTask.testSamples]):
@@ -9336,7 +9424,7 @@ class Candidate():
         Assign to the attribute t the Task.Task object corresponding to the
         current task status.
         """
-        self.t = Task.Task(self.tasks[-1], 'dummyIndex', submission=True)
+        self.t = Task(self.tasks[-1], 'dummyIndex', submission=True)
 
 class Best3Candidates():
     """
