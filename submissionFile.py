@@ -4165,8 +4165,6 @@ def executePixelRecolor(matrix, Best_Dict, Best_v, Best_Q1, Best_Q2):
             m[i][j] = 0 + color1
  
     return m
-    
-
 
 def doRulesWithReference(m, reference, rules):
     for i,j in np.ndindex(m.shape):
@@ -8627,12 +8625,9 @@ def getPossibleOperations(t, c):
                 for angle in [90, 180, 270]:
                     x.append(partial(rotate, angle = angle))
                 
-                                                         
             # Mirror shapes
             x.append(getBestFlipAllShapes(candTask))
-            
-            x.append(getBestMoveShapes(candTask))
-                    
+                                
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
