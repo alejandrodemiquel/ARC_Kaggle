@@ -10102,9 +10102,7 @@ for output_id in submission.index:
         task = json.load(read_file)
                     
     originalT = Task(task, task_id, submission=True)
-    
-    """
-    
+        
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
     
     if any([c.score==0 for c in b3c.candidates]):
@@ -10217,11 +10215,7 @@ for output_id in submission.index:
             bestScores.append(c.score)
         finalPredictions = predictions
         
-    plot_task(task)
-    print(bestScores)
-    """
     if originalT.sameIOShapes:
-        decisionTrees(task, pair_id)
         # Version 1
         """
         worstScore = bestScores[0]
@@ -10233,13 +10227,11 @@ for output_id in submission.index:
         finalPredictions[pair_id][worstIndex] = decisionTrees(task, pair_id)
         """
         # Version 2
-        """
         for i in range(3):
             if bestScores[i] != 0:
                 finalPredictions[pair_id][i] = decisionTrees(task, pair_id)
                 break
-        """
-    """
+
     pred = []
     for i in range(len(finalPredictions[pair_id])):
         pred.append(flattener(finalPredictions[pair_id][i].astype(int).tolist()))
@@ -10254,7 +10246,6 @@ for output_id in submission.index:
     elif len(predictions) == 3:
         pred = predictions[0] + ' ' + predictions[1] + ' ' + predictions[2]
     
-    """
     """    
     if cnnCount<10 and not perfectScore:
         pred = efficientCNN(task)
