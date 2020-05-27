@@ -1,3 +1,4 @@
+
 # %% Setup
 # This first cell needs to be executed before doing anything else
 import json
@@ -258,11 +259,12 @@ class Candidate():
         This is, the status after applying all the operations of ops to the
         input matrices of the task.
     """
-    def __init__(self, ops, tasks, score=1000):
+    def __init__(self, ops, tasks, score=1000, predictions=np.zeros((2,2))):
         self.ops = ops
         self.score = score
         self.tasks = tasks
         self.t = None
+        self.predictions = predictions
 
     def __lt__(self, other):
         """
@@ -310,6 +312,13 @@ class Best3Candidates():
         candidate in self.candidates only if it's a better candidate (its score
         is lower).
         """
+        if all([self.candidates[i].score < c.score for i in range(3)]):
+            return
+        
+        for i in range(3):
+            if all([np.array_equal(self.candidates[i].predictions[x], c.predictions[x]) \
+                    for x in range(len(c.predictions))]):
+                return
         iMaxCand = self.maxCandidate()
         for i in range(3):
             if c < self.candidates[iMaxCand]:
@@ -1011,7 +1020,7 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
                 "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels", \
                 "paintGridLikeBackground") # applyEvolve?
-    repeatIfPerfect = ("extendColor")
+    repeatIfPerfect = ("extendColor", "moveShapes")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
         for s in range(t.nTrain):
@@ -1021,8 +1030,11 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
                      c.t.trainSamples[s].inMatrix.m,\
                      np.array(cTask["train"][s]["input"]),\
                      c.t.fixedColors, c.t.commonOnlyChangedInColors).tolist()
+        newPredictions = []
         for s in range(t.nTest):
-            cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
+            newOutput = op(c.t.testSamples[s].inMatrix)
+            newPredictions.append(newOutput)
+            cTask["test"][s]["input"] = newOutput.tolist()
             if c.t.sameIOShapes and len(c.t.fixedColors) != 0:
                 cTask["test"][s]["input"] = Utils.correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
@@ -1034,7 +1046,8 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
                                                   np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
         #print(op, cScore)
         #plot_task(cTask)
-        newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
+        newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore,\
+                                 predictions=newPredictions)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
             if all([np.array_equal(np.array(cTask["train"][s]["input"]), \
@@ -1102,7 +1115,9 @@ def getPredictionsFromTask(originalT, task):
 
     cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                          t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
-    c = Candidate([], [task], score=cScore)
+    
+    dummyPredictions = [sample.inMatrix.m for sample in t2.testSamples]
+    c = Candidate([], [task], score=cScore, predictions=dummyPredictions)
     c.t = t2
     b3c = Best3Candidates(c, c, c)
 
@@ -1223,6 +1238,11 @@ for idx in tqdm(range(800), position=0, leave=True):
     originalT = Task.Task(task, taskId, submission=False)
 
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
+    
+    for s in range(originalT.nTest):
+        for i in range(3):
+            plot_sample(originalT.testSamples[s], predictions[s][i])
+
 
     separationByShapes = needsSeparationByShapes(originalT)
     separationByColors = needsSeparationByColors(originalT)

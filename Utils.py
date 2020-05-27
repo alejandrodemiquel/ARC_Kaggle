@@ -3319,7 +3319,8 @@ def colorLongestLines(matrix, cic, coc, direction):
     
 # %% Move shapes    
 
-def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
+def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100, \
+              keepOriginal=False):
     """
     'direction' can be l, r, u, d, ul, ur, dl, dr
     (left, right, up, down, horizontal, vertical, diagonal1, diagonal2)
@@ -3327,7 +3328,8 @@ def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
     If 'until'==-2, then move until the shape encounters anything
     """
     m = matrix.copy()
-    m = changeColorShapes(m, [shape], background)
+    if not keepOriginal:
+        m = changeColorShapes(m, [shape], background)
     s = copy.deepcopy(shape)
     if nSteps=="shapeX":
         nSteps = shape.shape[0]
@@ -3385,7 +3387,8 @@ def moveShape(matrix, shape, background, direction, until = -1, nSteps = 100):
       
     return insertShape(m, s) 
     
-def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None):
+def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None, \
+                  keepOriginal=False):
     """
     direction can be l, r, u, d, ul, ur, dl, dr, h, v, d1, d2, all, any
     """
@@ -3419,7 +3422,7 @@ def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None):
                     return newMatrix
                     break
         else:
-            m = moveShape(m, s, background, direction, until, nSteps)
+            m = moveShape(m, s, background, direction, until, nSteps, keepOriginal)
     return m
     
 def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False, restore=True):
@@ -3575,6 +3578,19 @@ def getBestMoveShapes(t):
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
+            for nSteps in range(1, 5):
+                f = partial(moveAllShapes, color=c, background=t.backgroundColor,\
+                            direction=d, until=-2, nSteps=nSteps)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                #print(c, d, nSteps, bestScore)
+                if bestScore==0:
+                    return bestFunction
+                f = partial(moveAllShapes, color=c, background=t.backgroundColor,\
+                            direction=d, until=-2, nSteps=nSteps, keepOriginal=True)
+                bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
+                if bestScore==0:
+                    return bestFunction
+                
     
     if t.backgroundColor != -1 and hasattr(t, 'fixedColors'):
         colorsToMove = set(range(10)) - set([t.backgroundColor]) - t.fixedColors
@@ -6860,7 +6876,8 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
-        x.append(getBestMoveShapesNoRestore(candTask))
+        x.append(getBestMoveShapes(candTask))
+        #x.append(getBestMoveShapesNoRestore(candTask))
         
         pr = pixelRecolor(candTask)
         if len(pr)!=1:
