@@ -7631,7 +7631,7 @@ def getBestReplicateShapes(t):
                             allCombs=True, scale=False, deleteOriginal=deleteOriginal), bestScore, bestFunction)
             bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
                             allCombs=False, scale=False, deleteOriginal=deleteOriginal, perfectFit=True), bestScore, bestFunction)
-            
+    """        
     
     return bestFunction
 
