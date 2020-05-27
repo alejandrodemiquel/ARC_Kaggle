@@ -6099,69 +6099,64 @@ def replicateOneShape(matrix, diagonal=True, multicolor=True, deleteOriginal=Fal
 def getBestMoveToPanel(t):
     bestScore = 1000
     bestFunction = partial(identityM)
-    for mult in [True, False]:
-        for dA in [True, False]:
-            bestFunction, bestScore = updateBestFunction(t, partial(moveToPanel, multicolor=mult,\
-                                                    deleteAnchor=dA), bestScore, bestFunction)
+    for fit in [True, False]:
+        for igPan in [True, False]:
+            for uniq in [True, False]:
+                bestFunction, bestScore = updateBestFunction(t, partial(moveToPanel,fit=fit,\
+                                                ignorePanel=igPan), bestScore, bestFunction)
     return bestFunction
 
-def moveToPanel(matrix, diagonal=True, multicolor=True, deleteOriginal=True,\
-                      deleteAnchor=False, pixels=True, cropPanel=True):
+def moveToPanel(matrix, diagonal=True,fit=False, ignorePanel=False, cropPanel=True, uniq=True):
     m = matrix.m.copy()
-    #first find the shape or shapes to replicate
-    if diagonal:
-        if multicolor:
-            shList = [sh for sh in matrix.multicolorDShapes if len(sh.pixels)>1]
-        else:
-            shList = [sh for sh in matrix.dShapes if len(sh.pixels)>1]
-    else:
-        if multicolor:
-            shList = [sh for sh in matrix.multicolorShapes if len(sh.pixels)>1]
-        else:
-            shList = [sh for sh in matrix.shapes if len(sh.pixels)>1]
-    if not multicolor:
-        shList = [sh for sh in shList if sh.color != matrix.backgroundColor]
-    shList.sort(key=lambda x: x.shape[0]*x.shape[1],reverse=True)
-    if len(shList) < 2:
+    shList = [sh for sh in matrix.multicolorDShapes if len(sh.pixels)>1]
+    if len(shList) < 2 or shList > 8:
         return m
+    shList.sort(key=lambda x: x.shape[0]*x.shape[1],reverse=True)
     panel = shList[0]
     shList = shList[1:]
-    if pixels:
+    if fit and hasattr(panel, 'color'):
+        pC = panel.color
+        for sh in shList:
+            found = False
+            for x in range(4):
+                rotSh = np.rot90(sh.m, x).copy()
+                if panel.shape[0]-rotSh.shape[0]+1<0 or panel.shape[1]-rotSh.shape[1]+1<0:
+                    continue
+                for i, j in np.ndindex(panel.shape[0]-rotSh.shape[0]+1,panel.shape[1]-rotSh.shape[1]+1):
+                    if np.all((rotSh==pC)==(panel.m[i:i+rotSh.shape[0],j:j+rotSh.shape[1]]==255)):
+                        newInsert = copy.deepcopy(sh)
+                        newInsert.m = rotSh
+                        newInsert.shape = rotSh.shape
+                        newInsert.position = (panel.position[0]+i, panel.position[1]+j)
+                        m = insertShape(m, newInsert)
+                        found = True
+                        break
+                if found:
+                    break
+    else:
         pixList = [pix for pix in matrix.dShapes if len(pix.pixels)==1]
         pixList = [pix for pix in pixList if all(pix.position[i]>=panel.position[i]\
                                         and pix.position[i]<panel.position[i]+panel.shape[i] for i in [0,1])]
         if len(pixList)==0:
             return m
+        newInsList = []
         for pix in pixList:
             for sh in shList:
                 if pix.m[0,0] in sh.m:
                     newInsert = copy.deepcopy(sh)
-                    if not multicolor:
+                    if sh.nColors == 1:
                         newInsert.position = (pix.position[0] - (sh.shape[0]-1)//2, pix.position[1] - (sh.shape[1]-1)//2)
                     else:
                         for i, j in np.ndindex(sh.shape):
                             if sh.m[i,j] == pix.m[0,0]:
-                                newInsert.position = (pix.position[0]-i, pix.position[1]-j)
-                                break
-                    #if matchPixels or not len(np.unique(m[newInsert.position[0]:newInsert.position[0]+newInsert.shape[0],\
-                    #                    newInsert.position[1]:newInsert.position[1]+newInsert.shape[1]])) == 2:
-                    if deleteAnchor and not multicolor:
-                        m = deleteShape(m, pix, matrix.backgroundColor)            
-                    m = insertShape(m, newInsert)                
-                    if deleteOriginal:
-                        m = deleteShape(m, sh, matrix.backgroundColor)
-                    if deleteAnchor and multicolor:
-                        m = deleteShape(m, pix, matrix.backgroundColor)
-                    #if not matchPixels:
-                    #    break
-    else:
-        for sh in shList:
-            for i, j in np.ndindex(panel.shape[0]-sh.shape[0]+1,panel.shape[1]-sh.shape[1]+1):
-                if np.all(sh.m != panel.m[i:i+sh.shape[0],j:j+sh.shape[1]]):
-                    newInsert = copy.deepcopy(sh)
-                    newInsert.position = (panel.position[0]+i, panel.position[1]+j)
-                    m = insertShape(m, newInsert)
-                    break
+                                newInsert.position = (pix.position[0]-i, pix.position[1]-j) 
+                    newInsList.append(newInsert)
+                    if uniq:
+                        break
+            if ignorePanel:
+                m = deleteShape(m, panel, matrix.backgroundColor)
+            for sh in newInsList:
+                m = insertShape(m, sh)
     if cropPanel:
         return m[panel.position[0]:panel.position[0]+panel.shape[0],\
                  panel.position[1]:panel.position[1]+panel.shape[1]]
@@ -6559,8 +6554,8 @@ def getBestTwoShapeFunction(t):
     #try possible operations
     for crop in cropAfter:
         for flip in [True,False]:
+            #this confirms that the shapes have the same size. 
             if t.twoShapeTask[3]:
-                #this confirms that the shapes have the same size. 
                 #pixelwise and/or
                 for c in permutations(t.totalOutColors,2):
                     bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
