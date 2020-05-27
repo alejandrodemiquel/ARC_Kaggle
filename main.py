@@ -1232,17 +1232,12 @@ onetasks = [126,234,261,436]
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[784]
+for idx in tqdm([21], position=0, leave=True):
+    taskId = index[idx]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
-    
-    for s in range(originalT.nTest):
-        for i in range(3):
-            plot_sample(originalT.testSamples[s], predictions[s][i])
-
 
     separationByShapes = needsSeparationByShapes(originalT)
     separationByColors = needsSeparationByColors(originalT)
