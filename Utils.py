@@ -5165,6 +5165,8 @@ def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=Tr
 def getBestCountShapes(t):
     bestScore = 1000
     bestFunction = partial(identityM)
+    if all([len(s.inMatrix.shapes)>15 for s in t.trainSamples]):
+            return bestFunction
     if t.sameIOShapes:
         oSh = 'inShape'
     elif t.sameOutShape:
@@ -5584,6 +5586,8 @@ def getBestLayShapes(t):
     bestScore = 1000
     bestFunction = partial(identityM)
     outShape = None
+    if all([len(s.inMatrix.shapes) > 15 for s in t.trainSamples]):
+        return bestFunction
     if t.sameIOShapes:
         outShape = 'inShape'
     elif hasattr(t, 'outShape'):
@@ -5796,7 +5800,6 @@ def getBestReplicateShapes(t):
                                                             anchorType='subframe', allCombs=True,scale=True,attributes=set(['MoCl'])), bestScore, bestFunction)
     bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes,diagonal=diagonal, multicolor=False, anchorType='subframe', allCombs=False,\
                                                                 adoptAnchorColor=True), bestScore, bestFunction)
-    
     if bestScore == 0:
         return bestFunction
     
@@ -5838,9 +5841,6 @@ def getBestReplicateShapes(t):
                             allCombs=True, scale=False, deleteOriginal=deleteOriginal), bestScore, bestFunction)
             bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
                             allCombs=False, scale=False, deleteOriginal=deleteOriginal, perfectFit=True), bestScore, bestFunction)
-            bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
-                            allCombs=False, scale=True, deleteOriginal=deleteOriginal, perfectFit=False), bestScore, bestFunction)
-   
     return bestFunction
 
 def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, anchorType=None, anchorColor=0,\
@@ -5873,7 +5873,7 @@ def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, an
         else:
             repList = [sh for sh in shList if (sh.color != matrix.backgroundColor and not sh.isSquare)]
     delList = [sh for sh in repList]
-    if len(repList) == 0 or (len(repList) > 15 and allCombs):
+    if len(repList) > 10:
         return m
     #apply transformations to replicating shapes
     if allCombs:
@@ -6125,7 +6125,7 @@ def getBestMoveToPanel(t):
 def moveToPanel(matrix, diagonal=True,fit=False, ignorePanel=False, cropPanel=True, uniq=True):
     m = matrix.m.copy()
     shList = [sh for sh in matrix.multicolorDShapes if len(sh.pixels)>1]
-    if len(shList) < 2 or shList > 8:
+    if len(shList) < 2 or len(shList) > 8:
         return m
     shList.sort(key=lambda x: x.shape[0]*x.shape[1],reverse=True)
     panel = shList[0]
@@ -6951,6 +6951,7 @@ def getPossibleOperations(t, c):
         if all(len(set([sh.shape for sh in s.outMatrix.shapes]))==1 for s in candTask.trainSamples):
             x.append(partial(subMatToLayer,shapeAndDict=getLayerDict(candTask)))
         #replicate/symmterize/other shape related tasks
+        
         x.append(getBestAlignShapes(candTask))
         x.append(getBestSymmetrizeSubmatrix(candTask))
         x.append(getBestReplicateShapes(candTask))
