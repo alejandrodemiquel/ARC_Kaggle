@@ -1891,7 +1891,7 @@ def dummifyColor(x, color):
     img[1] = x==color
     return img
 
-def updateBestFunction(t, f, bestScore, bestFunction):
+def updateBestFunction(t, f, bestScore, bestFunction, checkPerfect=False, prevScore=None):
     """
     Given a task t, a partial function f, a best score and a best function, 
     this function executes f to all the matrices in t.trainSamples. If the
@@ -1900,12 +1900,22 @@ def updateBestFunction(t, f, bestScore, bestFunction):
     """
     fun = copy.deepcopy(f)
     score = 0
+    if checkPerfect:
+        changedPixels = 0
     for sample in t.trainSamples:
         pred = fun(sample.inMatrix)
         score += incorrectPixels(sample.outMatrix.m, pred)
+        if checkPerfect:
+            changedPixels += incorrectPixels(pred, sample.inMatrix.m)
     if score < bestScore:
         bestScore = score
         bestFunction = fun
+    if checkPerfect:
+        if changedPixels != 0 and prevScore - changedPixels == score: 
+            isPerfect = True
+        else:
+            isPerfect = False
+        return fun, score, isPerfect
     return bestFunction, bestScore
 
 # %% Symmetrize
@@ -5335,7 +5345,7 @@ def moveAllShapesToClosest(matrix, background, colorsToMove=None, until=None, \
 
 def getBestMoveShapes(t):
     """
-    This functions tries to find, for a given task t, the best way to move
+    This function tries to find, for a given task t, the best way to move
     shapes.
     """
     directions = ['l', 'r', 'u', 'd', 'ul', 'ur', 'dl', 'dr', 'any']
@@ -5372,7 +5382,7 @@ def getBestMoveShapes(t):
             moveUntil = colorsToChange + [-1] + [-2] #Border, any
             for u in moveUntil:
                 f = partial(moveAllShapes, color=c, background=t.backgroundColor,\
-                                direction=d, until=u)
+                            direction=d, until=u)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
@@ -5382,7 +5392,7 @@ def getBestMoveShapes(t):
         for ctm in colorsToMove:
             for uc in t.unchangedColors:
                 f = partial(moveAllShapesToClosest, colorsToMove=ctm,\
-                                 background=t.backgroundColor, until=uc)
+                            background=t.backgroundColor, until=uc)
                 bestFunction, bestScore = updateBestFunction(t, f, bestScore, bestFunction)
                 if bestScore==0:
                     return bestFunction
@@ -6762,7 +6772,7 @@ def fitToFrame(matrix, crop=False, scale=False, includeFrame=True, colorMatch=Fa
         return m
     frame = matrix.partialFrames[0]
     found = False
-    maux = Task.Matrix(deleteShape(m, frame, matrix.backgroundColor))
+    maux = Matrix(deleteShape(m, frame, matrix.backgroundColor))
     for sh in maux.multicolorDShapes:
         if sh != frame and sh.shape[0]>1 and sh.shape[1]>1:
             m = deleteShape(m, sh, matrix.backgroundColor)

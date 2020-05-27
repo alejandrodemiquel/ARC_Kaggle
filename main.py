@@ -1020,7 +1020,7 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
                 "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels", \
                 "paintGridLikeBackground") # applyEvolve?
-    repeatIfPerfect = ("extendColor", "moveShapes")
+    repeatIfPerfect = ("extendColor")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
         for s in range(t.nTrain):
@@ -1233,7 +1233,7 @@ count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
 for idx in tqdm(range(800), position=0, leave=True):
-    taskId = index[idx]
+    taskId = index[630]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
