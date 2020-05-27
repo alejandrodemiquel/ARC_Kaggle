@@ -8680,7 +8680,7 @@ def getPossibleOperations(t, c):
         #######################################################################
         # Other sameIOShapes functions
         # Move shapes
-        x.append(getBestMoveShapes(candTask, c))
+        x.append(getBestMoveShapes(candTask, candidate=c))
         
         pr = pixelRecolor(candTask)
         if len(pr)!=1:
@@ -9640,7 +9640,7 @@ def needsSeparationByShapes(t):
     if all([len(inShapes[s])<=7 and len(inShapes[s])==len(outShapes[s]) for s in range(t.nTrain)]):
         newTask = generateNewTask(inShapes, outShapes, testShapes)
         if newTask != False:
-            if len(mergeColor) == 1:
+            if len(mergeColors) == 1:
                 newTask.mergeColor = mergeColor
             return newTask
         
@@ -9651,7 +9651,7 @@ def needsSeparationByShapes(t):
     if all([len(inShapes[s])<=5 and len(inShapes[s])==len(outShapes[s]) for s in range(t.nTrain)]):
         newTask = generateNewTask(inShapes, outShapes, testShapes)
         if newTask != False:
-            if len(mergeColor) == 1:
+            if len(mergeColors) == 1:
                 newTask.mergeColor = mergeColor
             return newTask
     
@@ -9662,7 +9662,7 @@ def needsSeparationByShapes(t):
     if all([len(inShapes[s])<=7 and len(inShapes[s])==len(outShapes[s]) for s in range(t.nTrain)]):
         newTask = generateNewTask(inShapes, outShapes, testShapes)
         if newTask != False:
-            if len(mergeColor) == 1:
+            if len(mergeColors) == 1:
                 newTask.mergeColor = mergeColor
             return newTask
     
@@ -9673,7 +9673,7 @@ def needsSeparationByShapes(t):
     if all([len(inShapes[s])<=5 and len(inShapes[s])==len(outShapes[s]) for s in range(t.nTrain)]):
         newTask = generateNewTask(inShapes, outShapes, testShapes)
         if newTask != False:
-            if len(mergeColor) == 1:
+            if len(mergeColors) == 1:
                 newTask.mergeColor = mergeColor
             return newTask
 
@@ -10235,7 +10235,7 @@ cnnCount = 0
 for output_id in submission.index:
     task_id = output_id.split('_')[0]
     pair_id = int(output_id.split('_')[1])
-    print(task_id)
+    #print(task_id)
     #if pair_id != 0:
     #    continue
     perfectScore = False
