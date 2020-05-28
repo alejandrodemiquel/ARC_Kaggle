@@ -1,7 +1,0 @@
-This is a list of things to be done when creating the submission file, before submitting it.
-
-- Delete Task., Models., Utils.
-- Delete extra imports
-- Comment/Uncomment getBestMoveShapes (only useful if onlyShapeColorChanges?)
-- Comment/Uncomment CNN methods (getBestSameNSampleColorsCNN seems to solve one, the others not)
-- Specify "submission=True" when initializing Task.Task objects
