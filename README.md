@@ -5,6 +5,10 @@ This repository contains part of the code that was used for the second position 
 ## Executing the program
 Cloning the repository and executing the file submissionFile.py will run the algorithm on the test data. The bit where everything is executed is at the end of the file ("Main Loop and submission").
 
+## Other files
+We've been mainly working using the files main.py, Task.py, Models.py and Utils.py. We only used submissionFile.py for submitting the program to Kaggle. But submissionFile.py already contains everything that is needed to run the algorithm, so one doesn't really need to look into these files.
+main.py is the entry point; it contains some basic functions and the main loop. Models.py stores some training models that we tried with very tiny success. Task.py contains the core objects that store all the information about the task to be solved. Utils.py contains all the other functions.
+
 ## The algorithm
 
 For every new task that we want to solve, the algorithm follows these steps:
