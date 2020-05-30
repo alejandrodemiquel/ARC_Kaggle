@@ -1,3 +1,4 @@
+
 # %% Setup
 # This first cell needs to be executed before doing anything else
 import json
@@ -258,11 +259,12 @@ class Candidate():
         This is, the status after applying all the operations of ops to the
         input matrices of the task.
     """
-    def __init__(self, ops, tasks, score=1000):
+    def __init__(self, ops, tasks, score=1000, predictions=np.zeros((2,2))):
         self.ops = ops
         self.score = score
         self.tasks = tasks
         self.t = None
+        self.predictions = predictions
 
     def __lt__(self, other):
         """
@@ -310,6 +312,13 @@ class Best3Candidates():
         candidate in self.candidates only if it's a better candidate (its score
         is lower).
         """
+        if all([self.candidates[i].score < c.score for i in range(3)]):
+            return
+        
+        for i in range(3):
+            if all([np.array_equal(self.candidates[i].predictions[x], c.predictions[x]) \
+                    for x in range(len(c.predictions))]):
+                return
         iMaxCand = self.maxCandidate()
         for i in range(3):
             if c < self.candidates[iMaxCand]:
@@ -1011,7 +1020,7 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
     startOps = ("switchColors", "cropShape", "cropAllBackground", "minimize", \
                 "maxColorFromCell", "deleteShapes", "replicateShapes","colorByPixels", \
                 "paintGridLikeBackground") # applyEvolve?
-    repeatIfPerfect = ("extendColor")
+    repeatIfPerfect = ("extendColor", "moveAllShapes")
     possibleOps = Utils.getPossibleOperations(t, c)
     for op in possibleOps:
         for s in range(t.nTrain):
@@ -1021,8 +1030,11 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
                      c.t.trainSamples[s].inMatrix.m,\
                      np.array(cTask["train"][s]["input"]),\
                      c.t.fixedColors, c.t.commonOnlyChangedInColors).tolist()
+        newPredictions = []
         for s in range(t.nTest):
-            cTask["test"][s]["input"] = op(c.t.testSamples[s].inMatrix).tolist()
+            newOutput = op(c.t.testSamples[s].inMatrix)
+            newPredictions.append(newOutput)
+            cTask["test"][s]["input"] = newOutput.tolist()
             if c.t.sameIOShapes and len(c.t.fixedColors) != 0:
                 cTask["test"][s]["input"] = Utils.correctFixedColors(\
                      c.t.testSamples[s].inMatrix.m,\
@@ -1034,7 +1046,8 @@ def tryOperations(t, c, cTask, b3c, firstIt=False):
                                                   np.array(cTask["train"][s]["input"])) for s in range(t.nTrain)])
         #print(op, cScore)
         #plot_task(cTask)
-        newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore)
+        newCandidate = Candidate(c.ops+[op], c.tasks+[copy.deepcopy(cTask)], cScore,\
+                                 predictions=newPredictions)
         b3c.addCandidate(newCandidate)
         if firstIt and str(op)[28:60].startswith(startOps):
             if all([np.array_equal(np.array(cTask["train"][s]["input"]), \
@@ -1102,7 +1115,9 @@ def getPredictionsFromTask(originalT, task):
 
     cScore = sum([Utils.incorrectPixels(np.array(cTask["train"][s]["input"]), \
                                          t2.trainSamples[s].outMatrix.m) for s in range(t.nTrain)])
-    c = Candidate([], [task], score=cScore)
+    
+    dummyPredictions = [sample.inMatrix.m for sample in t2.testSamples]
+    c = Candidate([], [task], score=cScore, predictions=dummyPredictions)
     c.t = t2
     b3c = Best3Candidates(c, c, c)
 
@@ -1155,7 +1170,7 @@ def getPredictionsFromTask(originalT, task):
                 x = recoverOriginalColors(x, testRels[s])
             taskPredictions[s].append(x)
 
-
+            #print(c.ops)
             #plot_sample(originalT.testSamples[s], x)
             #if Utils.incorrectPixels(x, originalT.testSamples[s].outMatrix.m) == 0:
                 #print(idx)
@@ -1195,17 +1210,15 @@ tasksWithFrames = [28, 74, 87, 90, 95, 104, 131, 136, 137, 142, 153, 158, 181, 1
 
 cropTasks = [13,28,30,35,38,48,56,78,110,120,133,173,176,206,215,216,217,258,262,270,289,\
              299,345,364,383,395,473,488,576,586,578,635,690,712,727,768,785]
-arrangeTasks = [29,152,158,244,252,307,403,414,440,455,495,523,558,622,652,\
+arrangeTasks = [29,152,158,200,244,252,263,307,403,414,440,455,495,523,558,622,652,\
                 676,699,707,746,760]
-replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,360,367,421,424,471,474,\
-                  500,509,524,540,597,624,636,645,650,795]
-countingTasks = [37,99,238,300,324,338,390,392,398,465,492,527,595,704,781]
-arrangeToDoTasks = [45,95,200,232,237,295,315,365,475,512,535,\
-                588,759]
-twoShapeTasks = [169,274,453,674]
+replicateTasks = [17,26,43,68,75,79,100,111,116,157,172,205,208,232,360,367,421,424,471,474,\
+                  500,509,524,540,589,597,624,636,645,650,795]
+countingTasks = [37,99,238,300,324,338,390,392,398,465,492,527,595,704,763,781]
+twoShapeTasks = [169,274,359,453,674]
 replicateGrid = [4,32,33,140,326,369,539,620]
-replicateToDoTasks = [4,88,132,140,190,196,207,326,362,369,539,620,659,683,779]
-replicateAtPixelsTasks = [21,53,74,88,498,509,589]
+arrangeToDoTasks = [45,95,232,237,295,315,365,475,512,535,759]
+replicateToDoTasks = [4,21,53,74,88,132,140,190,196,207,326,362,369,539,620,659,683,779]
 symmetrizeAllShapesTasks = [61, 108, 284, 389, 542, 464, 472, 623, 461, 437]
 separateByShapes = [80,84,101,119,201,229,279,281,282,293,337,381,396,410,412,429,\
                     432,455,469,496,497,502,504,513,517,525,528,531,552,599,602,\
@@ -1215,12 +1228,12 @@ separateByColors = [3,231,339,397,420,427,455,461,470,505,532,537,572,630,701,75
 # Only unsolved tasks
 evolvingLine = [57,59,65,118,135,147,167,189,198,201,231,236,247,\
                 298,322,357,429,449,457,577,585,605,693,703,731,748,793,797]
-
+onetasks = [126,234,261,436]
 count=0
 # 92,130,567,29,34,52,77,127
 # 7,24,31,249,269,545,719,741,24,788
-for idx in tqdm(separateByShapes, position=0, leave=True):
-    taskId = index[680]
+for idx in tqdm([21], position=0, leave=True):
+    taskId = index[218]
     task = allTasks[taskId]
     originalT = Task.Task(task, taskId, submission=False)
 
