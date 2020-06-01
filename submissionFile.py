@@ -4569,6 +4569,11 @@ def getPixelChangeCriteria(t):
 def surroundShape(matrix, shape, color, fixedColors, nSteps = None, forceFull=False, \
                   stepIsShape=False, stepIsNHoles=False):
 
+    """
+    Given a matrix (numpy.ndarray), a Shape and a color, this function
+    surrounds the given Shape with the given color.
+    """
+    
     m = matrix.copy()
     shapeMatrix = shape.m.copy()
     
@@ -4653,6 +4658,10 @@ def surroundShape(matrix, shape, color, fixedColors, nSteps = None, forceFull=Fa
     
 def surroundAllShapes(matrix, shapeColor, surroundColor, fixedColors, nSteps=None,\
                       forceFull=False, stepIsShape=False, stepIsNHoles=False):
+    """
+    Given a Matrix, a shapeColor and a surroundColor, this function surrounds
+    all the Shapes of color shapeColor with the given surroundColor.
+    """
     m = matrix.m.copy()
     shapesToSurround = [s for s in matrix.shapes if s.color == shapeColor]
     if stepIsShape:
@@ -4723,7 +4732,13 @@ def getBestSurroundShapes(t):
 def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=None,\
                 deleteExtensionColors=set(), deleteIfBorder=False, \
                 breakAtFixedColor=False, mergeColor=None):
-    #m = matrix.m.copy()
+    """
+    Given a Matrix matrix and a direction, this function extends all the pixels
+    of the given color in the given direction direction can be any of:
+        'hv', 'h', 'v', 'u', 'd', 'l', 'r', 'all', 'diag', 'd1', 'd2'
+    If no color is specified, then all the colors but the changedInColors (cic)
+    and the fixedColors are extended.
+    """
     
     if sourceColor==None:
         sourceColor=color
@@ -5719,6 +5734,12 @@ def connectPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
 
 def connectAnyPixels(matrix, pixelColor=None, connColor=None, fixedColors=set(),\
                      allowedChanges={}, lineExclusive=False, diagonal=False):
+    """
+    Given a Matrix, this function draws a line connecting two pixels of the
+    same color (different from the background color). The color of the line
+    is the same as the color of the pixels, unless specified by "connColor".
+    """
+    
     m = matrix.m.copy()
     if pixelColor==None:
         if connColor==None:
