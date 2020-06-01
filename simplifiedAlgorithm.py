@@ -6469,10 +6469,6 @@ for output_id in tqdm(submission.index):
     predictions, b3c = getPredictionsFromTask(originalT, task.copy())
 
     finalPredictions = predictions
-        
-    for s in range(originalT.nTest):
-        for i in range(3):
-            plot_pictures([originalT.testSamples[s].inMatrix.m, finalPredictions[s][i]], ['Input', 'Prediction'])
 
     pred = []
     for i in range(len(finalPredictions[pair_id])):
