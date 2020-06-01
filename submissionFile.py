@@ -1,4 +1,3 @@
-
 # %% Setup
 
 import numpy as np # linear algebra
@@ -4819,7 +4818,7 @@ def extendColor(matrix, direction, cic, fixedColors, color=None, sourceColor=Non
         for i in range(matrix.shape[0]):
             colorCells=False
             start = matrix.shape[1]-1
-            for j in reversed(range(matrix.shape[1])):
+            for j in reversed(range(matrix.shape[1])):  
                 if color==None and sourceColor==None:
                     if matrix.m[i,j] not in (fixedColors|cic):
                         sourceColor = matrix.m[i,j]
@@ -6861,9 +6860,11 @@ def cropAllShapes(matrix, background, diagonal=False):
                     break
     return m
 
-# %% Stuff added by Roderic
-    
 def getLayerDict(t):
+    """
+    Only to be called when there is a potential bijective dictionary between submatrices of the input and output. This
+    function returns such dictionary. 
+    """
     shList = []
     for s in t.trainSamples:
         shList += [sh.shape for sh in s.outMatrix.shapes]
@@ -6886,6 +6887,10 @@ def getLayerDict(t):
     return shape, layerDict
 
 def subMatToLayer(matrix, shapeAndDict):
+    """
+    Transforms each submatrix according to the given dictionary shapeAndDict. If the input submatrix is not 
+    in the dictionary, returns the original matrix. 
+    """
     shape = shapeAndDict[0]
     layerDict = shapeAndDict[1]
     m = matrix.m.copy()
@@ -6919,6 +6924,10 @@ def getBestFitToFrame(t):
     return bestFunction
 
 def fitToFrame(matrix, crop=False, scale=False, includeFrame=True, colorMatch=False):
+    """
+    To be called only if the task has a partial or full frame. Attempts to fit or adjust
+    a shape or list of shapes inside the frame.
+    """
     m = matrix.m.copy()
     if len(matrix.partialFrames) != 1:
         return m
@@ -6996,7 +7005,12 @@ def getBestCountColors(t):
     return bestFunction
 
 def countColors(matrix, outBackgroundColor=-1, outShape=None,ignoreBackground=True,\
-                ignore=False, sliced=False, rotate=0, flip=False, byShape=False, sortByColor=False):#diagonal, skip, lay
+                ignore=False, sliced=False, rotate=0, flip=False, byShape=False, sortByColor=False):
+    """
+    Counts the colors of a given input matrix as pixels. The parameters flip, rotate and sliced determine the layout of the
+    output pixels. The argument sortByColor sorts the colors by their number, otherwise they are sorted by occurrence. The 
+    parameter ignore allows to ignore either the most or least common colors.
+    """
     if byShape:
         cc = Counter([sh.color for sh in matrix.shapes if (sh.color != matrix.backgroundColor or not ignoreBackground)])
         cc = sorted(cc.items(), key=lambda x: x[1], reverse=True)
@@ -7082,6 +7096,10 @@ def getBestCountShapes(t):
     return bestFunction
 
 def countShapes(matrix, color=-1, shape=None, outColor=None, outShape=None, lay='d', skip=False):
+    """
+    This function returns the count of shapes of a given color or shape, and lays that many pixels. 
+    The pixels layout is specified by the arguments outShape, skip and lay. 
+    """
     if color < 0:
         shc = [sh for sh in matrix.shapes]
     else:
@@ -7134,8 +7152,12 @@ def getBestSymmetrizeAllShapes(t):
 
     return bestFunction
 
-def symmetrizeAllShapes(matrix, diagonal=True, multicolor=True, targetColor=-1, axis=None,\
+def symmetrizeAllShapes(matrix, diagonal=True, multicolor=True, targetColor=-1,\
                         context=False, lr = True, ud = True, byColor=False):
+    """
+    Symmetrize all shapes of a given type with respect to specified axes lr or ud. If tagetColor is specified, 
+    then only shapes of that color will be symmetrized. 
+    """
     m = matrix.m.copy()
     bC = matrix.backgroundColor
     if byColor:
@@ -7176,7 +7198,6 @@ def symmetrizeAllShapes(matrix, diagonal=True, multicolor=True, targetColor=-1, 
             m = insertShape(m, newInsert)
     return m
 
-#paint grids
 def paintGridLikeBackground(matrix):
     """
     Ignores the grid by paiting it in the background color (most repeated color or second if first coincides with grid color).
@@ -7188,16 +7209,7 @@ def paintGridLikeBackground(matrix):
         m[m==matrix.grid.color] = bC
     elif matrix.isAsymmetricGrid:
         m[m==matrix.asymmetricGrid.color] = bC
-    return m
-
-#HOW DO I PASS THE ARGUMENTS????
-def paintGridLikeOriginal(matrix, grid):
-    """
-    Repaint a grid previously painted in the background color.
-    """
-    m = matrix.m.copy()
-    m = insertShape(m, grid)
-    return m   
+    return m  
 
 def downsizeMode(matrix, newShape, falseColor=None):
     """
@@ -7291,7 +7303,10 @@ def colorByPixels(matrix, colorMap=False, oneColor=False, deletePixels=False):
             m[pix.position] = matrix.backgroundColor
     return m  
 
-def isDeleteTask(t):    
+def isDeleteTask(t):
+    """
+    Check if the task involves replacing pixels by background color, and thus deleting content. 
+    """
     if hasattr(t, 'colorChanges') and t.backgroundColor in [c[1] for c in t.colorChanges]:
         return True
     return False
@@ -7309,6 +7324,10 @@ def getBestDeleteShapes(t, multicolor=False, diagonal=True):
     return bestFunction
 
 def getDeleteAttributes(t, diagonal=True):
+    """
+    Given a Task t that involves deleting shapes, this function returns the identifying attributes of the
+    deleted shapes. 
+    """
     bC = max(0, t.backgroundColor)
     if diagonal:
         if t.nCommonInOutDShapes == 0:
@@ -7353,6 +7372,9 @@ def getDeleteAttributes(t, diagonal=True):
     return set(nonAttrs - attrs)
 
 def deleteShapes(matrix, attributes, diagonal, multicolor):
+    """
+    Deletes the shapes of matrix that have specified attributes. 
+    """
     m = matrix.m.copy()
     if not multicolor: 
         if diagonal:   
@@ -7390,6 +7412,10 @@ def getBestArrangeShapes(t):
 
 def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shByColor=False,\
                    fullFrames=False, outDummyMatrix=None, outDummyColor=0):
+    """
+    Given an output size outShape, attempt to arrange and fit all the shapes of a given typs inside it. Alternatively,
+    a template matrix outDummyMatrix can be passed, in which case attempts to reproduce its pattern.
+    """
     def completeFrames(shape,rotate=False,fill=False):
         'version of symmetrize shape intended for frame-like shapes' 
         m = shape.m.copy()
@@ -7448,6 +7474,7 @@ def arrangeShapes (matrix, outShape = None, multicolor=True, diagonal=True, shBy
                             if sh.m[k,l] != 255:
                                 m[i+k,j+l] = bC
         return m, False
+                                            
     if shByColor:
         shList = [sh for sh in matrix.shapesByColor]
         if fullFrames:
@@ -7530,14 +7557,20 @@ def getBestLayShapes(t):
 
 def layShapes(matrix, firstPos=(0,0), direction=(0,1), overlap=(0,0), outShape='inShape', multicolor=True,\
               diagonal=True, sortBy='lrud', completeRect=False, reverse=True):
+    """
+    Moves all shapes and lays them in an appropriate way in a matrix of size outShape. 
+    The first shape is position at firstPos, and the succesive shapes are layed in the given direction,
+    with possible overlap. Shapes can be sorted before by position, size or color. 
+    """
     def completeRectangles(shape):
-        'version of complete rectangles shape intended for frame-like shapes' 
+        """
+        Version of complete rectangles shape intended for frame-like shapes.
+        """
         newSh = copy.deepcopy(shape)
         newSh.m = np.full(shape.shape, fill_value=shape.color)
         newSh.shape = newSh.m.shape
         return newSh
     m = matrix.m.copy()
-    """Moves all shapes and lays them in an appropriate way."""
     if not multicolor: 
         if diagonal:   
             shList = [sh for sh in matrix.dShapes if sh.color != matrix.backgroundColor]
@@ -7568,7 +7601,6 @@ def layShapes(matrix, firstPos=(0,0), direction=(0,1), overlap=(0,0), outShape='
         shList.sort(key=lambda x: x.colorCount[sortBy])
     if len(shList) == 0:
         return m
-    #if outShape can't be determined, then
     if outShape == 'inShape':
         m = np.full(matrix.shape, fill_value=matrix.backgroundColor)
     elif outShape == 'LaSh' and sortBy == 'smallToLarge' and reverse:
@@ -7611,11 +7643,11 @@ def getBestAlignShapes(t):
         bestFunction, bestScore = updateBestFunction(t, partial(alignShapes, compress=True, crop=True), bestScore, bestFunction)
         bestFunction, bestScore = updateBestFunction(t, partial(alignShapes, compress=False, crop=True), bestScore, bestFunction)
     return bestFunction
-        
 
 def alignShapes(matrix, compress=True, diagonal=True, multicolor=False, refColor=None, crop=False):
     """
-    Attempts to align the shapes in matrix, maybe with a reference unmoved shape, maybe cropping.
+    Attempts to align the shapes in matrix. If refColor is passed, then the shapes of that color remain unmoved.
+    The arguments compress and crop, are called if the output of the task is smaller than the input. 
     """
     m = matrix.m.copy()
     if not multicolor: 
@@ -7685,9 +7717,11 @@ def alignShapes(matrix, compress=True, diagonal=True, multicolor=False, refColor
     else:
         return m
 
-#replicate shape
 def isReplicateTask(t):
-    #First look at shapes that replicate
+    """
+    Identify if a given task involves the action of replicating shapes. In this case, return a list of 
+    booleans indicating the types of shapes involved. 
+    """
     if all(any(sh[2] > 1 for sh in s.commonMulticolorDShapes) for s in t.trainSamples):
         return [True, True, True]
     elif all(any(sh[2] > 1 for sh in s.commonMulticolorShapes) for s in t.trainSamples):
@@ -7725,13 +7759,10 @@ def getBestReplicateShapes(t):
                                                             anchorType='subframe', allCombs=True,attributes=set(['MoCl'])), bestScore, bestFunction)
     bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=diagonal, multicolor=multicolor,deleteOriginal=deleteOriginal,\
                                                             anchorType='subframe', allCombs=True,scale=True,attributes=set(['MoCl'])), bestScore, bestFunction)
-    #bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes,diagonal=diagonal, multicolor=False, anchorType='subframe', allCombs=False,\
-    #                                                            adoptAnchorColor=True), bestScore, bestFunction)
-    
-    if bestScore == 0:
-        return bestFunction
     
     """
+    bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes,diagonal=diagonal, multicolor=False, anchorType='subframe', allCombs=False,\
+                                                                adoptAnchorColor=True), bestScore, bestFunction)
     if isReplicateParams[0]:
         if bestScore == 0:
             return bestFunction
@@ -7753,6 +7784,7 @@ def getBestReplicateShapes(t):
                     if bestScore == 0:      
                         return bestFunction
     """
+                                            
     cC = Counter([cc[0] for cc in t.colorChanges])
     cc = max(cC, key=cC.get)
     bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, diagonal=False, multicolor=multicolor, anchorType='all', anchorColor=cc,\
@@ -7773,12 +7805,18 @@ def getBestReplicateShapes(t):
             bestFunction, bestScore = updateBestFunction(t, partial(replicateShapes, attributes=attributes, diagonal=True, multicolor=False, anchorType='all', anchorColor=cc,\
                             allCombs=False, scale=False, deleteOriginal=deleteOriginal, perfectFit=True), bestScore, bestFunction)
     """        
-    
     return bestFunction
 
 def replicateShapes(matrix, attributes=None, diagonal=False, multicolor=True, anchorType=None, anchorColor=0,\
                     mirror=None, rotate=0, allCombs=False, scale=False, deleteOriginal=False, perfectFit=False,
-                    adoptAnchorColor=False, deleteAnchor=False):
+                    adoptAnchorColor=False):
+    """
+    Replicates shapes at target locations. The arguments diagonal, multicolor, attributes determine the shapes to be
+    replicated. The arguments mirror, rotate, allCombs and scale modify the shape before it is replicated. 
+    The arguments anchorType, anchorColor and perfectFit determine the places where the shapes should be replicated.
+    The options adoptAnchorColor, modify the shape once it has been replicated, either by changing its color. The option
+    deleteOriginal, deletes the original shape after replicating it. 
+    """
     m = matrix.m.copy()
     #first find the shape or shapes to replicate
     if diagonal:
@@ -7960,6 +7998,11 @@ def getBestReplicateOneShape(t):
 
 def replicateOneShape(matrix, diagonal=True, multicolor=True, deleteOriginal=False,\
                       deleteAnchor=False, lay=False, reshape=False,overlap=0, paintLikePix=False):
+    """
+    To be called when the task involved replicating one shape. The target positions are specified by pixels. Pixels may
+    specify a color change with paitLikePix, or can be deleted after with deleteAnchor. The arguments reshape and lay modify
+    the output by moving the shapes or changing the output shape. 
+    """
     m = matrix.m.copy()
     #first find the shape or shapes to replicate
     if diagonal:
@@ -8063,7 +8106,11 @@ def getBestMoveToPanel(t):
                                                 ignorePanel=igPan), bestScore, bestFunction)
     return bestFunction
 
-def moveToPanel(matrix, diagonal=True,fit=False, ignorePanel=False, cropPanel=True, uniq=True):
+def moveToPanel(matrix, diagonal=True, fit=False, ignorePanel=False, cropPanel=True, uniq=True):
+    """
+    Moves shapes and places them inside a larger square shape panel. The arguments ignorePanel and cropPanel
+    modify the output in the cases where the output matrix has a different shape. 
+    """
     m = matrix.m.copy()
     shList = [sh for sh in matrix.multicolorDShapes if len(sh.pixels)>1]
     if len(shList) < 2 or len(shList) > 8:
@@ -8119,7 +8166,6 @@ def moveToPanel(matrix, diagonal=True,fit=False, ignorePanel=False, cropPanel=Tr
                  panel.position[1]:panel.position[1]+panel.shape[1]]
     return m
         
-#overlapSubmatrices 
 def printShapes(matrices, base=0, backgroundColor=0):
     """
     This function returns the result of printing one matrices on the other.
@@ -8188,6 +8234,10 @@ def overlapMatrices(matrices, colorHierarchy):
     return m
 
 def overlapShapes(matrix, diagonal=True, multicolor=True, byColor=False, hierarchy=[0,1,2,3,4,5,6,7,8,9]):
+    """
+    Overlaps shapes of a given type of the same size. If there is a color conflict, a color is chosen 
+    acording to the given hierarchy. 
+    """
     if not multicolor: 
         if diagonal:   
             shList = [sh for sh in matrix.dShapes]
@@ -8205,8 +8255,10 @@ def overlapShapes(matrix, diagonal=True, multicolor=True, byColor=False, hierarc
         return matrix.m.copy()
     return overlapMatrices([sh.m for sh in shList],hierarchy)
 
-#Cropshape
 def getCropAttributes(t, diagonal, multicolor, sameColor=True):
+    """
+    If the task involved cropping a shape, this function returns the unique identifying arguments of that shape. 
+    """
     bC = max(0, t.backgroundColor)
     if diagonal and not multicolor:
         if t.nCommonInOutDShapes == 0:
@@ -8220,8 +8272,7 @@ def getCropAttributes(t, diagonal, multicolor, sameColor=True):
                 if s.inMatrix.dShapes[shi] == s.commonDShapes[0][0]:
                     continue
                 else:
-                    nonAttrs = nonAttrs.union(shAttrs[shi])
-                    
+                    nonAttrs = nonAttrs.union(shAttrs[shi])  
     if not diagonal and not multicolor:
         if t.nCommonInOutShapes == 0:
             return set()
@@ -8235,7 +8286,6 @@ def getCropAttributes(t, diagonal, multicolor, sameColor=True):
                     continue
                 else:
                     nonAttrs = nonAttrs.union(shAttrs[shi]) 
-                        
     if not diagonal and multicolor:
         if not t.outIsInMulticolorShapeSize:
             return set()                               
@@ -8322,7 +8372,8 @@ def getBestCropShape(t):
     
 def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals=True, context=False):
     """
-    This function crops the shape out of a matrix with the maximum score according to attributes
+    This function crops the shape out of a matrix with the maximum common attributes. If the argument context is passed,
+    the pixels lying inside the shape matrix are included. 
     """
     if singleColor: 
         if diagonals:   
@@ -8355,7 +8406,6 @@ def cropShape(matrix, attributes, backgroundColor=0, singleColor=True, diagonals
         bestShape[bestShape==255]=backgroundColor
     return bestShape
     
-#Crop a shape using a reference shape or set of shapes
 def getBestCropReference(t):
     """
     Given a Task t, this function returns the partial function that uses the
@@ -8378,8 +8428,10 @@ def getBestCropReference(t):
     #add referenced by frames
     return bestFunction
 
-#Crop a shape using a reference shape or set of shapes
 def cropShapeReference(matrix, refShape=None, refType='subshape', maxOrMin='max', sameColor=True, multicolor=True, diagonal=False):
+    """
+    Given a reference type refType, this function returns a referenced shape of the given type. 
+    """
     if multicolor:
         if diagonal:
             shList = matrix.multicolorDShapes
@@ -8448,6 +8500,9 @@ def cropShapeReference(matrix, refShape=None, refType='subshape', maxOrMin='max'
         return bestShape         
 
 def cropAllBackground(matrix):
+    """
+    Deletes external rows and columns as long as they are colored fully by the background color. 
+    """
     m = matrix.m.copy()
     bC = matrix.backgroundColor
     if np.all(m == bC):
@@ -8492,6 +8547,10 @@ def cropFullFrame(matrix, includeBorder=True, bigOrSmall = None):
                  frame.position[1]+1:frame.position[1]+frame.shape[1]-1]
         
 def cropPartialFrame(matrix, includeBorder=True, bigOrSmall = None):
+    """
+    Crop the unique partial frame of a matrix. Options to include the border of the frame,
+    or to choose the frame according to its size. 
+    """
     m = matrix.m.copy()
     if len(matrix.partialFrames) == 0:
         return m
@@ -8522,17 +8581,18 @@ def getBestTwoShapeFunction(t):
     for crop in cropAfter:
         for flip in [True,False]:
             if t.twoShapeTask[3]:
-                #this confirms that the shapes have the same size. 
                 #pixelwise and/or
                 for c in permutations(t.totalOutColors,2):
                     bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseAnd, falseColor=c[0],\
                                 targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
                     bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(pixelwiseOr, falseColor=c[0],\
                                 targetColor=None,trueColor=c[1]), diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
-                for base in [0,1]:
-                    for bC in t.commonInColors:
+                #print shapes            
+                for base in [0,1]:                
+                    for bC in t.commonInColors:          
                         bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(printShapes, base=base,\
                                 backgroundColor=bC),diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
+                #overlap matrices
                 if typ > 1:
                     bestFunction, bestScore = updateBestFunction(t, partial(twoShapeFun, f=partial(overlapMatrices,\
                                 colorHierarchy=[0,1,2,3,4,5,6,7,8,9]),diagonal=diagonal,typ=typ, multicolor=multicolor, crop=crop, flip=flip), bestScore, bestFunction)
@@ -8566,12 +8626,12 @@ def getBestTwoShapeFunction(t):
 def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=True,\
                 flip=False, rotate=False, downsizeToSmallest=False, scaleToLargest=False, crop=False):
     """
-    Apply function f to the shapes of matrix. By default, this function should only be called when matrix has two shapes. 
+    Apply function f to the shapes of matrix. By default, this function should only be called when matrix has two shapes.
+    The arguments downsizeToSmallest of scaleToLargest match the size of the shapes if possible. The argument crop returns
+    the result of the operation without context. The arguments flip and rotate modify the shapes before the operations are 
+    performed. 
     """
     def cropAllBackgroundM(m, background):
-        """
-        Same as above but for a np matrix and specified background color
-        """
         if np.all(m == background):
             return m
         x1, x2, y1, y2 = 0, m.shape[0]-1, 0, m.shape[1]-1
@@ -8584,6 +8644,7 @@ def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=T
         while y2 >= y1 and np.all(m[:,y2] == background):
             y2 -= 1
         return(m[x1:x2+1,y1:y2+1])
+                                            
     def minimizeM(m):
         x = 1
         for i in range(1, m.shape[0]):
@@ -8598,11 +8659,12 @@ def twoShapeFun(matrix, f=partial(identityM), typ=1, diagonal=True, multicolor=T
             else:
                 x+=1
         return m
+                                            
     def scaleM(m, s):
         sc = min(s[0]//m.shape[0], s[1]//m.shape[1])
         sm = np.repeat(np.repeat(m, sc, axis=1), sc, axis=0)
         return sm
-
+                                            
     m = matrix.m.copy()
     if typ == 1:
         if multicolor:
