@@ -40,7 +40,7 @@ def plot_pictures(pictures, labels):
 
 def plot_sample(sample, predict=None):
     """
-    This function plots a sample. sample is an object of the class Task.Sample.
+    This function plots a sample. sample is an object of the class Sample.
     predict is any matrix (numpy ndarray).
     """
     if predict is None:
@@ -2367,9 +2367,18 @@ def getDNeighbourColors(m, i, j, kernel=3, border=0):
     return x
 
 def getAllNeighbourColors(m, i, j, kernel=3, border=0):
+    """
+    This function returns a list the neighbour colors of the pixel i,j in the
+    matrix m.
+    """
     return getNeighbourColors(m,i,j,border) + getDNeighbourColors(m,i,j,kernel,border)
 
 def colorNeighbours(mIn, mOut ,i, j):
+    """
+    Given matrices mIn and mOut, and coordinates i and j, this function colors
+    the neighbours of i and j in mIn with the colors of the neighbours of i and
+    j in mOut.
+    """
     if i>0:
         mIn[i-1,j] = mOut[i-1,j]
     if j>0:
@@ -2380,6 +2389,11 @@ def colorNeighbours(mIn, mOut ,i, j):
         mIn[i,j+1] = mOut[i,j+1]
         
 def colorDNeighbours(mIn, mOut, i, j):
+    """
+    Given matrices mIn and mOut, and coordinates i and j, this function colors
+    the neighbours of i and j in mIn with the colors of the neighbours of i and
+    j in mOut. It includes diagonal neighbours.
+    """
     colorNeighbours(mIn, mOut ,i, j)
     if i>0 and j>0:
         mIn[i-1,j-1] = mOut[i-1,j-1]
@@ -2390,10 +2404,18 @@ def colorDNeighbours(mIn, mOut, i, j):
     if i<mIn.shape[0]-1 and j<mIn.shape[1]-1:
         mIn[i+1,j+1] = mOut[i+1,j+1]
      
-# if len(t.changedInColors)==1 (the background color, where everything evolves)
-# 311/800 tasks satisfy this condition
-# Do I need inMatrix.nColors+fixedColors to be iqual for every sample?
 def evolve(t, kernel=3, border=0, includeRotations=False):
+    """
+    Given a task t, this function returns a list of dictionaries. Each
+    dictionary contains as keys lists of numbers representing colors of 
+    neighbouring pixels. The value is the color of the pixel that is surrounded
+    by these neighbours. A key only exist if the value can be unique.
+    There are 4 dictionaries returned: For the first one, only the direct
+    neighbours are considered. For the second one, also the diagonal neighbours
+    are considered. For the third one, a kernel of 5 is considered (this is,
+    24 neighbours), and for the fourth one is of kernel 3 and also considers
+    the background color.
+    """
     def evolveInputMatrices(mIn, mOut, changeCIC=False):
         reference = [m.copy() for m in mIn]
         for m in range(len(mIn)):
@@ -2501,7 +2523,12 @@ def evolve(t, kernel=3, border=0, includeRotations=False):
 def applyEvolve(matrix, cfn, nColors, changedOutColors=set(), fixedColors=set(),\
                 changedInColors=set(), referenceIsFixed=False, commonColors=set(),\
                 kernel=None, border=0, nIterations=1000):
-        
+    """
+    Given a matrix and the "colors from neighbours" (cfn) list of dictionaries
+    returned by the function evolve, this function colors the pixels of the
+    matrix according to the rules given by cfn.
+    """    
+    
     def colorPixel(m,newM,i,j):
         if newM[i,j] not in cic and colorAroundCIC==False:
             return
@@ -2692,6 +2719,44 @@ def getBestEvolve(t):
 #                283,236,231,201,198,59,23
 
 class EvolvingLine():
+    """
+    The object of this class include information on how to draw an evolving 
+    line.
+    ...
+    Attributes
+    ----------
+    color: int
+        The color of the line
+    direction: str
+        The direction of the line. It can be one of 4: 'l', 'r', 'u', 'd'.
+    position: tupe (int, int)
+        The current position of the line. It marks where to draw the next
+        pixel.
+    cic: set
+        Short for "changedInColors". Colors of the input matrix that can be
+        modified.
+    colorRules: dict
+        Keys are colors. Values are strings encoding what the line should do
+        when it encounters this color. The values can be 'r' (turn right),
+        'l' (turn left), 'stop', 'skip' (skip over the pixel and continue), 
+        'split' (generate two evolvingLines, one turning right and the other
+        one left) or 'convert' (change the color of the line)
+    dealWith: dict
+        Same as colorRules, but including borders. Borders are considered as
+        colors number 10 (left), 11 (right), 12 (top) and 13 (bottom).
+    fixedDirection: bool
+        True if the direction cannot be modified. False if it is modified when
+        turning.
+    stepSize: int
+        Number of pixels to color at every step. If not specified, it is 1.
+    turning: bool
+        True if the line is currently turning. False otherwise.
+    
+    Methods
+    -------
+    draw(self, m, direction=None):
+        Draw the evolving line in the matrix m.
+    """
     def __init__(self, color, direction, position, cic, source=None, \
                  colorRules=None, stepSize=None, fixedDirection=True, turning=False,\
                  turnAfterNSteps=[None, None], stepIncrease=None, \
@@ -2699,7 +2764,7 @@ class EvolvingLine():
         """
         cic = changedInColors
         """
-        self.source = source # Task.Shape
+        self.source = source # Shape
         self.color = color
         self.direction = direction
         self.position = position
@@ -2997,6 +3062,11 @@ class EvolvingLine():
                 return            
         
 def detectEvolvingLineSources(t):
+    """
+    Given a Task t, this function detects the sources in which EvolvingLines
+    start. Currently it only supports pixels. It returns a set of pairs 
+    (color (int), direction (str)).
+    """
     sources = set()
     if len(t.commonChangedOutColors)==1:
         coc = next(iter(t.commonChangedOutColors))
@@ -3222,6 +3292,10 @@ def mergeMatrices(matrices, backgroundColor, mergeColor=None):
 def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None, \
                       stepIncrease=None, alternateStepIncrease=False, \
                       turnAfterNSteps=[None, None], mergeColor=None):
+    """
+    Given a set of sources, this function draws the evolving lines starting
+    at these sources following the given rules in the given matrix.
+    """
     if len(sources)==0:
         return matrix.m.copy()
     fd = fixedDirection
@@ -3286,6 +3360,11 @@ def drawEvolvingLines(matrix, sources, rules, cic, fixedDirection, coc=None, \
 # %% Crossed coordinates
     
 def paintCrossedCoordinates(matrix, refColor, outColor, fixedColors=set()):
+    """
+    Given a Matrix, this function returns a matrix (numpy.ndarray) by coloring
+    the crossed coordinates that have a given refColor in the input matrix
+    with the color outColor.
+    """
     m = matrix.m.copy()
     xCoord = set()
     yCoord = set()
@@ -3600,7 +3679,7 @@ def getBestLSTM(t):
 
 def insertShape(matrix, shape):
     """
-    Given a matrix (numpy.ndarray) and a Task.Shape, this function returns the
+    Given a matrix (numpy.ndarray) and a Shape, this function returns the
     same matrix but with the shape inserted.
     """
     m = matrix.copy()
@@ -3614,7 +3693,7 @@ def insertShape(matrix, shape):
 
 def deleteShape(matrix, shape, backgroundColor):
     """
-    Given a matrix (numpy.ndarray) and a Task.Shape, this function substitutes
+    Given a matrix (numpy.ndarray) and a Shape, this function substitutes
     the shape by the background color of the matrix.
     """
     m = matrix.copy()
@@ -3624,7 +3703,7 @@ def deleteShape(matrix, shape, backgroundColor):
 
 def symmetrizeSubmatrix(matrix, ud=False, lr=False, rotation=False, newColor=None, subShape=None):
     """
-    Given a Task.Matrix, make the non-background part symmetric
+    Given a Matrix, make the non-background part symmetric
     """
     m = matrix.m.copy()
     bC = matrix.backgroundColor
@@ -3747,7 +3826,7 @@ def revertColorOrder(matrix):
 
 def changeColorShapes(matrix, shapes, color):
     """
-    Given a matrix (numpy.ndarray), a list of Task.Shapes (they are expected to
+    Given a matrix (numpy.ndarray), a list of Shapes (they are expected to
     be present in the matrix) and a color, this function returns the same
     matrix, but with the shapes of the list having the given color.
     """
@@ -3763,7 +3842,7 @@ def changeColorShapes(matrix, shapes, color):
 
 def changeShapes(m, inColor, outColor, bigOrSmall=None, isBorder=None):
     """
-    Given a Task.Matrix, this function changes the Task.Shapes of the matrix
+    Given a Matrix, this function changes the Shapes of the matrix
     that have color inColor to having the color outColor, if they satisfy the
     given conditions bigOrSmall (is the shape the smallest/biggest one?) and
     isBorder.
@@ -5267,7 +5346,7 @@ def moveAllShapes(matrix, background, direction, until, nSteps=100, color=None, 
     
 def moveShapeToClosest(matrix, shape, background, until=None, diagonals=False, restore=True):
     """
-    Given a matrix (numpy.ndarray) and a Task.Shape, this function moves the
+    Given a matrix (numpy.ndarray) and a Shape, this function moves the
     given shape until the closest shape with the color given by "until".
     """
     m = matrix.copy()
@@ -5741,7 +5820,7 @@ def getBestFlipAllShapes(t):
 
 def mapPixels(matrix, pixelMap, outShape):
     """
-    Given a Task.Matrix as input, this function maps each pixel of that matrix
+    Given a Matrix as input, this function maps each pixel of that matrix
     to an outputMatrix, given by outShape.
     The dictionary pixelMap determines which pixel in the input matrix maps
     to each pixel in the output matrix.
@@ -5851,7 +5930,7 @@ def identifyRowStep(m, c2c):
 
 def followPattern(matrix, rc, colorToChange=None, rowStep=None, colStep=None):
     """
-    Given a Task.Matrix, this function turns it into a matrix that follows a
+    Given a Matrix, this function turns it into a matrix that follows a
     pattern. This will be made row-wise, column-wise or both, depending on the
     parameter "rc". "rc" can be "row", "column" or "both".
     'colorToChange' is the number corresponding to the only color that changes,
@@ -6260,7 +6339,7 @@ def getBestExtendMatrix(t):
     
 def getFactor(matrix, factor):
     """
-    Given a Task.Task.inShapeFactor (that can be a string), this function
+    Given a Task.inShapeFactor (that can be a string), this function
     returns its corresponding tuple for the given matrix.
     """
     if factor == "squared":
@@ -9115,7 +9194,7 @@ class Candidate():
         A list containing the tasks (in its original format) after performing
         each of the operations in ops, starting from the original inputs.
     t: Task
-        The Task.Task object corresponding to the current status of the task.
+        The Task object corresponding to the current status of the task.
         This is, the status after applying all the operations of ops to the
         input matrices of the task.
     seen: bool
@@ -9140,7 +9219,7 @@ class Candidate():
 
     def generateTask(self):
         """
-        Assign to the attribute t the Task.Task object corresponding to the
+        Assign to the attribute t the Task object corresponding to the
         current task status.
         """
         self.t = Task(self.tasks[-1], 'dummyIndex', submission=True)
@@ -9596,7 +9675,7 @@ def orderTaskColors(t):
     represent the exact same thing in two different samples, then they have the
     same color in both of the samples.
     Right now, the criterium to order colors is:
-        1. Common colors ordered according to Task.Task.orderColors
+        1. Common colors ordered according to Task.orderColors
         2. Colors that appear both in the input and the output
         3. Colors that only appear in the input
         4. Colors that only appear in the output
