@@ -6,7 +6,7 @@ The file 0813.ipynb, when executed, scores 0.813 in the competition's test set. 
 If you have any questions, you can write an email to alejandrodemiquel@gmail.com.
 
 ## Executing the program
-Executing the file 0.813.ipynb on a Kaggle notebook will run the algorithm on the test data, given that the data is on the path /kaggle/input/abstraction-and-reasoning-challenge/test.
+Executing the file 0.813.ipynb on a Kaggle notebook will run the algorithm on the test data, given that the data is on the path /kaggle/input/abstraction-and-reasoning-challenge/test. The data path can be modified at the beginning of the file.
 
 If the repository is cloned, one can execute the file submissionFile.py straightaway, executing on the public test set the algorithm that scores 0.882 in the private one. The bit where everything is executed is at the end of the file ("Main Loop and submission").
 
