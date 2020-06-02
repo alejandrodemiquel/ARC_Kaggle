@@ -6445,8 +6445,6 @@ def getPredictionsFromTask(originalT, task):
 ###############################################################################
 # %% Main Loop and submission
             
-submission = pd.read_csv(data_path / 'sample_submission.csv', index_col='output_id')
-
 #if submission.index[0] == '00576224_0':
 #    submission.to_csv('submission.csv', index=False)
 #    exit()
