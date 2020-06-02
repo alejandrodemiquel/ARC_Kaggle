@@ -1,9 +1,14 @@
 # ARC Kaggle competition
 
-This repository contains part of the code that was used for the second position at the "Abstraction and Reasoning Challenge" Kaggle competition. It's the part of the algorithm that was developed by [Alejandro](https://github.com/alejandrodemiquel) and [Roderic](https://github.com/RodericGuigoCorominas). submissionFile.py, when executed on the private test set, gets a score of 0.882, meaning that it solves 12 tasks of the private test set. The extra 7 tasks that made us have a score of 0.813 were solved as a result of merging teams with [Yuji](https://github.com/yujiariyasu).
+This repository contains the code that was used for the second position at the "Abstraction and Reasoning Challenge" Kaggle competition.
+The file 0813.ipynb, when executed, scores 0,81 in the competition's test set. This repository also contains the algorithm that was developed by [Alejandro](https://github.com/alejandrodemiquel) and [Roderic](https://github.com/RodericGuigoCorominas) separately. submissionFile.py, when executed on the private test set, gets a score of 0.882, meaning that it solves 12 tasks of the private test set. The extra 7 tasks that made us have a score of 0.813 were solved as a result of merging teams with [Yuji](https://github.com/yujiariyasu).
 
 ## Executing the program
-Cloning the repository and executing the file submissionFile.py will run the algorithm on the test data. The bit where everything is executed is at the end of the file ("Main Loop and submission").
+Cloning the repository and executing the file 0.813.ipynb will run the algorithm on the test data.
+
+Executing the file submissionFile.py will execute the algorithm that scores 0.88. The bit where everything is executed is at the end of the file ("Main Loop and submission").
+
+A simplified version of the algorithm can also be run by executing simplifiedAlgorithm.py. It runs around 5 times faster, while still solving many of the ARC tasks.
 
 ## Other files
 We've been mainly working using the files main.py, Task.py, Models.py and Utils.py. We only used submissionFile.py for submitting the program to Kaggle. But submissionFile.py already contains everything that is needed to run the algorithm, so one doesn't really need to look into these files.
