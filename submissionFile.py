@@ -15,15 +15,17 @@ from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
-#data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
-data_path = Path('data')
+data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
+#data_path = Path('data')
 train_path = data_path / 'training'
 eval_path = data_path / 'evaluation'
 test_path = data_path / 'test'
 
 train_tasks = { task.stem: json.load(task.open()) for task in train_path.iterdir() } 
-valid_tasks = { task.stem: json.load(task.open()) for task in eval_path.iterdir() }
 eval_tasks = { task.stem: json.load(task.open()) for task in eval_path.iterdir() }
+test_tasks = { task.stem: json.load(task.open()) for task in test_path.iterdir() }
+
+data = test_tasks
 
 cmap = colors.ListedColormap(
         ['#000000', '#0074D9','#FF4136','#2ECC40','#FFDC00',
@@ -10202,26 +10204,17 @@ def getPredictionsFromTask(originalT, task):
 ###############################################################################
 # %% Main Loop and submission
             
-submission = pd.read_csv(data_path / 'sample_submission.csv', index_col='output_id')
+#submission = pd.read_csv(data_path / 'sample_submission.csv', index_col='output_id')
 
 #if submission.index[0] == '00576224_0':
 #    submission.to_csv('submission.csv', index=False)
 #    exit()
 
-for output_id in submission.index:
-    task_id = output_id.split('_')[0]
-    pair_id = int(output_id.split('_')[1])
-    #print(task_id)
-    #if pair_id != 0:
-    #    continue
-    perfectScore = False
-    bestScores = []
+submission = pd.DataFrame(columns=['output'])
+submission.index.name = 'output_id'
     
-    f = str(test_path / str(task_id + '.json'))
-    with open(f, 'r') as read_file:
-        task = json.load(read_file)
-        
-    plot_task(task)
+for task_id, task in data.items():    
+    bestScores = []
                     
     originalT = Task(task, task_id, submission=True)
         
@@ -10249,7 +10242,6 @@ for output_id in submission.index:
             for cand in range(3):
                 pred = mergeMatrices(matrices[cand], originalT.backgroundColor, separationByShapes.mergeColor)
                 mergedPredictions[s].append(pred)
-                #plot_sample(originalT.testSamples[s], pred)
         
         finalPredictions = []
         for s in range(originalT.nTest):
@@ -10299,7 +10291,6 @@ for output_id in submission.index:
             for cand in range(3):
                 pred = mergeMatrices(matrices[cand], originalT.backgroundColor)
                 mergedPredictions[s].append(pred)
-                #plot_sample(originalT.testSamples[s], pred)
 
         finalPredictions = []
         for s in range(originalT.nTest):
@@ -10336,14 +10327,11 @@ for output_id in submission.index:
         for c in b3c.candidates:
             bestScores.append(c.score)
         finalPredictions = predictions
-        
-    for s in range(originalT.nTest):
-        for i in range(3):
-            plot_pictures([originalT.testSamples[s].inMatrix.m, finalPredictions[s][i]], ['Input', 'Prediction'])
 
     pred = []
-    for i in range(len(finalPredictions[pair_id])):
-        pred.append(flattener(finalPredictions[pair_id][i].astype(int).tolist()))
+    for pair_id in range(originalT.nTest):
+        for i in range(len(finalPredictions[pair_id])):
+            pred.append(flattener(finalPredictions[pair_id][i].astype(int).tolist()))
     predictions = pred
 
     if len(predictions) == 0:
@@ -10355,7 +10343,8 @@ for output_id in submission.index:
     elif len(predictions) == 3:
         pred = predictions[0] + ' ' + predictions[1] + ' ' + predictions[2]
     
-    submission.loc[output_id, 'output'] = pred
-    
+    for pair_id in range(originalT.nTest):
+        submission.loc[task_id+'_'+str(pair_id), 'output'] = pred
+            
 submission.to_csv('submission.csv')
         
