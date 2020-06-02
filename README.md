@@ -1,17 +1,23 @@
 # ARC Kaggle competition
 
-This repository contains the code that was used for the second position at the "Abstraction and Reasoning Challenge" Kaggle competition.
-The file 0813.ipynb, when executed, scores 0,81 in the competition's test set. This repository also contains the algorithm that was developed by [Alejandro](https://github.com/alejandrodemiquel) and [Roderic](https://github.com/RodericGuigoCorominas) separately. submissionFile.py, when executed on the private test set, gets a score of 0.882, meaning that it solves 12 tasks of the private test set. The extra 7 tasks that made us have a score of 0.813 were solved as a result of merging teams with [Yuji](https://github.com/yujiariyasu).
+This repository contains the code that was used for reaching the second position at the "Abstraction and Reasoning Challenge" Kaggle competition.
+The file 0813.ipynb, when executed, scores 0.813 in the competition's test set. This repository also contains the algorithm that was developed by [Alejandro](https://github.com/alejandrodemiquel) and [Roderic](https://github.com/RodericGuigoCorominas) separately. submissionFile.py, when executed on the private test set, gets a score of 0.882, meaning that it solves 12 tasks of the private test set. The extra 7 tasks that made us have a score of 0.813 were solved as a result of merging teams with [Yuji](https://github.com/yujiariyasu).
+
+If you have any questions, you can write an email to alejandrodemiquel@gmail.com.
 
 ## Executing the program
 Cloning the repository and executing the file 0.813.ipynb will run the algorithm on the test data.
 
-Executing the file submissionFile.py will execute the algorithm that scores 0.88. The bit where everything is executed is at the end of the file ("Main Loop and submission").
+Executing the file submissionFile.py will execute the algorithm that scores 0.882. The bit where everything is executed is at the end of the file ("Main Loop and submission").
 
 A simplified version of the algorithm can also be run by executing simplifiedAlgorithm.py. It runs around 5 times faster, while still solving many of the ARC tasks.
 
+Currently, the program uses the data on the folder /kaggle/input/abstraction-and-reasoning-challenge/test as the tasks to be solved. This can be modified by setting a different data path and/or redefining the variable `data`, at the beginning of the file.
+
+The program has been tested both on Windows and iOS. No GPU is required.
+
 ## Other files
-We've been mainly working using the files main.py, Task.py, Models.py and Utils.py. We only used submissionFile.py for submitting the program to Kaggle. But submissionFile.py already contains everything that is needed to run the algorithm, so one doesn't really need to look into these files.
+We've been mainly working using the files main.py, Task.py, Models.py and Utils.py. We only used submissionFile.py for submitting the program to Kaggle. But submissionFile.py already contains everything that is needed to run the algorithm, so one doesn't really need to look into these other files. Reliable documentation of the functions is only available in submissionFile.py.
 main.py is the entry point; it contains some basic functions and the main loop. Models.py stores some training models that we tried with very tiny success. Task.py contains the core objects that store all the information about the task to be solved. Utils.py contains all the other functions.
 
 ## The algorithm
