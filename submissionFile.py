@@ -15,8 +15,8 @@ from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
-data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
-#data_path = Path('data')
+#data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
+data_path = Path('data')
 train_path = data_path / 'training'
 eval_path = data_path / 'evaluation'
 test_path = data_path / 'test'
@@ -10203,12 +10203,6 @@ def getPredictionsFromTask(originalT, task):
         
 ###############################################################################
 # %% Main Loop and submission
-            
-#submission = pd.read_csv(data_path / 'sample_submission.csv', index_col='output_id')
-
-#if submission.index[0] == '00576224_0':
-#    submission.to_csv('submission.csv', index=False)
-#    exit()
 
 submission = pd.DataFrame(columns=['output'])
 submission.index.name = 'output_id'
