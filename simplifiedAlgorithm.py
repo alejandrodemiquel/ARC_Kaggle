@@ -16,10 +16,9 @@ from itertools import product, permutations, combinations, combinations_with_rep
 from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib import colors
-from tqdm import tqdm
 
-data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
-#data_path = Path('data')
+#data_path = Path('/kaggle/input/abstraction-and-reasoning-challenge/')
+data_path = Path('data')
 train_path = data_path / 'training'
 eval_path = data_path / 'evaluation'
 test_path = data_path / 'test'
