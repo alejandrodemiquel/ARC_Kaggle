@@ -14,7 +14,7 @@ A simplified version of the algorithm can also be run by executing simplifiedAlg
 
 Currently, the program uses the data on the folder /kaggle/input/abstraction-and-reasoning-challenge/test as the tasks to be solved. This can be modified by setting a different data path and/or redefining the variable `data`, at the beginning of the file.
 
-The program has been tested both on Windows and iOS. No GPU is required.
+The program has been tested both on Windows and Mac OS X. No GPU is required.
 
 ## Other files
 We've been mainly working using the files main.py, Task.py, Models.py and Utils.py. We only used submissionFile.py for submitting the program to Kaggle. But submissionFile.py already contains everything that is needed to run the algorithm, so one doesn't really need to look into these other files. Reliable documentation of the functions is only available in submissionFile.py.
